@@ -144,12 +144,12 @@ Method SetError( cError as character, cSuggestion as character, cTitle as charac
     Default cError      := ""
     Default cSuggestion := ""
     Default cTitle      := FunName()
-    Default lError      := .T.
+    Default lError      := .F.
 
     Self:cError         := cError
     Self:cSuggestion    := cSuggestion
     Self:cTitle         := cTitle
-    Self:lError         := .T.
+    Self:lError         := lError
 
     // Atributos herdados da classe ErrorClass()
     Self:GenCode      := 0
