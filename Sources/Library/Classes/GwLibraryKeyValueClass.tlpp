@@ -1,0 +1,119 @@
+#include "TOTVS.ch"
+#include "MsObject.ch"
+
+#define CRLF chr(13)+chr(10)
+#define CRLF2 CRLF+CRLF
+
+using namespace Gworks.Library.Utils
+using namespace Gworks.library.Functions
+
+namespace Gworks.Library.Classes
+
+Class GwKeyValue
+
+    Public Data aKeyValue as array default {}
+
+    Public Method New() Constructor
+    Public Method Add( cKey as character, xValue as variant )
+    Public Method Length() as numeric
+    Public Method GetAllValues() as array
+    Public Method HasName( cName as character ) as logical
+    Public Method GetNameByPosition( nPos as numeric ) as character
+    Public Method GetValueByPosition( nPos as numeric ) as variant
+    Public Method GetValueByKey( xSearch as variant ) as variant
+
+EndClass
+
+
+Method New() Class GwKeyValue
+
+    Self:aKeyValue := {}
+
+Return Self
+
+
+Method Add( cKey as character, xValue as variant ) Class GwKeyValue
+
+    aAdd(::aKeyValue, { cKey, xValue })
+
+Return
+
+
+Method Length() as numeric Class GwKeyValue
+
+    Local nResult := 0
+
+    nResult := Len(::aKeyValue)
+
+Return nResult
+
+
+Method GetAllValues() as array Class GwKeyValue
+
+    Local aKeyValue := {} as array
+
+    aKeyValue := aClone(::aKeyValue)
+
+Return aKeyValue
+
+
+Method HasName( cName as character ) as logical Class GwKeyValue
+
+    Local nPos := 0   as numeric
+    Local lRet := .F. as logical
+
+    Default cName := ""
+
+    nPos := aScan(::aKeyValue, {|x| x[1] == xSearch })
+
+    if nPos > 0
+        lRet := .T.
+    endif
+
+Return lRet
+
+
+Method GetNameByPosition( nPos as numeric ) as character Class GwKeyValue // TODO: testar...
+
+    Local cRet := "" as character
+
+    Default nPos := 0
+
+    if nPos > 0
+        cRet := ::aKeyValue[nPos,1]
+    endif
+
+Return cRet
+
+
+Method GetValueByPosition( nPos as numeric ) as variant Class GwKeyValue // TODO: testar...
+
+    Local xRet := nil as variant
+
+    Default nPos := 0
+
+    if nPos > 0
+        xRet := ::aKeyValue[nPos,2]
+    endif
+
+Return xRet
+
+
+Method GetValueByKey( xSearch as variant ) as variant Class GwKeyValue
+
+    Local nPos := 0   as numeric
+    Local xRet := nil as variant
+
+    Default xSearch := nil
+
+    if Empty(xSearch)
+        UserException("GwKeyValue:GetValueByKey - Parâmetro xSearch inválido ou não informado!")
+    endif
+
+    nPos := aScan(::aKeyValue, {|x| x[1] == xSearch })
+
+    if nPos > 0
+        xRet := ::aKeyValue[nPos,2]
+    endif
+
+Return xRet
