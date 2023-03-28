@@ -27,7 +27,7 @@ User Function GwAppyKeyOverString( cString as character, oValues as object, cTok
         Return .F.
     endif
 
-    for nI:=1 to Len(oValues:Length())
+    for nI:=1 to oValues:Length()
 
         cAttrName := GetNameByPosition(nI)
 
