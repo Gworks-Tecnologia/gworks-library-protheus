@@ -344,7 +344,7 @@ Method SetAutoGRLogFromExecAuto( cExecAutoName as character ) as variant Class G
 
     Default cExecAutoName := ""
 
-    aErro := SetAutoGRLogFromExecAuto()
+    aErro := GetAutoGRLog()
 
     for nI:=1 to len(aError)
 
