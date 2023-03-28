@@ -293,7 +293,7 @@ Method CreateLogFile( cFileName as character ) as variant Class GwConsoleLog
 
     	::cLogFile := "\log\"+cFileName
 
-		MemoWrite(::cLogFile, cLog)
+		MemoWrite(::cLogFile, ::cLog)
 
     endif
 
