@@ -274,7 +274,7 @@ Method CreateLogFile( cFileName as character ) as variant Class GwConsoleLog
 
 	Default cFileName := FunName()
 
-	if Empty(cLog)
+	if Empty(::cLog)
 		ConOut("GwConsoleLog:CreateLogFile - Atributo cLog não informado ou inválido!")
 		Return
 	endif
