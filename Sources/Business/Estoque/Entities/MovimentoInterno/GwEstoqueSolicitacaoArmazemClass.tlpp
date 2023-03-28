@@ -76,7 +76,7 @@ Method MATA105Exec( aCabec as array, aItens as array, nOpc as numeric ) as logic
         ::oError:ThrowException()
     endif
 
-    MsExecAuto( { | x, y, z | Mata105( x, y , z ) }, aCab, aItens, nOpc )
+    MsExecAuto( { | x, y, z | Mata105( x, y , z ) }, aCabec, aItens, nOpc )
 
     if lMsErroAuto
 
@@ -84,9 +84,13 @@ Method MATA105Exec( aCabec as array, aItens as array, nOpc as numeric ) as logic
 
         DisarmTransaction()
 
+        ::oError:DefineWithError(.T.)
+
         ::oError:SetAutoGRLogFromExecAuto("MATA105")
 
     else
+
+        ::oError:DefineWithError(.F.)
 
         ConfirmSX8()
 
