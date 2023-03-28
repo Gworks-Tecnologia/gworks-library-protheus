@@ -29,11 +29,11 @@ User Function GwAppyKeyOverString( cString as character, oValues as object, cTok
 
     for nI:=1 to oValues:Length()
 
-        cAttrName := GetNameByPosition(nI)
+        cAttrName := oValues:GetNameByPosition(nI)
 
-        xAttrValue := GetValueByPosition(nI)
+        xAttrValue := oValues:GetValueByPosition(nI)
 
-        cString := cReplace(cString, "%"+ cAttrName +"%")
+        cString := Replace(cString, "%"+ cAttrName +"%")
 
     next
 
