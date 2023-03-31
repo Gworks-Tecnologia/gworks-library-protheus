@@ -230,7 +230,7 @@ Method ShowError( cStyle as character, cTitle as character, lShowAutoGRLog as lo
     Default cStyle            := "HELP"
     Default cTitle            := if( !Empty(::cTitle), ::cTitle, FunName() )
     Default lShowAutoGRLog    := .T. // Exibe mensagens de erro proveniente de execuções automáticas como rotina encapsuladas por meio da função ExecAuto()
-    Default lDefineWithError  := .T. // Define o estado da instância da classe para "com erro"
+    Default lDefineWithError  := .F. // Define o estado da instância da classe para "com erro"
     Default lUpdateErrorClass := .T. // Atualiza os atributos da classe ErrorClass()
 
     lBlind           := IsBlind()
@@ -240,7 +240,7 @@ Method ShowError( cStyle as character, cTitle as character, lShowAutoGRLog as lo
     if lHasErrorMessage
         cShowError := ::cError
         if !Empty(::cSuggestion)
-            cShowError := ::cShowError + CRLF2 + ::cSuggestion
+            cShowError := cShowError + CRLF2 + ::cSuggestion
         endif
     endif
 
@@ -248,7 +248,7 @@ Method ShowError( cStyle as character, cTitle as character, lShowAutoGRLog as lo
         case !lBlind .And. lHasErrorMessage .And. AllTrim(Upper(cStyle)) == "INFO"  ; FwAlertInfo   ( cShowError, cTitle )
         case !lBlind .And. lHasErrorMessage .And. AllTrim(Upper(cStyle)) == "STOP"  ; FwAlertError  ( cShowError, cTitle )
         case !lBlind .And. lHasErrorMessage .And. AllTrim(Upper(cStyle)) == "ALERT" ; FwAlertWarning( cShowError, cTitle )
-        case !lBlind .And. lHasErrorMessage .And. AllTrim(Upper(cStyle)) == "HELP"  ; ::DisplayHelp ( cTitle, ::cError, ::cSuggestion )
+        case               lHasErrorMessage .And. AllTrim(Upper(cStyle)) == "HELP"  ; ::DisplayHelp ( cTitle, ::cError, ::cSuggestion ) // a função Help() possui tratamento para execuções cegas
     endcase
 
     if !lBlind .And. lHasAutoGrLog  .And. lShowAutoGRLog
@@ -261,7 +261,7 @@ Method ShowError( cStyle as character, cTitle as character, lShowAutoGRLog as lo
 
     if lUpdateErrorClass
         ::GenCode := 0
-        ::Description := cDescription
+        ::Description := cShowError
     endif
 
 Return
