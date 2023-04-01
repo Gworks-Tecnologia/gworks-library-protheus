@@ -27,13 +27,13 @@ User Function GwAppyKeyOverString( cString as character, oValues as object, cTok
         Return .F.
     endif
 
-    for nI:=1 to Len(oValues:Length())
+    for nI:=1 to oValues:Length()
 
-        cAttrName := GetNameByPosition(nI)
+        cAttrName := oValues:GetNameByPosition(nI)
 
-        xAttrValue := GetValueByPosition(nI)
+        xAttrValue := oValues:GetValueByPosition(nI)
 
-        cString := cReplace(cString, "%"+ cAttrName +"%")
+        cString := Replace(cString, "%"+ cAttrName +"%")
 
     next
 
