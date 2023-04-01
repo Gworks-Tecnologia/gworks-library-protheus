@@ -632,7 +632,7 @@ Method RefreshRelation() as logical Class GwDataAccess
 
     Local lResult := .F. as logical
 
-    if !Empty(::oRelation)
+    if !Empty(::oRelation) // TODO: melhoria para reposicionar todos os relacionamentos em aRelation
 
         lResult := ::oRelation:Join()
 
