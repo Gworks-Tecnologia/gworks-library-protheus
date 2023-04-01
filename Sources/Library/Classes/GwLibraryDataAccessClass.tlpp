@@ -73,6 +73,7 @@ Class GwDataAccess
     Public Method CloseArea() as variant
     Public Method ReleaseArea() as variant
     Public Method GetRecnoId() as variant
+    Public Method RefreshByCurrentId() as variant // TODO: implementar método
 
     // Métodos públicos da classe para fins de relacionamentos
     Public Method SetRelation( oAttr as object ) as variant
