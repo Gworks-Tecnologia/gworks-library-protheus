@@ -1,0 +1,133 @@
+#include "TOTVS.ch"
+#include "MsObject.ch"
+#include "TLPP-Core.th"
+#include "TLPP-Object.th"
+
+using namespace Gworks.Library.Classes
+
+namespace Gworks.Library.Classes
+
+Class GwExecAuto
+
+    Public data oError as object
+
+    Public Data cExecAuto as character default ""
+
+    Method New() Constructor
+    Public Method RunExecAuto( nOpc as numeric, aData as array ) as logical
+
+EndClass
+
+
+Method New( cExecAuto as character ) Class GwExecAuto
+
+    Default cExecAuto := ""
+
+    ::oError := GwError():New()
+    ::oError:cFunName := "GwExecAuto"
+    ::oError:cMethod := "New"
+    if Empty(cExecAuto)
+        ::oError:cError := "Parâmetro cExecAuto não informado ou inválido!"
+        ::oError:ThrowException()
+    endif
+
+    ::oError := GwError():New()
+
+    ::cExecAuto := cExecAuto
+
+Return Self
+
+
+Method RunExecAuto( nOperation as numeric, aKeyValue as array ) as logical Class GwExecAuto
+
+    Local aExecData     := {}  as array
+    Local nI            := 0   as numeric
+    Local nY            := 0   as numeric
+    Local cField        := ""  as character
+    Local xValue        := nil as variant
+    Local lResult       := .F. as logical
+
+    Private lMsErroAuto := .F. as logical
+
+    Default cExecAuto   := ""
+    Default nOperation  := 0
+    Default aKeyValue   := {}
+
+    ::oError:cMethod := "RunExecAuto"
+
+    if Empty(nOperation) .Or. Empty(aKeyValue)
+        ::oError:cError := "Parâmetros não informados ou inválidos!"
+        ::oError:ThrowException()
+    endif
+
+    for nI:=1 to Len(aKeyValue)
+        oKeyValue := aKeyValue[nI]
+        aAdd( aExecData, {} )
+        for nY:=1 to oKeyValue:Length()
+            cField := oResult:GetNameByPosition(nY)
+            xValue := oResult:GetValueByPosition(nY)
+            aAdd( aExecData[nI], { cField, xValue, nil } )
+        next
+    next
+
+    if Empty(aExecData)
+        ::oError:cError := "Sem dados a processar!"
+        ::oError:ThrowException()
+    endif
+
+    for nI:=1 to Len(aExecData)-10
+        aAdd( aExecData, nil )
+    next
+
+    cBlock := "{ | q, r, s, t, u, v, x, y, w, z | "+::cExecAuto+"}"
+
+
+
+    MsExecAuto( ;
+        { | q, r, s, t, u, v, x, y, w, z | Mata105( q, r, s, t, u, v, x, y, w, z ) },;
+        aExecData[01],;
+        aExecData[02],;
+        aExecData[03],;
+        aExecData[04],;
+        aExecData[05],;
+        aExecData[06],;
+        aExecData[07],;
+        aExecData[08],;
+        aExecData[09],;
+        aExecData[10] ;
+    )
+
+
+
+
+
+
+
+
+
+
+
+    MsExecAuto( { | x, y, z | Mata105( x, y , z ) }, aCabec, aItens, nOpc )
+
+    if lMsErroAuto
+
+        RollBackSx8()
+
+        DisarmTransaction()
+
+        ::oError:DefineWithError(.T.)
+
+        ::oError:SetAutoGRLogFromExecAuto("MATA105")
+
+    else
+
+        ::oError:DefineWithError(.F.)
+
+        ConfirmSX8()
+
+        lResult := .T.
+
+    endif
+
+Return lResult
+
