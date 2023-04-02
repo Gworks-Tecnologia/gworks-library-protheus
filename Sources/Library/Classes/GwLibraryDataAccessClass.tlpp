@@ -11,6 +11,9 @@ namespace Gworks.Library.Classes
 
 Class GwDataAccess
 
+    // Atributos de controle de erro
+    Public Data oError       as object    default nil
+
     // Atributos descritivos auxiliares
     Public Data cDescription as character default ""
     Public Data cSourceModel as character default ""
@@ -46,6 +49,7 @@ Class GwDataAccess
 
     // Métodos públicos da classe
     Public Method New() Constructor
+    Public Method GetErrorObject() as variant
     Public Method SetDataSource( cDataSource as character ) as variant
     Public Method SelectArea() as variant
     Public Method SetOrder( xOrder as variant )
@@ -98,6 +102,8 @@ Method New( cAlias as character ) Class GwDataAccess
         UserException("GwDataAccess:New - Argumento cAlias inválido ou não informado!")
     endif
 
+    Self:oError := GwError():New()
+
     Self:cAlias := cAlias
 
     Self:SelectArea()
@@ -116,6 +122,11 @@ Method New( cAlias as character ) Class GwDataAccess
     endif
 
 Return Self
+
+
+Method GetErrorObject() as variant Class GwDataAccess
+
+Return ::oError
 
 
 Method SetDataSource( cDataSource as character ) as variant Class GwDataAccess
