@@ -33,7 +33,7 @@ User Function GwAppyKeyOverString( cString as character, oValues as object, cTok
 
         xAttrValue := oValues:GetValueByPosition(nI)
 
-        cString := Replace(cString, "%"+ cAttrName +"%")
+        cString := Replace(cString, "%"+ cAttrName +"%", xAttrValue)
 
     next
 
