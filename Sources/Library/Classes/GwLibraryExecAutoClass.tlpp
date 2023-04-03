@@ -20,7 +20,7 @@ Class GwExecAuto
 
     Public Data cExecAuto as character default ""
 
-    Method New() Constructor
+    Public Method New() Constructor
     Public Method RunExecAuto( nOpc as numeric, aData as array ) as logical
 
 EndClass
