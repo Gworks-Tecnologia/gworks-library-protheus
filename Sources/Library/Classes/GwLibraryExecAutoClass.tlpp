@@ -7,6 +7,13 @@ using namespace Gworks.Library.Classes
 
 namespace Gworks.Library.Classes
 
+/*/{Protheus.doc} GwExecAuto
+Classe para execução dinâmica de ExecAutos e com tratamento automático de erro.
+@type class
+@author Gwroks-Giovani
+@since 4/3/2023
+@since 4/3/2023
+/*/
 Class GwExecAuto
 
     Public data oError as object
@@ -18,7 +25,15 @@ Class GwExecAuto
 
 EndClass
 
-
+/*/{Protheus.doc} GwExecAuto::New
+Método construtor da classe.
+@type method
+@version 12.1.33
+@author Gwroks-Giovani
+@since 4/3/2023
+@param cExecAuto, character, Nome do execauto desejado.
+@return object, Retorna instância do object criado.
+/*/
 Method New( cExecAuto as character ) Class GwExecAuto
 
     Default cExecAuto := ""
@@ -37,17 +52,31 @@ Method New( cExecAuto as character ) Class GwExecAuto
 
 Return Self
 
-
+/*/{Protheus.doc} GwExecAuto::RunExecAuto( nOperation as numeric, aKeyValue as array ) as logical
+Método para executar ExecAutos de maneira dinâmica.
+@type method
+@version 12.1.33
+@author Gwroks-Giovani
+@since 4/3/2023
+@return logical, Retorna .T. para sucesso e .F. para falhas na execução.
+/*/
 Method RunExecAuto( nOperation as numeric, aKeyValue as array ) as logical Class GwExecAuto
 
-    Local aExecData     := {}  as array
-    Local nI            := 0   as numeric
-    Local nY            := 0   as numeric
-    Local cField        := ""  as character
-    Local xValue        := nil as variant
-    Local lResult       := .F. as logical
+    Local aExecData     := {}   as array
+    Local nI            := 0    as numeric
+    Local nY            := 0    as numeric
 
-    Private lMsErroAuto := .F. as logical
+    Local cField        := ""   as character
+    Local xValue        := nil  as variant
+
+    Local cParam        := ""   as character
+    Local cBlock        := ""   as character
+    Local bBlock        := {||} as block
+    Local nLenParams    := 0    as numeric
+
+    Local lResult       := .F.  as logical
+
+    Private lMsErroAuto := .F.  as logical
 
     Default cExecAuto   := ""
     Default nOperation  := 0
@@ -75,39 +104,34 @@ Method RunExecAuto( nOperation as numeric, aKeyValue as array ) as logical Class
         ::oError:ThrowException()
     endif
 
-    for nI:=1 to Len(aExecData)-10
-        aAdd( aExecData, nil )
+    cParam := "q"
+    for nI:=1 to Len(aExecData)+1 // adiciona mais 1 devido à operação (inclusão, alteração, etc...)
+        cParam += ', ' + soma1(cParam) // "q, r, s" etc...
     next
 
-    cBlock := "{ | q, r, s, t, u, v, x, y, w, z | "+::cExecAuto+"}"
+    cBlock := "{ | "+cParam+" | "+::cExecAuto+"( "+cParam+" ) }"
+    bBlock := &(cBlock)
+    nLenParams := Len(aExecData)
 
+    do case
 
+        case nLenParams == 1 ; MsExecAuto( bBlock, aExecData[01], nOperation )
+        case nLenParams == 2 ; MsExecAuto( bBlock, aExecData[01], aExecData[02], nOperation )
+        case nLenParams == 3 ; MsExecAuto( bBlock, aExecData[01], aExecData[02], aExecData[03], nOperation )
+        case nLenParams == 4 ; MsExecAuto( bBlock, aExecData[01], aExecData[02], aExecData[03], aExecData[04], nOperation )
+        case nLenParams == 5 ; MsExecAuto( bBlock, aExecData[01], aExecData[02], aExecData[03], aExecData[04], aExecData[05], nOperation )
+        case nLenParams == 6 ; MsExecAuto( bBlock, aExecData[01], aExecData[02], aExecData[03], aExecData[04], aExecData[05], aExecData[06], nOperation )
+        case nLenParams == 7 ; MsExecAuto( bBlock, aExecData[01], aExecData[02], aExecData[03], aExecData[04], aExecData[05], aExecData[06], aExecData[07], nOperation )
+        case nLenParams == 8 ; MsExecAuto( bBlock, aExecData[01], aExecData[02], aExecData[03], aExecData[04], aExecData[05], aExecData[06], aExecData[07], aExecData[08], nOperation )
+        case nLenParams == 9 ; MsExecAuto( bBlock, aExecData[01], aExecData[02], aExecData[03], aExecData[04], aExecData[05], aExecData[06], aExecData[07], aExecData[08], aExecData[09], nOperation )
+        case nLenParams == 9 ; MsExecAuto( bBlock, aExecData[01], aExecData[02], aExecData[03], aExecData[04], aExecData[05], aExecData[06], aExecData[07], aExecData[08], aExecData[09], aExecData[10], nOperation )
+        otherwise
+            ::oError:cError := "Quantidade de parâmetros no execauto não suportada!"
+            ::oError:ThrowException()
+    endcase
 
-    MsExecAuto( ;
-        { | q, r, s, t, u, v, x, y, w, z | Mata105( q, r, s, t, u, v, x, y, w, z ) },;
-        aExecData[01],;
-        aExecData[02],;
-        aExecData[03],;
-        aExecData[04],;
-        aExecData[05],;
-        aExecData[06],;
-        aExecData[07],;
-        aExecData[08],;
-        aExecData[09],;
-        aExecData[10] ;
-    )
-
-
-
-
-
-
-
-
-
-
-
-    MsExecAuto( { | x, y, z | Mata105( x, y , z ) }, aCabec, aItens, nOpc )
+    // Exemplo:
+    // MsExecAuto( { | q, r, s | Mata105( q, r, s ) }, aCabec, aItens, nOpc )
 
     if lMsErroAuto
 
@@ -117,7 +141,7 @@ Method RunExecAuto( nOperation as numeric, aKeyValue as array ) as logical Class
 
         ::oError:DefineWithError(.T.)
 
-        ::oError:SetAutoGRLogFromExecAuto("MATA105")
+        ::oError:SetAutoGRLogFromExecAuto(::cExecAuto)
 
     else
 
@@ -130,4 +154,3 @@ Method RunExecAuto( nOperation as numeric, aKeyValue as array ) as logical Class
     endif
 
 Return lResult
-
