@@ -9,11 +9,8 @@ namespace Gworks.Business.Estoque.Entities
 
 Class GwMovimentoInterno From GwDataAccess
 
-    Public Data oError as object
-
     Public Method New()
     Public Method GetErrorObject()
-    Public Method MATA105Exec( aCabec as array, aItens as array, nOpc as numeric ) as logical
 
 EndClass
 
@@ -27,7 +24,6 @@ Construtor da classe.
 /*/
 Method New() Class GwMovimentoInterno
 
-    ::oError := GwError():New()
     ::oError:cFunName := "GwMovimentoInterno"
 
     _Super:New("SD3")
@@ -51,10 +47,10 @@ Retorna o objeto de erro referente a instância da classe.
 Method GetErrorObject()  Class GwMovimentoInterno
 Return ::oError
 
-
-D3_FILIAL + D3_DOC + D3_COD
-D3_FILIAL + D3_DOC + D3_NUMSEQ
-D3_FILIAL + D3_NUMSEQ + D3_CHAVE + D3_COD
-D3_FILIAL + D3_COD + D3_LOCAL + D3_NUMSEQ + D3_CF
-D3_FILIAL + D3_OP + D3_COD + D3_LOCAL
-D3_FILIAL + D3_COD + D3_LOCAL + DTOS(D3_EMISSAO) + D3_NUMSEQ
+// TODO: implementar métodos para pesquisa conforme os índices:
+// D3_FILIAL + D3_DOC + D3_COD
+// D3_FILIAL + D3_DOC + D3_NUMSEQ
+// D3_FILIAL + D3_NUMSEQ + D3_CHAVE + D3_COD
+// D3_FILIAL + D3_COD + D3_LOCAL + D3_NUMSEQ + D3_CF
+// D3_FILIAL + D3_OP + D3_COD + D3_LOCAL
+// D3_FILIAL + D3_COD + D3_LOCAL + DTOS(D3_EMISSAO) + D3_NUMSEQ
