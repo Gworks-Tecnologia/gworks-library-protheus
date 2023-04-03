@@ -71,7 +71,7 @@ Method RunExecAuto( nOperation as numeric, aKeyValue as array ) as logical Class
 
     Local cParam        := ""   as character
     Local cBlock        := ""   as character
-    Local bBlock        := {||} as block
+    Local bBlock        := {||} as codeblock
     Local nLenParams    := 0    as numeric
 
     Local lResult       := .F.  as logical
