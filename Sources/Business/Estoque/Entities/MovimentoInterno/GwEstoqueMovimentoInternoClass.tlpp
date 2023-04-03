@@ -24,9 +24,9 @@ Construtor da classe.
 /*/
 Method New() Class GwMovimentoInterno
 
-    ::oError:cFunName := "GwMovimentoInterno"
-
     _Super:New("SD3")
+
+    ::oError:cFunName := "GwMovimentoInterno"
 
     // Atributos extendidos a classes herdadas
     ::cDescription := "Movimentos Internos"

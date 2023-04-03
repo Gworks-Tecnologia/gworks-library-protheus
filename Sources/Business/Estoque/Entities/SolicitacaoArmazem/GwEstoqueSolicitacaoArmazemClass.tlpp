@@ -24,9 +24,15 @@ Construtor da classe.
 /*/
 Method New() Class GwSolicitacaoArmazem
 
+    _Super:New("SCP")
+
     ::oError:cFunName := "GwSolicitacaoArmazem"
 
-    _Super:New("SCP")
+    // Atributos extendidos a classes herdadas
+    ::cDescription := "Solicitação ao Armazém"
+    ::cSourceModel := ""
+    ::cSourceView  := ""
+    ::cSourceMenu  := ""
 
 Return Self
 
