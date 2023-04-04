@@ -302,7 +302,7 @@ Method SetAutoGRLogFromModel( oModel as object, cModelName as character ) as var
 
     aError := oModel:GetErrorMessage()
 
-    if len(aErro) > 0
+    if len(aError) > 0
 
             cError := "Id do formulário de origem: " + '[ ' + cValToChar(aError[01]) + ' ]' + CRLF
             cError += "Id do campo de origem: "      + '[ ' + cValToChar(aError[02]) + ' ]' + CRLF
