@@ -296,7 +296,7 @@ Method SetAutoGRLogFromModel( oModel as object, cModelName as character ) as var
     Default oModel     := nil
     Default cModelName := ""
 
-    if !empty(oModel)
+    if Empty(oModel)
         Return ""
     endif
 
@@ -315,7 +315,7 @@ Method SetAutoGRLogFromModel( oModel as object, cModelName as character ) as var
             cError += "Valor anterior: "             + '[ ' + cValToChar(aError[09]) + ' ]' + CRLF
     endif
 
-    if !empty(cError)
+    if !Empty(cError)
 
         cResult := "Model Error " + AllTrim(Upper(cModelName)) + ": " + CRLF + cError
 
@@ -352,7 +352,7 @@ Method SetAutoGRLogFromExecAuto( cExecAutoName as character ) as variant Class G
 
     next nX
 
-    if !empty(cError)
+    if !Empty(cError)
 
         cResult := " MSExecAuto Error " + AllTrim(Upper(cExecAutoName)) + ": " + CRLF + cError
 
