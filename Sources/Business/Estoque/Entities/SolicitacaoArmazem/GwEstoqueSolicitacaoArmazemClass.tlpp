@@ -1,4 +1,5 @@
 #include "TOTVS.ch"
+#include "FWMVCDEF.ch"
 #include "MsObject.ch"
 #include "TLPP-Core.th"
 #include "TLPP-Object.th"
@@ -10,7 +11,7 @@ namespace Gworks.Business.Estoque.Entities
 Class GwSolicitacaoArmazem From GwDataAccess
 
     Public Method New()
-    Public Method MATA105Exec( aCabec as array, aItens as array, nOpc as numeric ) as logical
+    Public Method IncluirSolicitacaoArmazem( aDados as array ) as logical
 
 EndClass
 
@@ -42,7 +43,7 @@ Method New() Class GwSolicitacaoArmazem
 
 Return Self
 
-/*/{Protheus.doc} GwSolicitacaoArmazem::MATA105Exec( aCabec as array, aItens as array, nOpc as numeric  ) as logical
+/*/{Protheus.doc} GwSolicitacaoArmazem::IncluirSolicitacao( aCabec as array, aItens as array, nOpc as numeric  ) as logical
 Executa a rotina MATA105 por meio de ExecAuto().
 @type method
 @version 12.1.33
@@ -56,7 +57,7 @@ Executa a rotina MATA105 por meio de ExecAuto().
     5-Exclusão.
 @return logical, .T. sucesso e .F. falha.
 /*/
-Method MATA105Exec( aCabec as array, aItens as array, nOpc as numeric ) as logical Class GwSolicitacaoArmazem
+Method IncluirSolicitacaoArmazem( aDados as array ) as logical Class GwSolicitacaoArmazem
 
     Local lResult       := .F. as logical
 
@@ -66,33 +67,18 @@ Method MATA105Exec( aCabec as array, aItens as array, nOpc as numeric ) as logic
     Default aItens      := {}
     Default nOpc        := 0
 
-    ::oError:cMethod := "MATA105Exec"
+    ::oError:cMethod := "IncluirSolicitacaoArmazem"
 
-    if Empty(aCabec) .Or. Empty(aCabec) .Or. Empty(nOpc)
-        ::oError:cError := "Parâmetros não informados ou inválidos!"
+    if Empty(aDados)
+        ::oError:cError := "Parâmetro aDados não informado ou inválido!"
         ::oError:ThrowException()
     endif
 
-    MsExecAuto( { | x, y, z | Mata105( x, y , z ) }, aCabec, aItens, nOpc )
+    oExecAuto := GwExecAuto():New("MATA105")
 
-    if lMsErroAuto
+    oExecAuto:RunExecAuto(MODEL_OPERATION_INSERT, aDados)
 
-        RollBackSx8()
-
-        DisarmTransaction()
-
-        ::oError:DefineWithError(.T.)
-
-        ::oError:SetAutoGRLogFromExecAuto("MATA105")
-
-    else
-
-        ::oError:DefineWithError(.F.)
-
-        ConfirmSX8()
-
-        lResult := .T.
-
-    endif
+    ::oError:lError     := oExecAuto:oError:lError
+    ::oError:cAutoGRLog := oExecAuto:oError:cAutoGRLog
 
 Return lResult
