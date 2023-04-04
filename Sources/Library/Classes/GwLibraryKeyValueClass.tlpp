@@ -16,9 +16,12 @@ Class GwKeyValue
     Public Method New() Constructor
     Public Method Add( cKey as character, xValue as variant )
     Public Method Length() as numeric
-    Public Method GetAllValues() as array
     Public Method HasName( cName as character ) as logical
+    Public Method HasChildren() as logical
+    Public Method GetChildren() as object
     Public Method GetNameByPosition( nPos as numeric ) as character
+    Public Method GetAllValues() as array
+    Public Method GetValueTypeByPosition() as character
     Public Method GetValueByPosition( nPos as numeric ) as variant
     Public Method GetValueByKey( xSearch as variant ) as variant
 
@@ -48,6 +51,61 @@ Method Length() as numeric Class GwKeyValue
 Return nResult
 
 
+Method HasName( cName as character ) as logical Class GwKeyValue
+
+    Local nPos    := 0   as numeric
+    Local lResult := .F. as logical
+
+    Default cName := ""
+
+    nPos := aScan(::aKeyValue, {|x| x[1] == xSearch })
+
+    if nPos > 0
+        lResult := .T.
+    endif
+
+Return lResult
+
+
+Method HasChildren() as logical Class GwKeyValue
+
+    Local lResult := .F. as logical
+
+    if ( Len(::aKeyValue) == 1 .And. ;
+         ValType(::aKeyValue[1,2]) == "O" .And. ;
+         AllTrim(Upper(GetClassName(::aKeyValue[1,2]))) == "GWORKS.LIBRARY.CLASSES.GWKEYVALUE" )
+
+        lResult := .T.
+
+    endif
+
+Return lResult
+
+
+Method GetChildren() as object Class GwKeyValue
+
+    Local oResult as object
+
+    if ::HasChildren()
+        oResult := ::aKeyValue[1,2]
+    endif
+
+Return oResult
+
+
+Method GetNameByPosition( nPos as numeric ) as character Class GwKeyValue // TODO: testar...
+
+    Local cResult := "" as character
+
+    Default nPos := 0
+
+    if nPos > 0
+        cResult := ::aKeyValue[nPos,1]
+    endif
+
+Return cResult
+
+
 Method GetAllValues() as array Class GwKeyValue
 
     Local aKeyValue := {} as array
@@ -57,52 +115,35 @@ Method GetAllValues() as array Class GwKeyValue
 Return aKeyValue
 
 
-Method HasName( cName as character ) as logical Class GwKeyValue
+Method GetValueTypeByPosition( nPos as numeric ) as character Class GwKeyValue
 
-    Local nPos := 0   as numeric
-    Local lRet := .F. as logical
+    Local xValue  := nil as variant
+    Local cResult := ""  as character
 
-    Default cName := ""
+    xValue := ::GetValueByPosition(nPos)
 
-    nPos := aScan(::aKeyValue, {|x| x[1] == xSearch })
+    cResult := ValType(xValue)
 
-    if nPos > 0
-        lRet := .T.
-    endif
-
-Return lRet
-
-
-Method GetNameByPosition( nPos as numeric ) as character Class GwKeyValue // TODO: testar...
-
-    Local cRet := "" as character
-
-    Default nPos := 0
-
-    if nPos > 0
-        cRet := ::aKeyValue[nPos,1]
-    endif
-
-Return cRet
+Return cResult
 
 
 Method GetValueByPosition( nPos as numeric ) as variant Class GwKeyValue // TODO: testar...
 
-    Local xRet := nil as variant
+    Local xResult := nil as variant
 
     Default nPos := 0
 
     if nPos > 0
-        xRet := ::aKeyValue[nPos,2]
+        xResult := ::aKeyValue[nPos,2]
     endif
 
-Return xRet
+Return xResult
 
 
 Method GetValueByKey( xSearch as variant ) as variant Class GwKeyValue
 
     Local nPos := 0   as numeric
-    Local xRet := nil as variant
+    Local xResult := nil as variant
 
     Default xSearch := nil
 
@@ -113,7 +154,7 @@ Method GetValueByKey( xSearch as variant ) as variant Class GwKeyValue
     nPos := aScan(::aKeyValue, {|x| x[1] == xSearch })
 
     if nPos > 0
-        xRet := ::aKeyValue[nPos,2]
+        xResult := ::aKeyValue[nPos,2]
     endif
 
-Return xRet
+Return xResult
