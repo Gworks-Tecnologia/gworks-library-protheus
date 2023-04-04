@@ -59,7 +59,9 @@ Executa a rotina MATA105 por meio de ExecAuto().
 /*/
 Method IncluirSolicitacaoArmazem( aDados as array ) as logical Class GwSolicitacaoArmazem
 
-    Local lResult       := .F. as logical
+    Local oExecAuto as object
+
+    Local lResult := .F. as logical
 
     Private lMsErroAuto := .F. as logical
 
