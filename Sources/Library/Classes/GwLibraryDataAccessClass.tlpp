@@ -24,7 +24,7 @@ Class GwDataAccess
     Public Data cAlias       as character default ""
     Public Data cDataSource  as character default ""
     Public Data aQuery       as array     default {}
-    Public Data lOppened     as logical   default .F.
+    Public Data lOpened      as logical   default .F.
     Public Data nRecnoId     as numeric   default 0
 
     // Atributos de controle de área
@@ -73,7 +73,7 @@ Class GwDataAccess
     Public Method EndOfFile() as logical
     Public Method NotEndOfFile() as logical
     Public Method TotalLines() as numeric
-    Public Method Oppened() as logical
+    Public Method GetOpenedStatus() as logical
     Public Method CloseArea() as variant
     Public Method ReleaseArea() as variant
     Public Method GetRecnoId() as variant
@@ -109,13 +109,13 @@ Method New( cAlias as character ) Class GwDataAccess
     Self:SelectArea()
     Self:SetDataSource()
 
-    Self:lOppened    := Select(cAlias) > 0
+    Self:lOpened     := Select(cAlias) > 0
     Self:aAliasArea  := (cAlias)->(GetArea())
     Self:aOtherAreas := {}
     Self:aRelation   := {}
     Self:lAutoFilial := .T.
 
-    if ::lOppened
+    if ::lOpened
         ::nIndexOrd := (cAlias)->(IndexOrd())
         ::cIndexKey := (cAlias)->(IndexKey(::nIndexOrd))
         ::nRecnoId  := (cAlias)->(Recno())
@@ -526,9 +526,9 @@ Method TotalLines() as numeric Class GwDataAccess
 Return nTotal
 
 
-Method Oppened() as logical Class GwDataAccess
+Method GetOpenedStatus() as logical Class GwDataAccess
 
-Return ::lOppened
+Return ::lOpened
 
 
 Method CloseArea() as variant Class GwDataAccess
@@ -551,8 +551,8 @@ Method ReleaseArea() as variant Class GwDataAccess
     cAlias := Self:cAlias
 
     do case
-        case  ::lOppened ; ::RestoreArea()
-        case !::lOppened ; ::CloseArea()
+        case  ::lOpened ; ::RestoreArea()
+        case !::lOpened ; ::CloseArea()
     endcase
 
 Return
