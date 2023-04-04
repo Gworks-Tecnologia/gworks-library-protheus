@@ -319,8 +319,8 @@ Method SetAutoGRLogFromModel( oModel as object, cModelName as character ) as var
 
         cResult := "Model Error " + AllTrim(Upper(cModelName)) + ": " + CRLF + cError
 
-        ::oError:SetAutoGRLog(cResult)
-        ::oError:lError := .T.
+        ::SetAutoGRLog(cResult)
+        ::lError := .T.
 
     endif
 
@@ -356,8 +356,8 @@ Method SetAutoGRLogFromExecAuto( cExecAutoName as character ) as variant Class G
 
         cResult := " MSExecAuto Error " + AllTrim(Upper(cExecAutoName)) + ": " + CRLF + cError
 
-        ::oError:SetAutoGRLog(cResult)
-        ::oError:lError := .T.
+        ::SetAutoGRLog(cResult)
+        ::lError := .T.
 
     endif
 
