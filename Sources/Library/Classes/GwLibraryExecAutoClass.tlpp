@@ -62,14 +62,18 @@ Método para executar ExecAutos de maneira dinâmica.
 /*/
 Method RunExecAuto( nOperation as numeric, aKeyValue as array ) as logical Class GwExecAuto
 
-    Local aExecData     := {}   as array
     Local nI            := 0    as numeric
     Local nY            := 0    as numeric
+
+    Local aData         := {}   as array
+    Local aChildren     := {}   as array
+    Local lChildren     := .F.  as logical
 
     Local cField        := ""   as character
     Local xValue        := nil  as variant
 
-    Local cParam        := ""   as character
+    Local cParamActual  := ""   as character
+    Local cParamResult  := ""   as character
     Local cBlock        := ""   as character
     Local bBlock        := {||} as codeblock
     Local nLenParams    := 0    as numeric
@@ -90,44 +94,100 @@ Method RunExecAuto( nOperation as numeric, aKeyValue as array ) as logical Class
     endif
 
     for nI:=1 to Len(aKeyValue)
+
+        aChildren := {}
+        lChildren := .F.
+
+        aAdd( aData, {} )
+
         oKeyValue := aKeyValue[nI]
-        aAdd( aExecData, {} )
+
+        // Verifica se o objeto possui elementos filhos (itens)
+        while oKeyValue:HasChildren()
+            oKeyValue := oKeyValue:GetChildren()
+            lChildren := .T.
+        enddo
+
+        // Processa os elementos do objeto
         for nY:=1 to oKeyValue:Length()
-            cField := oResult:GetNameByPosition(nY)
-            xValue := oResult:GetValueByPosition(nY)
-            aAdd( aExecData[nI], { cField, xValue, nil } )
+            cField := oKeyValue:GetNameByPosition(nY)
+            xValue := oKeyValue:GetValueByPosition(nY)
+            if !lChildren
+                aAdd( aData[nI], { cField, xValue, nil } )
+            else
+                aAdd( aChildren, { cField, xValue, nil } )
+            endif
         next
+
+        // Adicionar os elementos filhos
+        if lChildren
+            aAdd( aData[nI], aChildren )
+        endif
+
     next
 
-    if Empty(aExecData)
+    if Empty(aData)
         ::oError:cError := "Sem dados a processar!"
         ::oError:ThrowException()
     endif
 
-    cParam := "q"
-    for nI:=1 to Len(aExecData)+1 // adiciona mais 1 devido à operação (inclusão, alteração, etc...)
-        cParam += ', ' + soma1(cParam) // "q, r, s" etc...
+    cParamActual := "q"
+    cParamResult := ""
+    for nI:=1 to Len(aData)+1 // adiciona mais 1 devido à operação (inclusão, alteração, etc...)
+        cParamResult += if( !empty(cParamResult),", ","" ) + cParamActual // "q, r, s" etc...
+        cParamActual := soma1(cParamActual)
     next
 
-    cBlock := "{ | "+cParam+" | "+::cExecAuto+"( "+cParam+" ) }"
+    cBlock := "{ | "+cParamResult+" | "+::cExecAuto+"( "+cParamResult+" ) }"
     bBlock := &(cBlock)
-    nLenParams := Len(aExecData)
+    nLenParams := Len(aData)
 
     do case
 
-        case nLenParams == 1 ; MsExecAuto( bBlock, aExecData[01], nOperation )
-        case nLenParams == 2 ; MsExecAuto( bBlock, aExecData[01], aExecData[02], nOperation )
-        case nLenParams == 3 ; MsExecAuto( bBlock, aExecData[01], aExecData[02], aExecData[03], nOperation )
-        case nLenParams == 4 ; MsExecAuto( bBlock, aExecData[01], aExecData[02], aExecData[03], aExecData[04], nOperation )
-        case nLenParams == 5 ; MsExecAuto( bBlock, aExecData[01], aExecData[02], aExecData[03], aExecData[04], aExecData[05], nOperation )
-        case nLenParams == 6 ; MsExecAuto( bBlock, aExecData[01], aExecData[02], aExecData[03], aExecData[04], aExecData[05], aExecData[06], nOperation )
-        case nLenParams == 7 ; MsExecAuto( bBlock, aExecData[01], aExecData[02], aExecData[03], aExecData[04], aExecData[05], aExecData[06], aExecData[07], nOperation )
-        case nLenParams == 8 ; MsExecAuto( bBlock, aExecData[01], aExecData[02], aExecData[03], aExecData[04], aExecData[05], aExecData[06], aExecData[07], aExecData[08], nOperation )
-        case nLenParams == 9 ; MsExecAuto( bBlock, aExecData[01], aExecData[02], aExecData[03], aExecData[04], aExecData[05], aExecData[06], aExecData[07], aExecData[08], aExecData[09], nOperation )
-        case nLenParams == 9 ; MsExecAuto( bBlock, aExecData[01], aExecData[02], aExecData[03], aExecData[04], aExecData[05], aExecData[06], aExecData[07], aExecData[08], aExecData[09], aExecData[10], nOperation )
+        case nLenParams == 01
+
+            MsExecAuto( bBlock, aData[01], nOperation )
+
+        case nLenParams == 02
+
+            MsExecAuto( bBlock, aData[01], aData[02], nOperation )
+
+        case nLenParams == 03
+
+            MsExecAuto( bBlock, aData[01], aData[02], aData[03], nOperation )
+
+        case nLenParams == 04
+
+            MsExecAuto( bBlock, aData[01], aData[02], aData[03], aData[04], nOperation )
+
+        case nLenParams == 05
+
+            MsExecAuto( bBlock, aData[01], aData[02], aData[03], aData[04], aData[05], nOperation )
+
+        case nLenParams == 06
+
+            MsExecAuto( bBlock, aData[01], aData[02], aData[03], aData[04], aData[05], aData[06], nOperation )
+
+        case nLenParams == 07
+
+            MsExecAuto( bBlock, aData[01], aData[02], aData[03], aData[04], aData[05], aData[06], aData[07], nOperation )
+
+        case nLenParams == 08
+
+            MsExecAuto( bBlock, aData[01], aData[02], aData[03], aData[04], aData[05], aData[06], aData[07], aData[08], nOperation )
+
+        case nLenParams == 09
+
+            MsExecAuto( bBlock, aData[01], aData[02], aData[03], aData[04], aData[05], aData[06], aData[07], aData[08], aData[09], nOperation )
+
+        case nLenParams == 10
+
+            MsExecAuto( bBlock, aData[01], aData[02], aData[03], aData[04], aData[05], aData[06], aData[07], aData[08], aData[09], aData[10], nOperation )
+
         otherwise
             ::oError:cError := "Quantidade de parâmetros no execauto não suportada!"
             ::oError:ThrowException()
+
     endcase
 
     // Exemplo:
