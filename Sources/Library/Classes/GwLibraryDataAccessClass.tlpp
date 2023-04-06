@@ -11,7 +11,13 @@ namespace Gworks.Library.Classes
 
 Class GwDataAccess
 
-    // Dados principais
+    // Atributos descritivos auxiliares
+    Public Data cDescription as character default ""
+    Public Data cSourceModel as character default ""
+    Public Data cSourceView  as character default ""
+    Public Data cSourceMenu  as character default ""
+
+    // Atributos principais
     Public Data cAlias       as character default ""
     Public Data cDataSource  as character default ""
     Public Data aQuery       as array     default {}
