@@ -21,7 +21,7 @@ Class GwKeyValue
     Public Method GetChildren() as object
     Public Method GetNameByPosition( nPos as numeric ) as character
     Public Method GetAllValues() as array
-    Public Method GetValueTypeByPosition() as character
+    Public Method GetValueTypeByPosition( nPos as numeric ) as character
     Public Method GetValueByPosition( nPos as numeric ) as variant
     Public Method GetValueByKey( xSearch as variant ) as variant
 
