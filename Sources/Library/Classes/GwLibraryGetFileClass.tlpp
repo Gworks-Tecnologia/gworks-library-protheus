@@ -1,7 +1,10 @@
 #include "TOTVS.ch"
 #include "MsObject.ch"
 
-namespace Gworks.Library.Functions
+using namespace Gworks.Library.Utils
+using namespace Gworks.library.Functions
+
+namespace Gworks.Library.Classes
 
 Class GwGetFile
 
@@ -13,8 +16,8 @@ Class GwGetFile
 
     // Atributos referente ao arquivo/pasta selecionados
     Public Data cInitDirectory           as character default ""
-    Public Data cSelectedFile            as character default ""
-    Public Data aSelectedFiles           as array     default {}
+    Public Data cSelectedFile            as character default "" // arquivo selecionado conforme ::SetDialogMultiFile(.F.)
+    Public Data aSelectedFiles           as array     default {} // arquivos selecionados conforme ::SetDialogMultiFile(.T.)
     Public Data cSelectedDiretory        as character default ""
     Public Data aFilesOnSelectedDiretory as character default ""
 
@@ -23,21 +26,23 @@ Class GwGetFile
     // Métodos públicos da classe
     Public Method SetInitDirectory( cDirectory as character ) as logical
 
-    // Métodos públicos para seleção de arquivo com dialog
+    // Métodos públicos para seleção de arquivos/diretórios com dialog
+    // Obs.: não permite operação cega (sem interface gráfica)
     Public Method InitDialog()
     Public Method SetDialogMask( cDialogFileMask as character )
     Public Method SetDialodOpening()
     Public Method SetDialodSave()
     Public Method SetDialogMultiFile( lOption as logical )
     Public Method SetDialogDirectory( lOption as logical )
-    Public Method OpenDialog()
+    Public Method OpenDialog() as logical
 
-    Public Method OpenDirectory() // TODO: implementar...
+    // Métodos públicos para operação entre diretórios (pastas)
+    // Obs.: permite operação cega (sem interface gráfica)
+    Public Method InitDirectory( cDirectory as character ) // TODO: implementar...
     Public Method MoveTo( cDestinationFolder as character ) // TODO: implementar...
     Public Method CopyTo( cDestinationFolder as character ) // TODO: implementar...
     Public Method DeleteFile() // TODO: implementar...
     Public Method EraseDirectory() // TODO: implementar...
-
 
     Protected Method CopyFileTo( cDestinationFolder as character ) // TODO: implementar...
 
@@ -51,8 +56,9 @@ Método construtor de classe GwGetFile.
 @since 3/26/2023
 @return object, Instância da classe.
 /*/
-Method New( ) Class GwGetFile
+Method New() Class GwGetFile
 
+    ::cSelectedFile  := ""
     ::cInitDirectory := ""
     ::aSelectedFiles := {}
 
@@ -222,12 +228,14 @@ Abre o dialog (janela) para seleção ou salvamento de arquivos/diretórios.
 @version 12.1.33
 @author Gworks-Giovani
 @since 3/26/2023
+@return logical, Retorna .T. para indicar que a seleção de arquivos/diretório foi confirmada ou .F. cancelada.
 /*/
-Method OpenDialog() Class GwGetFile
+Method OpenDialog() as logical Class GwGetFile
 
     Local nRemoteType         := 0   as numeric
     Local lSupportedOperation := .F. as logical
     Local xResult             := ""  as variant // o resultado pode ser character ou array
+    Local lResult             := .F. as logical
 
     nRemoteType := GetRemoteType()
 
@@ -283,6 +291,8 @@ Method OpenDialog() Class GwGetFile
                 ::cSelectedFile := xResult // único arquivo
         endcase
 
+        lResult := .T.
+
     endif
 
-Return
+Return lResult
