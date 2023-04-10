@@ -44,7 +44,7 @@ Method New() Class GwSolicitacaoTransferenciaItem
 Return Self
 
 /*/{Protheus.doc} GwSolicitacaoTransferenciaItem::ProcurarPorSolicitacaoId( cSolicitacaoId as character ) as logical
-Posiciona a entidade GwSolicitacaoTransferenciaItem conforme Identificador (campo ZK1_CODFLX).
+Posiciona a entidade GwSolicitacaoTransferenciaItem conforme identificador (campo ZK1_CODFLX).
 @type method
 @version 12.1.33
 @author Giovani-Gworks
