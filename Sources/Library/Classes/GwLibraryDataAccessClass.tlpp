@@ -69,7 +69,7 @@ Class GwDataAccess
     Public Method EraseArea() as variant
     Public Method EraseOtherAreas() as variant
     Public Method EvalByCondition( bExec as codeblock, bCondition as codeblock ) as variant
-    Public Method GetValue( cName as character ) as variant
+    Public Method GetValue( cFieldName as character, cToken as character ) as variant
     Public Method EndOfFile() as logical
     Public Method NotEndOfFile() as logical
     Public Method TotalLines() as numeric
@@ -77,7 +77,7 @@ Class GwDataAccess
     Public Method CloseArea() as variant
     Public Method ReleaseArea() as variant
     Public Method GetRecnoId() as variant
-    Public Method RefreshByCurrentId() as variant // TODO: implementar método
+    Public Method RefreshByCurrentId() as variant // TODO: implementar método: deve atualizar todos os relacionamentos existentes para a classe
 
     // Métodos públicos da classe para fins de relacionamentos
     Public Method SetRelation( oAttr as object ) as variant
@@ -114,6 +114,7 @@ Method New( cAlias as character ) Class GwDataAccess
     Self:aOtherAreas := {}
     Self:aRelation   := {}
     Self:lAutoFilial := .T.
+    Self:lFound      := .F.
 
     if ::lOpened
         ::nIndexOrd := (cAlias)->(IndexOrd())
@@ -485,18 +486,28 @@ Method EvalByCondition( bExec as codeblock, bCondition as codeblock ) as variant
 Return
 
 
-Method GetValue( cName as character ) as variant Class GwDataAccess
+Method GetValue( cFieldName as character, cToken as character ) as variant Class GwDataAccess
 
-    Local cAlias := ""  as character
-    Local xRet   := nil as variant
+    Local nI           := 0   as numeric
+    Local aFieldName   := {}  as array
+    Local xRet         := nil as variant
 
-    Default cName := ""
+    Default cFieldName := ""
+    Default cToken     := ";"
 
-    if !Empty(cName)
+    if !Empty(cFieldName)
 
-        cAlias := Self:cAlias
+        xRet := ""
 
-        xRet := (cAlias)->&(cName)
+        aFieldName := StrToKarr(cFieldName, cToken)
+
+        for nI:=1 to Len(aFieldName)
+
+            cFieldName := aFieldName[nI]
+
+            xRet += (::cAlias)->&(cFieldName)
+
+        next
 
     endif
 
