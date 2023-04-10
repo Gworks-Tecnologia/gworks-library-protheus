@@ -10,7 +10,6 @@ namespace Gworks.Business.Estoque.Entities
 Class GwMovimentoInterno From GwDataAccess
 
     Public Method New()
-    Public Method GetErrorObject()
 
 EndClass
 
@@ -41,17 +40,6 @@ Method New() Class GwMovimentoInterno
     ::oError:cFunName := "GwMovimentoInterno"
 
 Return Self
-
-/*/{Protheus.doc} GwMovimentoInterno::GetErrorObject
-Retorna o objeto de erro referente a instância da classe.
-@type method
-@version 12.1.33
-@author Giovani-Gworks
-@since 3/27/2023
-@return object, Objeto de erro pertencente a classe GwError.
-/*/
-Method GetErrorObject()  Class GwMovimentoInterno
-Return ::oError
 
 // TODO: implementar métodos para pesquisa conforme os índices:
 // D3_FILIAL + D3_DOC + D3_COD
