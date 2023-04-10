@@ -1,7 +1,10 @@
 #include "TOTVS.ch"
 #include "MsObject.ch"
 
-namespace Gworks.Library.Functions
+using namespace Gworks.Library.Utils
+using namespace Gworks.library.Functions
+
+namespace Gworks.Library.Classes
 
 Class GwFileIterator
 
@@ -142,8 +145,8 @@ Method LoadFile() as logical Class GwFileIterator
         ::oError:cSuggestion := "Verifique se o arquivo encontra-se aberto por outra aplicação e tente novamente."
     endif
 
-    ::nTotalLinhas := Len(::aFile)
-    if ::nTotalLinhas >= 2 // cabeçalho e 1 (uma) linha de dados = 2 linhas no mínimo
+    ::nTotalLines := Len(::aFile)
+    if ::nTotalLines >= 2 // cabeçalho e 1 (uma) linha de dados = 2 linhas no mínimo
 
         lResult := .T.
 
@@ -153,7 +156,10 @@ Method LoadFile() as logical Class GwFileIterator
         ::oError:cSuggestion := "Verifque o arquivo selecionado e tente novamente."
     endif
 
-    if !lResult
+    if lResult
+        ::lLoadStatus := .T.
+    else
+        ::lLoadStatus := .F.
         ::oError:ShowError("HELP")
     endif
 
@@ -177,9 +183,9 @@ Para cada linha do arquivo avalia uma determinada estrutura de blocos de código 
 @version 12.1.33
 @author Gworks-Giovani
 @since 4/3/2023
-@param bLoad, codeblock, Bloco de código para carga de dados
-@param bCondition, codeblock, Bloco de código de condição
-@param bExec, codeblock, Bloco de código para execução final
+@param bLoad, codeblock, Bloco de código para carga de dados.
+@param bCondition, codeblock, Bloco de código de condição.
+@param bExec, codeblock, Bloco de código para execução final.
 /*/
 Method EvalByCondition( bLoad as codeblock, bCondition as codeblock, bExec as codeblock ) Class GwFileIterator
 
@@ -190,10 +196,10 @@ Method EvalByCondition( bLoad as codeblock, bCondition as codeblock, bExec as co
     for nI:=1 to ::nTotalLines
 
         cLine := aFile[nI]
-        xLoad := Eval( bLoad, cLine )
-        lCondition := Eval( bCondition, cLine)
+        xLoad := Eval( bLoad, cLine, nI, ::cFile )
+        lCondition := Eval( bCondition, cLine, nI, ::cFile )
         if lCondition
-            Eval( bExec, xLoad, cLine )
+            Eval( bExec, xLoad, cLine, nI, ::cFile )
         endif
 
     next
