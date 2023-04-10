@@ -488,30 +488,48 @@ Return
 
 Method GetValue( cFieldName as character, cToken as character ) as variant Class GwDataAccess
 
-    Local nI           := 0   as numeric
-    Local aFieldName   := {}  as array
-    Local xRet         := nil as variant
+    Local nI             := 0   as numeric
+    Local aFieldName     := {}  as array
+    Local lMultipleNames := .F. as logical
+    Local xValue         := nil as variant
+    Local xResult        := nil as variant
 
     Default cFieldName := ""
     Default cToken     := ";"
 
     if !Empty(cFieldName)
 
-        xRet := ""
-
         aFieldName := StrToKarr(cFieldName, cToken)
+
+        if Len(aFieldName) > 1
+            xResult := ""
+            lMultipleNames := .T.
+        endif
 
         for nI:=1 to Len(aFieldName)
 
             cFieldName := aFieldName[nI]
 
-            xRet += (::cAlias)->&(cFieldName)
+            xValue := (::cAlias)->&(cFieldName)
+
+            if lMultipleNames
+
+                do case
+                    case ValType(xValue) == "N" ; xValue := cValToChar(xValue)
+                    case ValType(xValue) == "D" ; xValue := dToS(xValue)
+                endcase
+
+                xResult += xValue
+
+            else
+                xResult := (::cAlias)->&(cFieldName)
+            endif
 
         next
 
     endif
 
-Return xRet
+Return xResult
 
 
 Method EndOfFile() as logical Class GwDataAccess
