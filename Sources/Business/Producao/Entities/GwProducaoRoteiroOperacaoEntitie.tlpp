@@ -36,7 +36,7 @@ Method New() Class GwRoteiroOperacao
     ::cSourceView  := ""
     ::cSourceMenu  := ""
 
-    _Super:New("SC2")
+    _Super:New("SG2")
 
     ::oError:cFunName := "GwRoteiroOperacao"
 
