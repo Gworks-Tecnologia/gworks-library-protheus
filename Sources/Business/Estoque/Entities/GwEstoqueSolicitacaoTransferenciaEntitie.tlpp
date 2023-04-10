@@ -113,6 +113,7 @@ Method IncluirSolicitacaoTransferencia( aDados as array ) as logical Class GwSol
 
     Local oCabec      as object
     Local oItens      as object
+    Local oItem       as object
 
     Local nI            := 0   as numeric
     Local nJ            := 0   as numeric
