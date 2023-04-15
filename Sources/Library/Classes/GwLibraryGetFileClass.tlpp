@@ -24,7 +24,7 @@ Class GwGetFile
     Public Method New() Constructor
 
     // Métodos públicos da classe
-    Public Method SetInitDirectory( cDirectory as character ) as logical
+    Public Method SetInitDirectory( cDirectory as character, lCreateDir as logical ) as logical
 
     // Métodos públicos para seleção de arquivos/diretórios com dialog
     // Obs.: não permite operação cega (sem interface gráfica)
@@ -90,7 +90,7 @@ Method SetInitDirectory( cDirectory as character, lCreateDir as logical ) as log
         UserException("GwGetFile:SetInitDirectory - Parâmetro cDirectory não informado ou inválido!")
     endif
 
-    lExistDir :=  ExistDir(cDirectory, /*lChangeCase*/.F.)
+    lExistDir := ExistDir(cDirectory, ,/*lChangeCase*/.F.)
 
     do case
 
@@ -132,11 +132,19 @@ Inicializa a classe para seleção de arquivos por meio de uma janela gráfica da b
 /*/
 Method InitDialog() Class GwGetFile
 
+    Local cInitDirectory := "" as character
+
     if isBlind()
         Return .F. // não suporta abertura de dialog com operação cega
     endif
 
-    ::cInitDirectory     := GetTempPath(.T.)      // diretório "temp" do sistema operacional
+    if Empty(::cInitDirectory)
+        cInitDirectory := GetTempPath(.T.)
+    else
+        cInitDirectory := ::cInitDirectory
+    endif
+
+    ::cInitDirectory     := cInitDirectory        // diretório "temp" do sistema operacional
     ::cDialogTitle       := "Selecionar Arquivo"  // título do dialog
     ::cDialogFileMask    := "Todos arquivos|*.*"  // considera todos arquivos
     ::cDialogOperation   := "OPEN"                // modo de operação padrão, abertura de arquivo
@@ -253,7 +261,7 @@ Method OpenDialog() as logical Class GwGetFile
 
     while empty(xResult)
 
-        xResult := tFileDialog(;
+        xResult := TFileDialog(;
             ::cDialogFileMask,;
             ::cDialogTitle,;
             nil,;
