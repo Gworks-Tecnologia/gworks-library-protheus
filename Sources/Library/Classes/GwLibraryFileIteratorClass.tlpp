@@ -58,7 +58,7 @@ Inicializa os atributos da instância do objeto.
 /*/
 Method Init() Class GwFileIterator
 
-    if !Empty(oFile)
+    if !Empty(::oFile)
         ::Destroy()
     endif
 
@@ -66,6 +66,7 @@ Method Init() Class GwFileIterator
     ::oError:cFunName := "GwFileIterator"
 
     ::aFile := {}
+    ::lLoadStatus := .F.
 
     if !Empty(::cFile)
         ::LoadFile()
@@ -129,9 +130,13 @@ Method LoadFile() as logical Class GwFileIterator
 
     Local lResult := .F. as logical
 
-    ::oError:cMethod("LoadFile")
+    ::oError:cMethod := "LoadFile"
 
-    ::oFile := FWFileReader():New(cFile)
+    if ::lLoadStatus
+        Return .T.
+    endif
+
+    ::oFile := FWFileReader():New(::cFile)
 
     if ::oFile:Open()
 
@@ -186,8 +191,9 @@ Para cada linha do arquivo avalia uma determinada estrutura de blocos de código 
 @param bLoad, codeblock, Bloco de código para carga de dados.
 @param bCondition, codeblock, Bloco de código de condição.
 @param bExec, codeblock, Bloco de código para execução final.
+@param nStart, numeric, Número da linha que se deseja iniciar.
 /*/
-Method EvalByCondition( bLoad as codeblock, bCondition as codeblock, bExec as codeblock ) Class GwFileIterator
+Method EvalByCondition( bLoad as codeblock, bCondition as codeblock, bExec as codeblock, nStart as numeric ) Class GwFileIterator
 
     Local nI := 0 as numeric
     Local xLoad := nil as variant
@@ -195,7 +201,11 @@ Method EvalByCondition( bLoad as codeblock, bCondition as codeblock, bExec as co
 
     for nI:=1 to ::nTotalLines
 
-        cLine := aFile[nI]
+        if nI < nStart
+            Loop // ignora linha conforme nStart
+        endif
+
+        cLine := ::aFile[nI]
         xLoad := Eval( bLoad, cLine, nI, ::cFile )
         lCondition := Eval( bCondition, xLoad, cLine, nI, ::cFile )
         if lCondition
