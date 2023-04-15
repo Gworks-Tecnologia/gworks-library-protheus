@@ -28,14 +28,14 @@ Class GwConsoleLog
 
 	// Métodos públicos
 	Public Method Clear() as variant
-	Public Method UseFwLogMsgClass() as variant
-	Public Method EnablePrefix() as variant
-	Public Method EnableLogFile() as variant
-	Public Method EnableConsolePrint() as variant
+	Public Method UseFwLogMsgClass( lArg as logical ) as variant
+	Public Method EnablePrefix( lArg as logical ) as variant
+	Public Method EnableLogFile( lArg as logical ) as variant
+	Public Method EnableConsolePrint( lArg as logical ) as variant
 	Public Method SetState( cState as character ) as variant
 	Public Method SetLogId( cLogId as character ) as variant
 	Public Method SetLogDescription( cLogDescription as character ) as variant
-	Public Method SetMessage( cMessage as character, lConsolePrint as logical ) as variant
+	Public Method SetMessage( cMessage as character, lConsolePrint as logical, lBreakLine as logical ) as variant
 	Public Method CreateLogFile( cFileName as character ) as variant
 	Public Method GetLastMessage() as character
 	Public Method GetLogFile() as character
