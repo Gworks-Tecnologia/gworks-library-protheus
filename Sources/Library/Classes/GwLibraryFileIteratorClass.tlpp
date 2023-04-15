@@ -197,7 +197,7 @@ Method EvalByCondition( bLoad as codeblock, bCondition as codeblock, bExec as co
 
         cLine := aFile[nI]
         xLoad := Eval( bLoad, cLine, nI, ::cFile )
-        lCondition := Eval( bCondition, cLine, nI, ::cFile )
+        lCondition := Eval( bCondition, xLoad, cLine, nI, ::cFile )
         if lCondition
             Eval( bExec, xLoad, cLine, nI, ::cFile )
         endif
