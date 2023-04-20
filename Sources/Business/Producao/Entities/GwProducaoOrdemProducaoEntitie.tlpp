@@ -1,4 +1,5 @@
 #include "TOTVS.ch"
+#include "FWMVCDEF.ch"
 #include "MsObject.ch"
 #include "TLPP-Core.th"
 #include "TLPP-Object.th"
@@ -10,6 +11,7 @@ namespace Gworks.Business.Producao.Entities
 Class GwOrdemProducao From GwDataAccess
 
     Public Method New()
+    Public Method IncluirOrdemProducao() as logical
 
 EndClass
 
@@ -40,3 +42,37 @@ Method New() Class GwOrdemProducao
     ::oError:cFunName := "GwOrdemProducao"
 
 Return Self
+
+
+
+Method IncluirOrdemProducao( aDados as array ) as logical Class GwOrdemProducao
+
+    Local oExecAuto as object
+
+    Local lResult := .F. as logical
+
+    Private lMsErroAuto := .F. as logical
+
+    Default aCabec      := {}
+    Default aItens      := {}
+    Default nOpc        := 0
+
+    ::oError:cMethod := "IncluirSolicitacaoArmazem"
+
+    if Empty(aDados)
+        ::oError:cError := "Parâmetro aDados não informado ou inválido!"
+        ::oError:ThrowException()
+    endif
+
+    oExecAuto := GwExecAuto():New("MATA650")
+
+    oExecAuto:RunExecAuto(MODEL_OPERATION_INSERT, aDados)
+
+    ::oError:lError     := oExecAuto:oError:lError
+    ::oError:cAutoGRLog := oExecAuto:oError:cAutoGRLog
+
+    if !::oError:lError
+        lResult := .T.
+    endif
+
+Return lResult
