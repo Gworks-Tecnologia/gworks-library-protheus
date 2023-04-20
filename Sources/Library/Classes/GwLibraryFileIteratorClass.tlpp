@@ -1,0 +1,224 @@
+#include "TOTVS.ch"
+#include "MsObject.ch"
+
+using namespace Gworks.Library.Utils
+using namespace Gworks.library.Functions
+
+namespace Gworks.Library.Classes
+
+Class GwFileIterator
+
+    Public Data oError      as object
+    Public data oFile       as object
+
+    Public Data aFile       as array     default {}
+    Public Data cFile       as character default ""
+    Public Data nTotalLines as numeric   default 0
+    Public Data lLoadStatus as logical   default .F.
+    Public Data lStop       as logical   default .F.
+
+    // Métodos construtores da classe
+    Public Method New() Constructor
+
+    // Métodos privados da classe
+    Private Method Init()
+
+    // Métodos públicos da classe
+    Public Method Destroy()
+    Public Method SetFile( cFile as character )
+    Public Method LoadFile() as logical
+    Public Method GetLoadStatus() as logical
+    Public Method EvalByCondition( bLoad as codeblock, bValid as codeblock, bExec as codeblock )
+
+EndClass
+
+/*/{Protheus.doc} GwGetFile::New
+Método construtor de classe GwGetFile().
+@type method
+@version 12.1.33
+@author Gworks-Giovani
+@since 3/26/2023
+@return object, Instância da classe.
+/*/
+Method New( cFile as character ) Class GwFileIterator
+
+    Default cFile := ""
+
+    ::cFile := cFile
+
+    ::Init()
+
+Return Self
+
+/*/{Protheus.doc} GwFileIterator::Init
+Inicializa os atributos da instância do objeto.
+@type method
+@version 12.1.33
+@author Gworks-Giovani
+@since 4/3/2023
+/*/
+Method Init() Class GwFileIterator
+
+    if !Empty(::oFile)
+        ::Destroy()
+    endif
+
+    ::oError := GwError():New()
+    ::oError:cFunName := "GwFileIterator"
+
+    ::aFile := {}
+    ::lLoadStatus := .F.
+
+    if !Empty(::cFile)
+        ::LoadFile()
+    endif
+
+Return
+
+/*/{Protheus.doc} GwFileIterator::Destroy
+Destroi o objeto.
+@type method
+@version 12.1.33
+@author Gworks-Giovani
+@since 4/3/2023
+/*/
+Method Destroy() Class GwFileIterator
+
+    FwFreeObj(::oError)
+    FwFreeObj(::oFile)
+    FwFreeArray(::aFile)
+
+    ::oError := nil
+    ::oFile := nil
+    ::cFile := ""
+    ::aFile := {}
+    ::lLoadStatus := .F.
+
+Return
+
+/*/{Protheus.doc} GwFileIterator::SetFile
+Define o arquivo a ser considerado para leitura e processamento pela instância da classe.
+@type method
+@version 12.1.33
+@author giovani
+@since 4/3/2023
+@param cFile, character, arquivo
+/*/
+Method SetFile( cFile as character ) Class GwFileIterator
+
+    Default cFile := ""
+
+    ::oError:cMethod := "SetFile"
+
+    if Empty(cFile)
+        ::oError:cError := "Parâmetro cFile não informado ou inválido!"
+        ::oError:ThrowException()
+    endif
+
+    ::Init()
+
+Return
+
+/*/{Protheus.doc} GwFileIterator::LoadFile() as logical
+Carrega o arquivo para o objeto.
+@type method
+@version 12.1.33
+@author Gworks-Giovani
+@since 4/3/2023
+@return logical, Retorna .T. para carregamento realizado com sucesso e .F. para falhas.
+/*/
+Method LoadFile() as logical Class GwFileIterator
+
+    Local lResult := .F. as logical
+
+    ::oError:cMethod := "LoadFile"
+
+    if ::lLoadStatus
+        Return .T.
+    endif
+
+    ::oFile := FWFileReader():New(::cFile)
+
+    if ::oFile:Open()
+
+        ::aFile := ::oFile:GetAllLines()
+
+        ::oFile:Close() // fecha arquivo
+
+    else
+        ::oError:cTitle := FunName()
+        ::oError:cError := "Falha ao abrir o arquivo!"
+        ::oError:cSuggestion := "Verifique se o arquivo encontra-se aberto por outra aplicação e tente novamente."
+    endif
+
+    ::nTotalLines := Len(::aFile)
+    if ::nTotalLines >= 2 // cabeçalho e 1 (uma) linha de dados = 2 linhas no mínimo
+
+        lResult := .T.
+
+    else
+        ::oError:cTitle := FunName()
+        ::oError:cError := "Arquivo vazio!"
+        ::oError:cSuggestion := "Verifque o arquivo selecionado e tente novamente."
+    endif
+
+    if lResult
+        ::lLoadStatus := .T.
+    else
+        ::lLoadStatus := .F.
+        ::oError:ShowError("HELP")
+    endif
+
+Return lResult
+
+/*/{Protheus.doc} GwFileIterator::GetLoadStatus() as logical
+Retorna o status da leitura e carregamento do arquivo para o objeto
+conforme resultado da execução do método ::LoadFile().
+@type method
+@version 12.1.33
+@author Gworks-Giovani
+@since 4/3/2023
+@return logical, Retorna .T. para sucesso e .F. para falha.
+/*/
+Method GetLoadStatus() as logical Class GwFileIterator
+Return ::lLoadStatus
+
+/*/{Protheus.doc} GwFileIterator::EvalByCondition
+Para cada linha do arquivo avalia uma determinada estrutura de blocos de código (veja parâmetros).
+@type method
+@version 12.1.33
+@author Gworks-Giovani
+@since 4/3/2023
+@param bLoad, codeblock, Bloco de código para carga de dados.
+@param bValid, codeblock, Bloco de código de condição.
+@param bExec, codeblock, Bloco de código para execução final.
+@param nStart, numeric, Número da linha que se deseja iniciar.
+/*/
+Method EvalByCondition( bLoad as codeblock, bValid as codeblock, bExec as codeblock, nStart as numeric ) Class GwFileIterator
+
+    Local nI := 0 as numeric
+    Local xLoad := nil as variant
+    Local lValid := .F. as variant
+
+    for nI:=1 to ::nTotalLines
+
+        if nI < nStart
+            Loop // ignora linha conforme nStart
+        endif
+
+        cLine  := ::aFile[nI]
+
+        xLoad  := Eval( bLoad, cLine, nI, ::cFile )
+
+        lValid := Eval( bValid, xLoad, cLine, nI, ::cFile )
+        if ::lStop
+            exit // abandona a execução
+        endif
+
+        if lValid
+            Eval( bExec, xLoad, cLine, nI, ::cFile )
+        endif
+
+    next
+
+Return

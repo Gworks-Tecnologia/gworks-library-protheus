@@ -3,6 +3,9 @@
 // #include "TLPP-Core.th"
 // #include "TLPP-Object.th"
 
+using namespace Gworks.Library.Utils
+using namespace Gworks.library.Functions
+
 namespace Gworks.Library.Classes
 
 Class GwEnum

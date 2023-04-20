@@ -1,6 +1,9 @@
 #include "TOTVS.ch"
 #include "MsObject.ch"
 
+using namespace Gworks.Library.Utils
+using namespace Gworks.library.Functions
+
 namespace Gworks.Library.Classes
 
 Class GwDataRelation
@@ -29,8 +32,8 @@ Class GwDataRelation
     Public Method Join() as logical
     Public Method Search( cFieldName as character, xContent as variant ) as logical
     Public Method GetSearchResult() as object
-    Public Method GetValue( cFieldName as character ) as variant
-    Public Method GetValues( cFieldName as character ) as object
+    Public Method GetValue( cFieldName as character, cToken as character ) as variant
+    Public Method GetValues( aFieldName as array ) as object
 
     // Métodos internos da classe
     Private Method ValidAttr() as logical
@@ -319,21 +322,48 @@ Method GetSearchResult() as object Class GwDataRelation
 
 Return ::oSearchResult
 
-/*/{Protheus.doc} GwDataRelation::GetValue( cFieldName as character ) as variant
+/*/{Protheus.doc} GwDataRelation::GetValue( cFieldName as character, cToken as character ) as variant
 Apenas retorna o conteúdo de um campo conforme tabela relacionada sem alterar seu posicionamento.
 @type method
 @version 12.1.33
 @author Gworks
 @since 09/03/2023
 @return variant, conteúdo do campo.
+@obs Observações:
+    Suporta que seja informado vários campos na string cFieldName separados por um torken a ser
+    definido em cToken (se não informado, assume ";" como padrão). Neste caso, o retorno será
+    uma string concatenada com o conteúdo dos campos.
 /*/
-Method GetValue( cFieldName as character ) as variant Class GwDataRelation
+Method GetValue( cFieldName as character, cToken as character ) as variant Class GwDataRelation
 
-    (cAliasJoin)->&(cFieldName)
+    // (::cAliasJoin)->&(cFieldName)
+
+    Local nI           := 0   as numeric
+    Local aFieldName   := {}  as array
+    Local xRet         := nil as variant
+
+    Default cFieldName := ""
+    Default cToken     := ";"
+
+    if !Empty(cFieldName)
+
+        xRet := ""
+
+        aFieldName := StrToKarr(cFieldName, cToken)
+
+        for nI:=1 to Len(aFieldName)
+
+            cFieldName := aFieldName[nI]
+
+            xRet += (::cAliasJoin)->&(cFieldName)
+
+        next
+
+    endif
 
 Return
 
-/*/{Protheus.doc} GwDataRelation::GetValues( cFieldName as character ) as object
+/*/{Protheus.doc} GwDataRelation::GetValues( aFieldName as array ) as object
 Retorna o resultado de um determinado campo ou expressão em um objeto de tipo GwKeyValue().
 @type method
 @version 12.1.33
@@ -347,8 +377,8 @@ Retorna o resultado de um determinado campo ou expressão em um objeto de tipo Gw
     E deseja-se obter o preço de venda do segundo item, podemos implementar da seguinte maneira:
     Código
         - oResult := oRelation:GetValues("C6_PRCVEN")
-        - oValue := oResult:GetValueByKey("010102000000000000112")
-        - nValue := oValue:GetValueByKey("C6_PRCVEN") // 2.98
+        - oValue  := oResult:GetValueByKey("010102000000000000112")
+        - nValue  := oValue:GetValueByKey("C6_PRCVEN") // 2.98
 
     Obs.: Para melhor entendimento, oResult pode ser compreendido e ilustrado como um objeto Json:
     Objeto Json representando oResult
@@ -359,7 +389,7 @@ Retorna o resultado de um determinado campo ou expressão em um objeto de tipo Gw
         "values": [ { "Key" : "C6_PRCVEN", "value" : 2.98 },
                     { "key" : "C6_QUANT" , "value" : 5    } ]
 /*/
-Method GetValues( aFieldNames as array ) as object Class GwDataRelation
+Method GetValues( aFieldName as array ) as object Class GwDataRelation
 
     Local aArea      := {}  as array
     Local aAreaJoin  := {}  as array
@@ -372,7 +402,7 @@ Method GetValues( aFieldNames as array ) as object Class GwDataRelation
     Local oResult    := nil as object
     Local oValues    := nil as object
 
-    Default aFieldNames := {}
+    Default aFieldName := {}
 
     ::ValidAttr()
     ::ValidJoin()
@@ -394,9 +424,9 @@ Method GetValues( aFieldNames as array ) as object Class GwDataRelation
 
         (cAliasJoin)->(DbGoTo(::aJoinRecno[nI]))
 
-        for nJ:=1 to Len(aFieldNames)
+        for nJ:=1 to Len(aFieldName)
 
-            cFieldName := aFieldNames[nJ]
+            cFieldName := aFieldName[nJ]
 
             cKey := cFieldName
             xValue := (cAliasJoin)->&(cFieldName)

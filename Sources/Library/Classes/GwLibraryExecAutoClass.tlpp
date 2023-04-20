@@ -1,0 +1,222 @@
+#include "TOTVS.ch"
+#include "MsObject.ch"
+#include "TLPP-Core.th"
+#include "TLPP-Object.th"
+
+using namespace Gworks.Library.Utils
+using namespace Gworks.library.Functions
+
+namespace Gworks.Library.Classes
+
+/*/{Protheus.doc} GwExecAuto
+Classe para execução dinâmica de ExecAutos e com tratamento automático de erro.
+@type class
+@author Gwroks-Giovani
+@since 4/3/2023
+@since 4/3/2023
+/*/
+Class GwExecAuto
+
+    Public data oError as object
+
+    Public Data cExecAuto as character default ""
+
+    Public Method New() Constructor
+    Public Method RunExecAuto( nOpc as numeric, aData as array ) as logical
+
+EndClass
+
+/*/{Protheus.doc} GwExecAuto::New
+Método construtor da classe.
+@type method
+@version 12.1.33
+@author Gwroks-Giovani
+@since 4/3/2023
+@param cExecAuto, character, Nome do execauto desejado.
+@return object, Retorna instância do object criado.
+/*/
+Method New( cExecAuto as character ) Class GwExecAuto
+
+    Default cExecAuto := ""
+
+    ::oError := GwError():New()
+    ::oError:cFunName := "GwExecAuto"
+    ::oError:cMethod := "New"
+    if Empty(cExecAuto)
+        ::oError:cError := "Parâmetro cExecAuto não informado ou inválido!"
+        ::oError:ThrowException()
+    endif
+
+    ::oError := GwError():New()
+
+    ::cExecAuto := cExecAuto
+
+Return Self
+
+/*/{Protheus.doc} GwExecAuto::RunExecAuto( nOperation as numeric, aKeyValue as array ) as logical
+Método para executar ExecAutos de maneira dinâmica.
+@type method
+@version 12.1.33
+@author Gwroks-Giovani
+@since 4/3/2023
+@return logical, Retorna .T. para sucesso e .F. para falhas na execução.
+/*/
+Method RunExecAuto( nOperation as numeric, aKeyValue as array ) as logical Class GwExecAuto
+
+    Local nI            := 0    as numeric
+    Local nY            := 0    as numeric
+
+    Local aData         := {}   as array
+    Local aChildren     := {}   as array
+    Local lChildren     := .F.  as logical
+
+    Local cField        := ""   as character
+    Local xValue        := nil  as variant
+
+    Local cParamActual  := ""   as character
+    Local cParamResult  := ""   as character
+    Local cBlock        := ""   as character
+    Local bBlock        := {||} as codeblock
+    Local nLenParams    := 0    as numeric
+
+    Local lResult       := .F.  as logical
+
+    Private lMsErroAuto := .F.  as logical
+
+    Default cExecAuto   := ""
+    Default nOperation  := 0
+    Default aKeyValue   := {}
+
+    ::oError:cMethod := "RunExecAuto"
+
+    if Empty(nOperation) .Or. Empty(aKeyValue)
+        ::oError:cError := "Parâmetros não informados ou inválidos!"
+        ::oError:ThrowException()
+    endif
+
+    for nI:=1 to Len(aKeyValue)
+
+        aChildren := {}
+        lChildren := .F.
+
+        aAdd( aData, {} )
+
+        oKeyValue := aKeyValue[nI]
+
+        // Verifica se o objeto possui elementos filhos (itens)
+        while oKeyValue:HasChildren()
+            oKeyValue := oKeyValue:GetChildren()
+            lChildren := .T.
+        enddo
+
+        // Processa os elementos do objeto
+        for nY:=1 to oKeyValue:Length()
+            cField := oKeyValue:GetNameByPosition(nY)
+            xValue := oKeyValue:GetValueByPosition(nY)
+            if !lChildren
+                aAdd( aData[nI], { cField, xValue, nil } )
+            else
+                aAdd( aChildren, { cField, xValue, nil } )
+            endif
+        next
+
+        // Adicionar os elementos filhos
+        if lChildren
+            aAdd( aData[nI], aChildren )
+        endif
+
+    next
+
+    if Empty(aData)
+        ::oError:cError := "Sem dados a processar!"
+        ::oError:ThrowException()
+    endif
+
+    cParamActual := "q"
+    cParamResult := ""
+    for nI:=1 to Len(aData)+1 // adiciona mais 1 devido à operação (inclusão, alteração, etc...)
+        cParamResult += if( !empty(cParamResult),", ","" ) + cParamActual // "q, r, s" etc...
+        cParamActual := soma1(cParamActual)
+    next
+
+    cBlock := "{ | "+cParamResult+" | "+::cExecAuto+"( "+cParamResult+" ) }"
+    bBlock := &(cBlock)
+    nLenParams := Len(aData)
+
+    do case
+
+        case nLenParams == 01
+
+            MsExecAuto( bBlock, aData[01], nOperation )
+
+        case nLenParams == 02
+
+            MsExecAuto( bBlock, aData[01], aData[02], nOperation )
+
+        case nLenParams == 03
+
+            MsExecAuto( bBlock, aData[01], aData[02], aData[03], nOperation )
+
+        case nLenParams == 04
+
+            MsExecAuto( bBlock, aData[01], aData[02], aData[03], aData[04], nOperation )
+
+        case nLenParams == 05
+
+            MsExecAuto( bBlock, aData[01], aData[02], aData[03], aData[04], aData[05], nOperation )
+
+        case nLenParams == 06
+
+            MsExecAuto( bBlock, aData[01], aData[02], aData[03], aData[04], aData[05], aData[06], nOperation )
+
+        case nLenParams == 07
+
+            MsExecAuto( bBlock, aData[01], aData[02], aData[03], aData[04], aData[05], aData[06], aData[07], nOperation )
+
+        case nLenParams == 08
+
+            MsExecAuto( bBlock, aData[01], aData[02], aData[03], aData[04], aData[05], aData[06], aData[07], aData[08], nOperation )
+
+        case nLenParams == 09
+
+            MsExecAuto( bBlock, aData[01], aData[02], aData[03], aData[04], aData[05], aData[06], aData[07], aData[08], aData[09], nOperation )
+
+        case nLenParams == 10
+
+            MsExecAuto( bBlock, aData[01], aData[02], aData[03], aData[04], aData[05], aData[06], aData[07], aData[08], aData[09], aData[10], nOperation )
+
+        otherwise
+            ::oError:cError := "Quantidade de parâmetros no execauto não suportada!"
+            ::oError:ThrowException()
+
+    endcase
+
+    // Exemplo:
+    // MsExecAuto( { | q, r, s | Mata105( q, r, s ) }, aCabec, aItens, nOpc )
+
+    if lMsErroAuto
+
+        RollBackSx8()
+
+        DisarmTransaction()
+
+        ::oError:DefineWithError(.T.)
+
+        ::oError:SetAutoGRLogFromExecAuto(::cExecAuto)
+
+        // TODO: melhorar tratativa...
+        // if Empty(::oError:cAutoGRLog)
+        //     ::oError:SetAutoGRLog(MostraErro())
+        // endif
+
+    else
+
+        ::oError:DefineWithError(.F.)
+
+        ConfirmSX8()
+
+        lResult := .T.
+
+    endif
+
+Return lResult
