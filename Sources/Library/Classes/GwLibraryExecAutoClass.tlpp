@@ -204,6 +204,11 @@ Method RunExecAuto( nOperation as numeric, aKeyValue as array ) as logical Class
 
         ::oError:SetAutoGRLogFromExecAuto(::cExecAuto)
 
+        // TODO: melhorar tratativa...
+        // if Empty(::oError:cAutoGRLog)
+        //     ::oError:SetAutoGRLog(MostraErro())
+        // endif
+
     else
 
         ::oError:DefineWithError(.F.)
