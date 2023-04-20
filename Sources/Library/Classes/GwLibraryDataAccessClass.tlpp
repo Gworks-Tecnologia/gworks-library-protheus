@@ -52,6 +52,8 @@ Class GwDataAccess
     Public Method GetErrorObject() as variant
     Public Method SetDataSource( cDataSource as character ) as variant
     Public Method SelectArea() as variant
+    Public Method SetFilter( cFilter as character ) as logical
+    Public Method ClearFilter()
     Public Method SetOrder( xOrder as variant )
     Public Method RetIndexOrder() as numeric
     Public Method GoTop() as variant
@@ -77,11 +79,12 @@ Class GwDataAccess
     Public Method CloseArea() as variant
     Public Method ReleaseArea() as variant
     Public Method GetRecnoId() as variant
-    Public Method RefreshByCurrentId() as variant // TODO: implementar método: deve atualizar todos os relacionamentos existentes para a classe
+    Public Method GetFieldPosition( cFieldName as character ) as numeric
+    Public Method FieldExists( cFieldName as character ) as logical
 
     // Métodos públicos da classe para fins de relacionamentos
     Public Method SetRelation( oAttr as object ) as variant
-    Public Method RefreshRelation() as logical
+    Public Method RefreshRelation() as logical // TODO: implementar melhoria para atualizar todos os relacionamentos existentes
     Public Method SelectRelation( cAliasJoin as character, cIndexJoin as character ) as logical
     Public Method RelationSearch( cFieldName as character, xContent as variant, cRetJoinId as character ) as logical
     Public Method RelationGetSearchResult() as object
@@ -157,6 +160,49 @@ Return .T.
 Method SelectArea() as variant Class GwDataAccess
 
     DbSelectArea(Self:cAlias)
+
+Return
+
+
+Method SetFilter( cFilter as character ) as logical Class GwDataAccess
+
+    Local lResult := .T.
+
+    Local cFieldPrefix := "" as character
+    Local cFieldFilial := "" as character
+
+    Default cFilter := ""
+
+    if Empty(cFilter)
+        UserException("GwDataAccess:SetFilter - Argumento cFilter inválido ou não informado!")
+    endif
+
+    if ::lAutoFilial
+
+        cFieldPrefix := if( at('S',::cAlias) == 1, Right(::cAlias,2), ::cAlias )
+
+        cFieldFilial := cFieldPrefix + "_FILIAL"
+
+        cFilter := cFieldFilial +" == '"+ xFilial(::cAlias) +"' .And. "+ cFilter // XX_FILIAL == '01'...
+
+    endif
+
+    (::cAlias)->(DbSetFilter( {|| &cFilter }, cFilter ))
+
+    (::cAlias)->(DbGotop())
+
+    if !(::cAlias)->(EOF())
+        lResult := .T.
+    endif
+
+Return lResult
+
+
+Method ClearFilter() Class GwDataAccess
+
+    (::cAlias)->(DbClearFilter())
+
+    (::cAlias)->(DbGoTop())
 
 Return
 
@@ -596,6 +642,29 @@ Method GetRecnoId() Class GwDataAccess
     cAlias := Self:cAlias
 
 Return (cAlias)->(Recno())
+
+
+Method GetFieldPosition( cFieldName as character ) as numeric Class GwDataAccess
+
+    Local nResult := 0 as numeric
+
+    ::SelectArea()
+
+    nResult := FieldPos(cFieldName)
+
+Return nResult
+
+
+Method FieldExists( cFieldName as character ) as logical Class GwDataAccess
+
+    Local lResult := .F. as logical
+
+    if ::GetFieldPosition(cFieldName) > 0
+        lResult := .T.
+    endif
+
+Return lResult
+
 
 /*/{Protheus.doc} GwDataAccess::SetRelation( oAttr as object,  ) as variant
 Cria um novo relacionamento para a tabela principal na classe conforme definido por cAlias.
