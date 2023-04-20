@@ -17,13 +17,17 @@ Class GwKeyValue
     Public Method Add( cKey as character, xValue as variant )
     Public Method Length() as numeric
     Public Method HasName( cName as character ) as logical
-    Public Method HasChildren() as logical
-    Public Method GetChildren() as object
+    Public Method HasChildren( nPos as numeric ) as logical
+    Public Method GetChildren( nPos as numeric ) as object
+    Public Method GetKeyByPosition( nPos as numeric ) as character
     Public Method GetNameByPosition( nPos as numeric ) as character
     Public Method GetAllValues() as array
     Public Method GetValueTypeByPosition( nPos as numeric ) as character
     Public Method GetValueByPosition( nPos as numeric ) as variant
     Public Method GetValueByKey( xSearch as variant ) as variant
+    Public Method GetPositionKey( cKey as character ) as numeric
+    Public Method KeyExists( cKey as character ) as logical
+    Public Method ReplaceValueByKey( cKey as character, xValue as variant )
 
 EndClass
 
@@ -67,33 +71,42 @@ Method HasName( cName as character ) as logical Class GwKeyValue
 Return lResult
 
 
-Method HasChildren() as logical Class GwKeyValue
+Method HasChildren( nPos as numeric ) as logical Class GwKeyValue
 
     Local lResult := .F. as logical
 
-    if ( Len(::aKeyValue) == 1 .And. ;
-         ValType(::aKeyValue[1,2]) == "O" .And. ;
-         AllTrim(Upper(GetClassName(::aKeyValue[1,2]))) == "GWORKS.LIBRARY.CLASSES.GWKEYVALUE" )
+    Default nPos := 1 // vlr. padrão = 1 (mantido por compatibilidade)
+
+    if  ValType(::aKeyValue[nPos,2]) == "O" .And. ;
+        AllTrim(Upper(GetClassName(::aKeyValue[1,2]))) == "GWORKS.LIBRARY.CLASSES.GWKEYVALUE"
 
         lResult := .T.
 
     endif
 
+    // if ( Len(::aKeyValue) == 1 .And. ;
+    //      ValType(::aKeyValue[1,2]) == "O" .And. ;
+    //      AllTrim(Upper(GetClassName(::aKeyValue[1,2]))) == "GWORKS.LIBRARY.CLASSES.GWKEYVALUE" )
+    //     lResult := .T.
+    // endif
+
 Return lResult
 
 
-Method GetChildren() as object Class GwKeyValue
+Method GetChildren( nPos as numeric ) as object Class GwKeyValue
 
     Local oResult as object
 
+    Default nPos := 1 // vlr. padrão = 1 (mantido por compatibilidade)
+
     if ::HasChildren()
-        oResult := ::aKeyValue[1,2]
+        oResult := ::aKeyValue[nPos,2]
     endif
 
 Return oResult
 
 
-Method GetNameByPosition( nPos as numeric ) as character Class GwKeyValue // TODO: testar...
+Method GetKeyByPosition( nPos as numeric ) as character Class GwKeyValue
 
     Local cResult := "" as character
 
@@ -104,6 +117,10 @@ Method GetNameByPosition( nPos as numeric ) as character Class GwKeyValue // TOD
     endif
 
 Return cResult
+
+
+Method GetNameByPosition( nPos as numeric ) as character Class GwKeyValue
+Return ::GetKeyByPosition(nPos)
 
 
 Method GetAllValues() as array Class GwKeyValue
@@ -158,3 +175,53 @@ Method GetValueByKey( xSearch as variant ) as variant Class GwKeyValue
     endif
 
 Return xResult
+
+
+Method GetPositionKey( cKey as character ) as numeric Class GwKeyValue
+
+    Local nPos := 0 as numeric
+
+    Default cKey := ""
+
+    if Empty(cKey)
+        UserException("GwKeyValue:GetPositionKey - Parâmetro cKey inválido ou não informado!")
+    endif
+
+    nPos := aScan(::aKeyValue, {|x| x[1] == cKey })
+
+Return nPos
+
+
+Method KeyExists( cKey as character ) as logical Class GwKeyValue
+
+    Local lResult := .F. as logical
+
+    if Empty(cKey)
+        UserException("GwKeyValue:KeyExists - Parâmetro cKey inválido ou não informado!")
+    endif
+
+    lResult := ( aScan(::aKeyValue, {|x| x[1] == cKey }) > 0 )
+
+Return lResult
+
+
+Method ReplaceValueByKey( cKey as character, xValue as variant ) Class GwKeyValue
+
+    Local nPos    := 0   as numeric
+    Local lResult := .F. as logical
+
+    Default cKey := nil
+    Default xValue := nil
+
+    if Empty(cKey)
+        UserException("GwKeyValue:ReplaceValueByKey - Parâmetro cKey inválido ou não informado!")
+    endif
+
+    nPos := aScan(::aKeyValue, {|x| x[1] == cKey })
+
+    if nPos > 0
+        ::aKeyValue[nPos,2] := xValue
+        lRessult := .T.
+    endif
+
+Return lResult
