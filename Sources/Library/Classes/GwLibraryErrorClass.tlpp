@@ -18,6 +18,7 @@ Class GwError From ErrorClass
     Public Data cFunName     as character default ""
     Public Data cMethod      as character default ""
     Public Data lError       as logical   default .F.
+    Public Data oSave        as object    default {}
 
     // Métodos construtores
     Public Method New() Constructor // construtor com argumentos
@@ -37,6 +38,8 @@ Class GwError From ErrorClass
     Public Method SetAutoGRLogFromExecAuto( cExecAutoName as character ) as variant
     Public Method ShowAutoGRLog() as variant // mostra a janela de erro da função MostraErro() conforme a mensagem definida para o
     Public Method ThrowException( cException as character ) as variant // Lança exceção de erro
+    Public Method SaveError( cName as character ) // salva o erro atual e o atribui um nome chave
+    Public Method RestoreError( cName as character ) as logical // restaura um determinado erro pelo seu nome chave
 
 EndClass
 
@@ -114,17 +117,25 @@ Recicla o objeto limpando todos seus atributos.
 @author Gworks-Giovani
 @since 3/21/2023
 /*/
-Method Clear() as variant Class Gwerror
+Method Clear( lSavedErrors as logical ) as variant Class Gwerror
 
-    cError      := ""
-    cSuggestion := ""
-    cTitle      := ""
-    cAutoGRLog  := ""
-    lError      := .F.
+    Default lSavedErrors := .F.
+
+    ::cError      := ""
+    ::cSuggestion := ""
+    ::cTitle      := ""
+    ::cAutoGRLog  := ""
+    ::lError      := .F.
+
+    // Limpa erros que foram salvos
+    if lSavedErrors
+        ::oSave := nil
+        ::oSave := GwKeyValue():New()
+    endif
 
     // Atributos herdados da classe ErrorClass()
     Self:GenCode      := 0
-    Self:Description  := cError
+    Self:Description  := ::cError
 
 Return
 
@@ -150,6 +161,7 @@ Method SetError( cError as character, cSuggestion as character, cTitle as charac
     Self:cSuggestion    := cSuggestion
     Self:cTitle         := cTitle
     Self:lError         := lError
+    Self:oSave          := GwKeyValue():New()
 
     // Atributos herdados da classe ErrorClass()
     Self:GenCode      := 0
@@ -417,3 +429,68 @@ Method ThrowException( cException as character ) as variant Class GwError
     endif
 
 Return
+
+/*/{Protheus.doc} GwError::SaveError( cName as character ) as variant
+Salva todo os atributos da instância pertencente ao objeto.
+@type method
+@version 12.1.33
+@author Gworks-Giovani
+@since 4/16/2023
+/*/
+Method SaveError( cName as character ) Class GwError
+
+    Local oError as object
+
+    Default cName := "Error"
+
+    oError := GwKeyValue():New()
+
+    oError:Add( 'cError'     , ::cError      )
+    oError:Add( 'cSuggestion', ::cSuggestion )
+    oError:Add( 'cTitle'     , ::cTitle      )
+    oError:Add( 'cAutoGRLog' , ::cAutoGRLog  )
+    oError:Add( 'cFunName'   , ::cFunName    )
+    oError:Add( 'cMethod'    , ::cMethod     )
+    oError:Add( 'lError'     , ::lError      )
+
+    if !::oSave:KeyExists(cName)
+        ::oSave:Add(cName, oError)
+    else
+        ::oSave:ReplaceValueByKey(cName, oError )
+    endif
+
+Return
+
+/*/{Protheus.doc} GwError::RestoreError( cName as character ) as logical
+Restaura um erro a partir de um nome chave.
+@type method
+@version 12.1.33
+@author giovani
+@since 4/16/2023
+@return logical, Retorna .T. para indicar sucesso na operação e .F. falha.
+/*/
+Method RestoreError( cName as character ) as logical Class GwError
+
+    Local oError as object
+
+    Local lResult := .F. as logical
+
+    Default cName := "Error"
+
+    if ::oSave:KeyExists(cName)
+
+        oError := ::oSave:GetValueByKey(cName)
+
+        ::cError      := oError:GetValueByKey( 'cError'      )
+        ::cSuggestion := oError:GetValueByKey( 'cSuggestion' )
+        ::cTitle      := oError:GetValueByKey( 'cTitle'      )
+        ::cAutoGRLog  := oError:GetValueByKey( 'cAutoGRLog'  )
+        ::cFunName    := oError:GetValueByKey( 'cFunName'    )
+        ::cMethod     := oError:GetValueByKey( 'cMethod'     )
+        ::lError      := oError:GetValueByKey( 'lError'      )
+
+        lResult := .T.
+
+    endif
+
+Return lResult

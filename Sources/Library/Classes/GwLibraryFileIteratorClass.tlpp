@@ -11,10 +11,11 @@ Class GwFileIterator
     Public Data oError      as object
     Public data oFile       as object
 
-    Public Data cFile       as character default ""
     Public Data aFile       as array     default {}
-    Public Data lLoadStatus as logical   default .F.
+    Public Data cFile       as character default ""
     Public Data nTotalLines as numeric   default 0
+    Public Data lLoadStatus as logical   default .F.
+    Public Data lStop       as logical   default .F.
 
     // Métodos construtores da classe
     Public Method New() Constructor
@@ -27,7 +28,7 @@ Class GwFileIterator
     Public Method SetFile( cFile as character )
     Public Method LoadFile() as logical
     Public Method GetLoadStatus() as logical
-    Public Method EvalByCondition( bLoad as codeblock, bCondition as codeblock, bExec as codeblock )
+    Public Method EvalByCondition( bLoad as codeblock, bValid as codeblock, bExec as codeblock )
 
 EndClass
 
@@ -189,15 +190,15 @@ Para cada linha do arquivo avalia uma determinada estrutura de blocos de código 
 @author Gworks-Giovani
 @since 4/3/2023
 @param bLoad, codeblock, Bloco de código para carga de dados.
-@param bCondition, codeblock, Bloco de código de condição.
+@param bValid, codeblock, Bloco de código de condição.
 @param bExec, codeblock, Bloco de código para execução final.
 @param nStart, numeric, Número da linha que se deseja iniciar.
 /*/
-Method EvalByCondition( bLoad as codeblock, bCondition as codeblock, bExec as codeblock, nStart as numeric ) Class GwFileIterator
+Method EvalByCondition( bLoad as codeblock, bValid as codeblock, bExec as codeblock, nStart as numeric ) Class GwFileIterator
 
     Local nI := 0 as numeric
     Local xLoad := nil as variant
-    Local lCondition := .F. as variant
+    Local lValid := .F. as variant
 
     for nI:=1 to ::nTotalLines
 
@@ -205,10 +206,16 @@ Method EvalByCondition( bLoad as codeblock, bCondition as codeblock, bExec as co
             Loop // ignora linha conforme nStart
         endif
 
-        cLine := ::aFile[nI]
-        xLoad := Eval( bLoad, cLine, nI, ::cFile )
-        lCondition := Eval( bCondition, xLoad, cLine, nI, ::cFile )
-        if lCondition
+        cLine  := ::aFile[nI]
+
+        xLoad  := Eval( bLoad, cLine, nI, ::cFile )
+
+        lValid := Eval( bValid, xLoad, cLine, nI, ::cFile )
+        if ::lStop
+            exit // abandona a execução
+        endif
+
+        if lValid
             Eval( bExec, xLoad, cLine, nI, ::cFile )
         endif
 

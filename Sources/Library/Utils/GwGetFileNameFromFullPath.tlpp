@@ -1,0 +1,48 @@
+#include "TOTVS.ch"
+
+Static cToken__ := "" as character // melhoria de performance
+
+namespace Gworks.Library.Utils
+
+/*/{Protheus.doc} GwGetFileNameFromFullPath
+Retorna o nome de um arquivo com base em um diretório absoluto.
+@type function
+@version 12.1.33
+@author Gworks-Giovani
+@since 4/15/2023
+@param cFullPath, character, Arquivo com o caminho completo, ex.: "C:\Temp\file.txt"
+@param cToken, character, Separador de subdiretórios, em Windwos "\" e Linux "/"
+@return character, Retorna o nome do arquivo, ex.: "file.txt".
+/*/
+User Function GwGetFileNameFromFullPath( cFullPath as character, cToken as character ) as character
+
+    Local aPaths := {} as array
+    Local cLibVer := "" as character
+    Local cResult := "" as character
+
+    Default cFullPath := ""
+    Default cToken := ""
+
+    if !Empty(cToken__)
+        cToken := cToken__
+    endif
+
+    if Empty(cToken)
+        GetRemoteType(@cLibVer)
+        do case
+            case "WIN"   $ Upper(cLibVer) ; cToken := "\"
+            case "LINUX" $ Upper(cLibVer) ; cToken := "/"
+            case "MAC"   $ Upper(cLibVer) ; cToken := "/"
+            otherwise
+                cToken := "\" // padrão windows
+        end case
+        cToken__ := cToken
+    endif
+
+    if !Empty(cFullPath)
+        aPaths := StrToKarr(cFullPath, cToken)
+        cResult := aPaths[ Len(aPaths) ]
+    endif
+
+Return cResult
+

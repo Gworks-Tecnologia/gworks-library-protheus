@@ -83,4 +83,8 @@ Method IncluirSolicitacaoArmazem( aDados as array ) as logical Class GwSolicitac
     ::oError:lError     := oExecAuto:oError:lError
     ::oError:cAutoGRLog := oExecAuto:oError:cAutoGRLog
 
+    if !::oError:lError
+        lResult := .T.
+    endif
+
 Return lResult
