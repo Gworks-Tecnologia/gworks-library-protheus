@@ -47,7 +47,7 @@
             "componentDataBaseAlias":"SZ0",
             "componentFields":"{ |cCampo| ( AllTrim(cCampo) $ 'Z0_DTIMP;Z0_USUIMP;Z0_DTPROC;Z0_USUPROC' ) }",
             "componentProperties":[
-                {"field":"Z0_DTIMP"   , "property": "MODEL_FIELD_WHEN"   , "value": "{|| .T. }"},
+                {"field": "Z0_DTIMP"  , "property": "MODEL_FIELD_WHEN"   , "value": "{|| .T. }"},
                 {"field": "Z0_USUIMP" , "property": "MODEL_FIELD_WHEN"   , "value": "{|| .T. }"},
                 {"field": "Z0_DTPROC" , "property": "MODEL_FIELD_WHEN"   , "value": "{|| .T. }"},
                 {"field": "Z0_USUPROC", "property": "MODEL_FIELD_WHEN"   , "value": "{|| .T. }"},
