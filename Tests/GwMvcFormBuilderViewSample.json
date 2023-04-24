@@ -73,5 +73,5 @@
             "componentSetDoubleClick": "{ |oModel, cFieldName, nLineGrid, nLineModel| nil }"
         }
     ],
-    "othersComponents":null,
+    "othersComponents":null
 }
