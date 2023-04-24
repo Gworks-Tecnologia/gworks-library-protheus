@@ -1,0 +1,77 @@
+{
+    "modelName":"GWFM001M",
+    "setCloseOnOk":"{ || .T. }",
+    "fieldsComponents":[
+        {
+            "componentType":"FIELD",
+            "componentName":"FORMFIELD",
+            "componentDescription":"%fromOwner%",
+            "componentEnableTitle":true,
+            "componentViewSize":60,
+            "componentViewOwner":"BOXFORMF",
+            "componentModelOwner":"FIELD",
+            "componentdataBaseAlias":"SZ0",
+            "componentFields":"%fromOwner%",
+            "componentFolders":[
+                { "folderId": "F01", "folderName":"Cadastrais" },
+                { "folderId": "F02", "folderName":"Log" }
+            ],
+            "componentGroups":[
+                {"groupId":"GROUP01", "groupDescription":"Registro"      , "folderId": "F01", "grouptype": 2},
+                {"groupId":"GROUP02", "groupDescription":"Ordem Produção", "folderId": "F02", "grouptype": 2},
+                {"groupId":"GROUP03", "groupDescription":"Log"           , "folderId": "F03", "grouptype": 2}
+            ],
+            "componentProperties":[
+                {"field":"Z0_CODIGO" , "property": "MVC_VIEW_FOLDER_NUMBER", "value":"F01"},
+                {"field":"Z0_STATUS" , "property": "MVC_VIEW_FOLDER_NUMBER", "value":"F01"},
+                {"field":"Z0_OP"     , "property": "MVC_VIEW_FOLDER_NUMBER", "value":"F01"},
+                {"field":"Z0_DTEMISS", "property": "MVC_VIEW_FOLDER_NUMBER", "value":"F01"},
+                {"field":"Z0_CDPROD" , "property": "MVC_VIEW_FOLDER_NUMBER", "value":"F01"},
+                {"field":"Z0_PLANO"  , "property": "MVC_VIEW_FOLDER_NUMBER", "value":"F01"},
+                {"field":"Z0_DTPINI" , "property": "MVC_VIEW_FOLDER_NUMBER", "value":"F01"},
+                {"field":"Z0_DTPFIM" , "property": "MVC_VIEW_FOLDER_NUMBER", "value":"F01"},
+                {"field":"Z0_TIPO"   , "property": "MVC_VIEW_FOLDER_NUMBER", "value":"F01"},
+                {"field":"Z0_TPOP"   , "property": "MVC_VIEW_FOLDER_NUMBER", "value":"F01"},
+                {"field":"Z0_OPERPAD", "property": "MVC_VIEW_FOLDER_NUMBER", "value":"F01"},
+                {"field":"Z0_OPERAC" , "property": "MVC_VIEW_FOLDER_NUMBER", "value":"F01"},
+                {"field":"Z0_NMARQV" , "property": "MVC_VIEW_FOLDER_NUMBER", "value":"F01"},
+                {"field":"Z0_QTPROD" , "property": "MVC_VIEW_FOLDER_NUMBER", "value":"F01"},
+                {"field":"Z0_LOG"    , "property": "MVC_VIEW_FOLDER_NUMBER", "value":"F02"},
+                {"field":"Z0_CODIGO" , "property": "MVC_VIEW_GROUP_NUMBER" , "value":"GROUP01"},
+                {"field":"Z0_STATUS" , "property": "MVC_VIEW_GROUP_NUMBER" , "value":"GROUP01"},
+                {"field":"Z0_OP"     , "property": "MVC_VIEW_GROUP_NUMBER" , "value":"GROUP02"},
+                {"field":"Z0_DTEMISS", "property": "MVC_VIEW_GROUP_NUMBER" , "value":"GROUP02"},
+                {"field":"Z0_CDPROD" , "property": "MVC_VIEW_GROUP_NUMBER" , "value":"GROUP02"},
+                {"field":"Z0_PLANO"  , "property": "MVC_VIEW_GROUP_NUMBER" , "value":"GROUP02"},
+                {"field":"Z0_DTPINI" , "property": "MVC_VIEW_GROUP_NUMBER" , "value":"GROUP02"},
+                {"field":"Z0_DTPFIM" , "property": "MVC_VIEW_GROUP_NUMBER" , "value":"GROUP02"},
+                {"field":"Z0_TIPO"   , "property": "MVC_VIEW_GROUP_NUMBER" , "value":"GROUP02"},
+                {"field":"Z0_TPOP"   , "property": "MVC_VIEW_GROUP_NUMBER" , "value":"GROUP02"},
+                {"field":"Z0_OPERPAD", "property": "MVC_VIEW_GROUP_NUMBER" , "value":"GROUP02"},
+                {"field":"Z0_OPERAC" , "property": "MVC_VIEW_GROUP_NUMBER" , "value":"GROUP02"},
+                {"field":"Z0_NMARQV" , "property": "MVC_VIEW_GROUP_NUMBER" , "value":"GROUP02"},
+                {"field":"Z0_QTPROD" , "property": "MVC_VIEW_GROUP_NUMBER" , "value":"GROUP02"},
+                {"field":"Z0_LOG"    , "property": "MVC_VIEW_GROUP_NUMBER" , "value":"GROUP03"}
+            ]
+        }
+    ],
+    "gridComponents":[
+        {
+            "componentType":"GRID",
+            "formName":"FORMGRID",
+            "formDescription":"%fromOwner%",
+            "componentEnableTitle":true,
+            "componentViewSize":40,
+            "componentViewOwner":"BOXFORMG",
+            "componentModelOwner":"GRID",
+            "componentdataBaseAlias":"SZ0",
+            "componentFields":"%fromOwner%",
+            "componentGridSeek":false,
+            "componentGridFilter":false,
+            "componentGridIncrementalField":null,
+            "componentGridUserButtons":null,
+            "componentSetDoubleClick": "{ |oModel, cFieldName, nLineGrid, nLineModel| nil }"
+        }
+    ],
+    "othersComponents":null,
+}
