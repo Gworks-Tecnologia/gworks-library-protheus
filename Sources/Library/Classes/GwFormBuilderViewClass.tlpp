@@ -1,0 +1,129 @@
+#include "TOTVS.ch"
+
+#define CRLF chr(13)+chr(10)
+#define CRLF2 CRLF+CRLF
+
+using namespace Gworks.Library.Classes
+
+namespace Gworks.Library.Classes
+
+
+Class GwFormBuilderModel
+
+    Public Data oModel as object
+    Public Data cModelId as character default ""
+    Public Data cModelDescription as character default ""
+    Public Data cModelEventNameSpace as character default ""
+    Public Data cModelEventClassName as character default ""
+    Public Data aPrimaryKey as array default {}
+    Public Data aRelation as array default {}
+    Public Data aFieldsComponents as array default {}
+    Public Data aGridComponents as array default {}
+    Public Data aOthersComponents as array default {}
+
+    Method New()
+    Method InitModel() as logical
+
+EndClass
+
+
+
+Method New() Class GwFormBuilderModel
+
+Return Self
+
+
+Method InitModel() Class GwFormBuilderModel
+
+    Local nI := 0 as numeric
+
+    Local lResult := .F. as logical
+
+    if Empty(cModelId) .And. Empty(aPrimaryKey) .And. Empty(aFieldsComponents)
+        UserException("GwFormBuilderModel:InitModel - Parâmetros não informados ou inválidos!")
+    endif
+
+
+
+
+Return lResult
+
+
+
+
+
+
+{
+    "modelName":"GWFM001M",
+    "modelDescription":"Cadastro Kanban Ordens de Produção",
+    "modelEventNameSpace":"Modules.Producao.Projects.KanbanOrdemProducao.Events",
+    "modelEventClassName":"FormularioModelEvent",
+    "setPrimaryKey":[
+        "Z0_FILIAL",
+        "Z0_CODIGO"
+    ],
+    "setRelation":{
+        "componentName":"GRID",
+        "relationKeys":[
+            {
+                "childKey":"Z0_FILIAL",
+                "parentKey":"XFILIAL('SZ0')"
+            },
+            {
+                "childKey":"Z0_CODIGO",
+                "parentKey":"Z0_CODIGO"
+            }
+        ]
+    },
+    "fieldsComponents":[
+        {
+            "componentType":"FIELD",
+            "componentName":"FIELD",
+            "componentDescription":"Kanban Ordem Produção",
+            "componentOwner":null,
+            "componentDataBaseAlias":"SZ0",
+            "componentFields":"{ |cCampo| !( AllTrim(cCampo) $ 'Z0_DTIMP;Z0_USUIMP;Z0_DTPROC;Z0_USUPROC' ) }",
+            "componentProperties":[
+                { "field":"Z0_OPERPAD", "property": "MODEL_FIELD_WHEN", "value":"{|| .T. }" }
+            ]
+        }
+    ],
+    "gridComponents":[
+        {
+            "componentType":"GRID",
+            "componentName":"GRID",
+            "componentDescription":"Detalhes",
+            "componentOwner":"FIELD",
+            "componentDataBaseAlias":"SZ0",
+            "componentFields":"{ |cCampo| ( AllTrim(cCampo) $ 'Z0_DTIMP;Z0_USUIMP;Z0_DTPROC;Z0_USUPROC' ) }",
+            "componentProperties":[
+                {"field": "Z0_DTIMP"  , "property": "MODEL_FIELD_WHEN"   , "value": "{|| .T. }"},
+                {"field": "Z0_USUIMP" , "property": "MODEL_FIELD_WHEN"   , "value": "{|| .T. }"},
+                {"field": "Z0_DTPROC" , "property": "MODEL_FIELD_WHEN"   , "value": "{|| .T. }"},
+                {"field": "Z0_USUPROC", "property": "MODEL_FIELD_WHEN"   , "value": "{|| .T. }"},
+                {"field": "Z0_DTIMP"  , "property": "MODEL_FIELD_OBRIGAT", "value": ".F."},
+                {"field": "Z0_USUIMP" , "property": "MODEL_FIELD_OBRIGAT", "value": ".F."},
+                {"field": "Z0_DTPROC" , "property": "MODEL_FIELD_OBRIGAT", "value": ".F."},
+                {"field": "Z0_USUPROC", "property": "MODEL_FIELD_OBRIGAT", "value": ".F."}
+            ]
+        }
+    ],
+    "othersComponents":null
+}
+
+
+
+
+	// NEW MODEL ;
+	// TYPE 2 ;
+	// DESCRIPTION "Cadastro de Conversão Padrão" ;
+	// BROWSE oBrowse ;
+	// SOURCE "FCOMA505" ;
+	// MENUDEF "FCOMA505" ;
+	// MODELID "MDFCOMA505" ;
+	// MASTER "ZA1" ;
+	// HEADER { 'ZA1_UM', 'ZA1_DESC' } ;
+	// RELATION { { 'ZA1_FILIAL', 'xFilial( "ZA1" )' }, { 'ZA1_UM', 'ZA1_UM' } } ;
+	// UNIQUELINE { 'ZA1_UMF' } ;
+	// ORDERKEY ZA1->( IndexKey( 1 ) ) ;
+	// PRIMARYKEY { 'ZA1_FILIAL','ZA1_UM','ZA1_UMF' }
