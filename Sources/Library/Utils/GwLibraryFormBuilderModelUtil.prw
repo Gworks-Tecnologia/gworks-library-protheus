@@ -113,7 +113,9 @@ Static Function fGetStruct( aComponent as array )
 
     Local oStruct as object
     Local jComponent as json
+    Local jProperty as json
     Local nI := 0 as numeric
+    Local nJ := 0 as numeric
     Local cAlias := "" as character
     Local bField := {||} as codeblock
 
@@ -123,11 +125,37 @@ Static Function fGetStruct( aComponent as array )
 
         jComponent := aComponent[nI]
 
+
+
+        jComponent['componentType']
+        jComponent['componentName']
+        jComponent['componentDescription']
+        jComponent['componentOwner']
+        jComponent['componentDataBaseAlias']
+
+
+        oModel:AddFields('FIELD',/*cOwner*/,oStrField) // adiciona ao modelo a estrutura do cabeçalho
+        oModel:AddGrid('GRID','FIELD',oStrGrid) // adiciona ao modelo a estrutura dos itens
+
+
+
         oStruct := FWFormStruct(1, jComponent['componentDataBaseAlias'], jComponent['componentFields'] )
+
+
+
 
         if jComponent:HasProperty('componentProperties')
 
-            { "field":"Z0_OPERPAD", "property": "MODEL_FIELD_WHEN", "value":"{|| .T. }" }
+            for nJ:=1 to Len(jComponent['componentProperties'])
+
+                jProperty := jComponent['componentProperties',nJ]
+
+                Struct:SetProperty( jProperty['field'], &(jProperty['property']), &(jProperty['value']) )
+
+            next
+
+
+
 
         endif
 
