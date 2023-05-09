@@ -12,17 +12,25 @@ Manipula arquivos do dicionário de dados referente às tabelas de metadados SX1, 
 @type function
 @sample OpenSX("SX3","SX3DIC")
 /*/
-User Function GwOpenDictionary(cDictionary,cAlias)
+User Function GwOpenDictionary( cDictionary as character, cAlias as character )
+
 	Local lRet := .F.
+
 	Default cDictionary := ""
 	Default cAlias := ""
-	If Upper(cDictionary) $ "SX1/SX2/SX3/SX6/SIX" .And. !Empty(cAlias)
-		If Select(cAlias) > 0
+
+	if Upper(cDictionary) $ "SX1/SX2/SX3/SX6/SIX" .And. !Empty(cAlias)
+
+		if Select(cAlias) > 0
 			(cAlias)->(DbCloseArea())
-		EndIf
+		endif
+
 		OpenSxs(,,,,,cAlias,cDictionary,,.F.)
-		If Select(cAlias) > 0
+
+		if Select(cAlias) > 0
 			lRet := .T.
-		EndIf
-	EndIf
+		endif
+
+	endif
+
 Return lRet
