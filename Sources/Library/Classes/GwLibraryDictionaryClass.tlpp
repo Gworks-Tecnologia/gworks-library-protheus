@@ -1,0 +1,88 @@
+#include "TOTVS.ch"
+
+#define CRLF chr(13)+chr(10)
+#define CRLF2 CRLF+CRLF
+
+using namespace Gworks.Library.Utils
+using namespace Gworks.Library.Classes
+
+namespace Gworks.Library.Classes
+
+Class GwDictionary from GwDataAccess
+
+	Public Data cDictionary as character default ""
+	Public Data nOrder as numeric default 0
+	Public Data cLabel as character default ""
+
+	// Métodos construtores
+	Public Method New() Constructor
+
+	// Métodos públicos da classe
+	Public Method Open() as logical
+	Public Method GetTableNameByTitle( cTitle as character, cLabel as character )
+
+EndClass
+
+/*/{Protheus.doc} GwDictionary::New
+Cria instância da classe.
+@type method
+@version 12.1.2210
+@author Gworks-Giovani
+@since 3/21/2023
+@return object, instância da classe criada.
+/*/
+Method New( cDictionary as character, nOrder as numeric, cLabel as character ) Class GwDictionary
+
+	Default cDictionary := ""
+	Default nOrder := 0
+	Default cLabel := "db"
+
+	if Empty(cDictionary)
+		UserException("GwDictionary:New - Atributo cDictionary não informado!")
+	endif
+
+	if !( Upper(cDictionary) $ "SX1/SX2/SX3/SX6/SIX" )
+		UserException("GwDictionary:New - Atributo cDictionary inválido!")
+	endif
+
+	::cAlias := ( cDictionary+"DIC" )
+	::cDictionary := cDictionary
+	::nOrder := nOrder
+	::cLabel := cLabel
+
+Return Self
+
+/*/{Protheus.doc} GwDictionary::Open
+Realiza a abertura do diocionário de dados.
+@type method
+@version 12.1.2210
+@author Gworks-Giovani
+@since 5/9/2023
+@return logical, Retorna .T. para sucesso na abertura e .F. em caso de falhas.
+/*/
+Method Open() Class GwDictionary
+
+	Local lResult := .F. as logical
+
+	if U_GwOpenDictionary(::cDictionary, ::cAlias)
+
+		_Super:New(::cAlias)
+		_Super:SetOrder(::nOrder)
+		if _Super:NotEndOfFile()
+
+			lResult := .T.
+
+		endif
+
+	endif
+
+Return lResult
+
+
+Method GetTableNameByTitle( cTitle as character, cLabel as character ) Class GwDictionary
+
+	while _Super:NotEndOfFile()
+
+	enddo
+
+Return
