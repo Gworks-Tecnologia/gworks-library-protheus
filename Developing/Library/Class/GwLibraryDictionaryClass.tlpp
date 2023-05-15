@@ -11,15 +11,19 @@ namespace Gworks.Library.Classes
 Class GwDictionary from GwDataAccess
 
 	Public Data cDictionary as character default ""
-	Public Data nOrder as numeric default 0
-	Public Data cLabel as character default ""
+	Public Data nOrder      as numeric   default 0
+
+	Public Data cKey        as character default ""
+	Public Data cFieldKey   as character default ""
+	Public Data lBindKey    as logical   default .F.
 
 	// Métodos construtores
 	Public Method New() Constructor
 
 	// Métodos públicos da classe
+	Public Method NotEndOfFile() as logical
+	Public Method EndOfFile() as logical
 	Public Method Open() as logical
-	Public Method GetTableNameByTitle( cTitle as character, cLabel as character )
 
 EndClass
 
@@ -31,26 +35,57 @@ Cria instância da classe.
 @since 3/21/2023
 @return object, instância da classe criada.
 /*/
-Method New( cDictionary as character, nOrder as numeric, cLabel as character ) Class GwDictionary
+Method New( cDictionary as character, nOrder as numeric, cKey as character, cFieldKey as character ) Class GwDictionary
 
 	Default cDictionary := ""
+	Default cKey := ""
+	Default cFieldKey := ""
 	Default nOrder := 0
-	Default cLabel := "db"
 
-	if Empty(cDictionary)
-		UserException("GwDictionary:New - Atributo cDictionary não informado!")
+	if Empty(cDictionary) .Or. Empty(nOrder) // .Or. Empty(cKey) .Or. Empty(cFieldKey)
+		UserException("GwDictionary:New - Atributos inválidos ou não informados!")
 	endif
 
 	if !( Upper(cDictionary) $ "SX1/SX2/SX3/SX6/SIX" )
 		UserException("GwDictionary:New - Atributo cDictionary inválido!")
 	endif
 
+	if ( !Empty(cKey) .And. Empty(cFieldKey) ) .Or. ( Empty(cKey) .And. !Empty(cFieldKey) )
+		UserException("GwDictionary:New - Atributos cKey e cFieldKey devem ser informados juntamente!")
+	endif
+
 	::cAlias := ( cDictionary+"DIC" )
 	::cDictionary := cDictionary
 	::nOrder := nOrder
-	::cLabel := cLabel
+	::cKey := cKey
+	::cFieldKey := cFieldKey
+	::lBindKey := ( !Empty(cKey) .And. !Empty(cFieldKey) )
 
 Return Self
+
+/*/{Protheus.doc} GwDictionary::NotEndOfFile
+Ferifica se não é o fim do arquivo de trabalho.
+@type method
+@version 12.1.2210
+@author Gworks-Giovani
+@since 5/9/2023
+@return logical, Retorna .T. para indicar que não é fim do arquivo e .F. que é o fim.
+/*/
+Method NotEndOfFile() Class GwDictionary
+
+Return !(::cAlias)->(EOF()) .And. ( !lBindKey .Or. ( (::cAlias)->&(cFieldKey) == ::cKey ) )
+
+/*/{Protheus.doc} GwDictionary::EndOfFile
+Ferifica se é o fim do arquivo de trabalho.
+@type method
+@version 12.1.2210
+@author Gworks-Giovani
+@since 5/9/2023
+@return logical, Retorna .T. para indicar que é fim do arquivo e .F. que não é fim.
+/*/
+Method EndOfFile() Class GwDictionary
+
+Return (::cAlias)->(EOF()) .Or. ( !lBindKey .Or. ( (::cAlias)->&(cFieldKey) != ::cKey ) )
 
 /*/{Protheus.doc} GwDictionary::Open
 Realiza a abertura do diocionário de dados.
@@ -70,6 +105,8 @@ Method Open() Class GwDictionary
 		_Super:SetOrder(::nOrder)
 		if _Super:NotEndOfFile()
 
+			_Super:Seek(::cKey)
+
 			lResult := .T.
 
 		endif
@@ -77,12 +114,3 @@ Method Open() Class GwDictionary
 	endif
 
 Return lResult
-
-
-Method GetTableNameByTitle( cTitle as character, cLabel as character ) Class GwDictionary
-
-	while _Super:NotEndOfFile()
-
-	enddo
-
-Return
