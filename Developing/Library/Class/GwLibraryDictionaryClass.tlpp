@@ -11,7 +11,7 @@ namespace Gworks.Library.Classes
 Class GwDictionary from GwDataAccess
 
 	Public Data cDictionary as character default ""
-	Public Data nOrder      as numeric   default 0
+	Public Data xOrder      as variant   default 0
 
 	Public Data cKey        as character default ""
 	Public Data cFieldKey   as character default ""
@@ -35,14 +35,14 @@ Cria instância da classe.
 @since 3/21/2023
 @return object, instância da classe criada.
 /*/
-Method New( cDictionary as character, nOrder as numeric, cKey as character, cFieldKey as character ) Class GwDictionary
+Method New( cDictionary as character, xOrder as variant, cKey as character, cFieldKey as character ) Class GwDictionary
 
 	Default cDictionary := ""
 	Default cKey := ""
 	Default cFieldKey := ""
-	Default nOrder := 0
+	Default xOrder := nil
 
-	if Empty(cDictionary) .Or. Empty(nOrder) // .Or. Empty(cKey) .Or. Empty(cFieldKey)
+	if Empty(cDictionary) .Or. Empty(xOrder) // .Or. Empty(cKey) .Or. Empty(cFieldKey)
 		UserException("GwDictionary:New - Atributos inválidos ou não informados!")
 	endif
 
@@ -54,9 +54,12 @@ Method New( cDictionary as character, nOrder as numeric, cKey as character, cFie
 		UserException("GwDictionary:New - Atributos cKey e cFieldKey devem ser informados juntamente!")
 	endif
 
+	// Atributos herdados
 	::cAlias := ( cDictionary+"DIC" )
+
+	// Popula atributos internos
 	::cDictionary := cDictionary
-	::nOrder := nOrder
+	::xOrder := xOrder
 	::cKey := cKey
 	::cFieldKey := cFieldKey
 	::lBindKey := ( !Empty(cKey) .And. !Empty(cFieldKey) )
@@ -64,7 +67,8 @@ Method New( cDictionary as character, nOrder as numeric, cKey as character, cFie
 Return Self
 
 /*/{Protheus.doc} GwDictionary::NotEndOfFile
-Ferifica se não é o fim do arquivo de trabalho.
+Ferifica se não é o fim do arquivo de trabalho considerando a regra definida por
+lBindKey, que se .T., irá avaliar também o conteúdo dos atributos cKey e cFieldKey.
 @type method
 @version 12.1.2210
 @author Gworks-Giovani
@@ -73,10 +77,11 @@ Ferifica se não é o fim do arquivo de trabalho.
 /*/
 Method NotEndOfFile() Class GwDictionary
 
-Return !(::cAlias)->(EOF()) .And. ( !lBindKey .Or. ( (::cAlias)->&(cFieldKey) == ::cKey ) )
+Return !(::cAlias)->(EOF()) .And. ( !::lBindKey .Or. ( (::cAlias)->&(::cFieldKey) == ::cKey ) )
 
 /*/{Protheus.doc} GwDictionary::EndOfFile
-Ferifica se é o fim do arquivo de trabalho.
+Ferifica se é o fim do arquivo de trabalho considerando a regra definida por
+lBindKey, que se .T., irá avaliar também o conteúdo dos atributos cKey e cFieldKey.
 @type method
 @version 12.1.2210
 @author Gworks-Giovani
@@ -85,7 +90,7 @@ Ferifica se é o fim do arquivo de trabalho.
 /*/
 Method EndOfFile() Class GwDictionary
 
-Return (::cAlias)->(EOF()) .Or. ( !lBindKey .Or. ( (::cAlias)->&(cFieldKey) != ::cKey ) )
+Return (::cAlias)->(EOF()) .Or. ( !::lBindKey .Or. ( (::cAlias)->&(::cFieldKey) != ::cKey ) )
 
 /*/{Protheus.doc} GwDictionary::Open
 Realiza a abertura do diocionário de dados.
@@ -102,12 +107,14 @@ Method Open() Class GwDictionary
 	if U_GwOpenDictionary(::cDictionary, ::cAlias)
 
 		_Super:New(::cAlias)
-		_Super:SetOrder(::nOrder)
+		_Super:SetOrder(::xOrder)
 		if _Super:NotEndOfFile()
 
-			_Super:Seek(::cKey)
+			if _Super:Seek(::cKey)
 
-			lResult := .T.
+				lResult := .T.
+
+			endif
 
 		endif
 
