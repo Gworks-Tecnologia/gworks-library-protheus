@@ -151,6 +151,10 @@ Method SetDataSource( cDataSource as character ) as variant Class GwDataAccess
         UserException("GwDataAccess:SetDataSource - Argumento cDataSource inválido!")
     endif
 
+    if cDataSource == "DIC"
+        ::DisableAutoFilial()
+    endif
+
     Self:cDataSource := cDataSource
 
 Return
