@@ -1,7 +1,7 @@
 #include "TOTVS.ch"
 #include "MsObject.ch"
 
-#define REQUIRE_DATASOURCE_RELATION   "SX2"
+#define REQUIRE_DATASOURCE_RELATION   "SX2/DIC"
 #define REQUIRE_DATASOURCE_DICTIONARY "SX2/DIC"
 #define REQUIRE_DATASOURCE_DBQUERY    "SQL"
 
@@ -109,16 +109,16 @@ Method New( cAlias as character ) Class GwDataAccess
     Self:oError := GwError():New()
 
     Self:cAlias := cAlias
+    Self:lAutoFilial := .T.
+    Self:lFound := .F.
 
     Self:SelectArea()
     Self:SetDataSource()
 
-    Self:lOpened     := Select(cAlias) > 0
-    Self:aAliasArea  := (cAlias)->(GetArea())
+    Self:lOpened := Select(cAlias) > 0
+    Self:aAliasArea := (cAlias)->(GetArea())
     Self:aOtherAreas := {}
-    Self:aRelation   := {}
-    Self:lAutoFilial := .T.
-    Self:lFound      := .F.
+    Self:aRelation := {}
 
     if ::lOpened
         ::nIndexOrd := (cAlias)->(IndexOrd())
