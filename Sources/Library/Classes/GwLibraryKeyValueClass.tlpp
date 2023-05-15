@@ -27,6 +27,7 @@ Class GwKeyValue
     Public Method GetValueByKey( xSearch as variant ) as variant
     Public Method GetPositionKey( cKey as character ) as numeric
     Public Method KeyExists( cKey as character ) as logical
+    Public Method ValueExists( cValue as character ) as logical
     Public Method ReplaceValueByKey( cKey as character, xValue as variant )
 
 EndClass
@@ -201,6 +202,19 @@ Method KeyExists( cKey as character ) as logical Class GwKeyValue
     endif
 
     lResult := ( aScan(::aKeyValue, {|x| x[1] == cKey }) > 0 )
+
+Return lResult
+
+
+Method ValueExists( cValue as character ) as logical Class GwKeyValue
+
+    Local lResult := .F. as logical
+
+    if Empty(cValue)
+        UserException("GwKeyValue:ValueExists - Parâmetro cValue inválido ou não informado!")
+    endif
+
+    lResult := ( aScan(::aKeyValue, {|x| x[2] == cValue }) > 0 )
 
 Return lResult
 
