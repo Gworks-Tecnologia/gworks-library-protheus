@@ -164,7 +164,7 @@ Method ValidDataSource( cDataSource as character ) as logical Class GwDataAccess
 
     Default cDataSource := ""
 
-    if ::cDataSource $ cDataSource
+    if !( ::cDataSource $ cDataSource )
         UserException("GwDataAccess:ValidDataSource - Acesso a método inválido para o DataSource " +'"'+ ::cDataSource +'"!')
     endif
 
