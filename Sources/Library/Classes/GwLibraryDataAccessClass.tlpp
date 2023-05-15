@@ -147,7 +147,7 @@ Method SetDataSource( cDataSource as character ) as variant Class GwDataAccess
         endcase
     endif
 
-    if !(cDataSource $ "SX2;SQL")
+    if !(cDataSource $ "SX2;DIC;SQL")
         UserException("GwDataAccess:SetDataSource - Argumento cDataSource inválido!")
     endif
 
