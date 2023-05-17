@@ -29,6 +29,7 @@ Class GwKeyValue
     Public Method KeyExists( cKey as character ) as logical
     Public Method ValueExists( cValue as character ) as logical
     Public Method ReplaceValueByKey( cKey as character, xValue as variant )
+    Public Method AddOrReplaceByKey( cKey as character, xValue as variant )
 
 EndClass
 
@@ -236,6 +237,27 @@ Method ReplaceValueByKey( cKey as character, xValue as variant ) Class GwKeyValu
     if nPos > 0
         ::aKeyValue[nPos,2] := xValue
         lRessult := .T.
+    endif
+
+Return lResult
+
+
+Method AddOrReplaceByKey( cKey as character, xValue as variant ) Class GwKeyValue
+
+    Local lResult := .F. as logical
+
+    Default cKey := nil
+    Default xValue := nil
+
+    if Empty(cKey)
+        UserException("AddOrReplaceByKey:ReplaceValueByKey - Parâmetro cKey inválido ou não informado!")
+    endif
+
+    if ::KeyExists(cKey)
+        lResult := ::ReplaceValueByKey(cKey, xValue)
+    else
+        ::Add(cKey, xValue)
+        lResult := .T.
     endif
 
 Return lResult
