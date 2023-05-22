@@ -12,6 +12,9 @@ namespace Gworks.Library.Classes
 Class GwKeyValue
 
     Public Data aKeyValue as array default {}
+    Public Data cLastMatch as character default ""
+    Public Data cLastMatchType as character default ""
+    Public Data nLastMatchPos as numeric default 0
 
     Public Method New() Constructor
     Public Method Add( cKey as character, xValue as variant )
@@ -26,7 +29,7 @@ Class GwKeyValue
     Public Method GetValueByPosition( nPos as numeric ) as variant
     Public Method GetValueByKey( xSearch as variant ) as variant
     Public Method GetPositionKey( cKey as character ) as numeric
-    Public Method KeyExists( cKey as character ) as logical
+    Public Method KeyExists( cKey as character, cMatch as character ) as logical
     Public Method ValueExists( cValue as character ) as logical
     Public Method ReplaceValueByKey( cKey as character, xValue as variant )
     Public Method AddOrReplaceByKey( cKey as character, xValue as variant )
@@ -37,6 +40,9 @@ EndClass
 Method New() Class GwKeyValue
 
     Self:aKeyValue := {}
+    Self:cLastMatch := ""
+    Self:cLastMatchType := ""
+    Self:nLastMatchPos := 0
 
 Return Self
 
@@ -159,18 +165,24 @@ Method GetValueByPosition( nPos as numeric ) as variant Class GwKeyValue // TODO
 Return xResult
 
 
-Method GetValueByKey( xSearch as variant ) as variant Class GwKeyValue
+Method GetValueByKey( xSearch as variant, cMatch as character, cMatchType as character ) as variant Class GwKeyValue
 
-    Local nPos := 0   as numeric
-    Local xResult := nil as variant
+    Local nPos         := 0   as numeric
+    Local xResult      := nil as variant
 
-    Default xSearch := nil
+    Default xSearch    := nil
+    Default cMatch     := ""
+    Default cMatchType := ""
 
     if Empty(xSearch)
         UserException("GwKeyValue:GetValueByKey - Parâmetro xSearch inválido ou não informado!")
     endif
 
-    nPos := aScan(::aKeyValue, {|x| x[1] == xSearch })
+    if !Empty(cMatch) .And. !Empty(cMatchType) .And. cMatch == ::cLastMatch .And. cMatchType == ::cLastMatchType
+        nPos := ::nLastMatchPos
+    else
+        nPos := aScan(::aKeyValue, {|x| x[1] == xSearch })
+    endif
 
     if nPos > 0
         xResult := ::aKeyValue[nPos,2]
@@ -194,15 +206,59 @@ Method GetPositionKey( cKey as character ) as numeric Class GwKeyValue
 Return nPos
 
 
-Method KeyExists( cKey as character ) as logical Class GwKeyValue
+Method KeyExists( cKey as character, cMatch as character, cMatchType as character ) as logical Class GwKeyValue
 
-    Local lResult := .F. as logical
+    Local nPos           := 0   as numeric
+    Local nStart         := 0   as numeric
+    Local nMatchPos      := 0   as numeric
+    Local lResult        := .F. as logical
+
+    Default cKey         := ""
+    Default cMatch       := ""
+    Default cMatchType   := "key"
 
     if Empty(cKey)
         UserException("GwKeyValue:KeyExists - Parâmetro cKey inválido ou não informado!")
     endif
 
-    lResult := ( aScan(::aKeyValue, {|x| x[1] == cKey }) > 0 )
+    if !Empty(cMatch)
+
+        do case
+            case Lower(cMatchType) == "key"   ; nMatchPos := 1
+            case Lower(cMatchType) == "value" ; nMatchPos := 2
+            otherwise
+                UserException("GwKeyValue:KeyExists - Parâmetro cMatchType inválido ou não informado!")
+        endcase
+
+        nStart := 1
+        while .T.
+            nPos := aScan(::aKeyValue, {|x| x[1] == cKey }, nStart)
+            if nPos > 0
+                if ( cMatch $ ::aKeyValue[nPos,nMatchPos] )
+                    lResult := .T.
+                    exit
+                else
+                    nStart := nPos+1
+                    loop
+                endif
+            else
+                exit
+            endif
+        enddo
+
+    else
+        lResult := ( ( nPos := aScan( ::aKeyValue, {|x| x[1] == cKey } ) ) > 0 )
+    endif
+
+    if lResult
+        ::cLastMatch := cMatch
+        ::cLastMatchType := cMatchType
+        ::nLastMatchPos := nPos
+    else
+        ::cLastMatch := ""
+        ::cLastMatchType := ""
+        ::nLastMatchPos := 0
+    endif
 
 Return lResult
 
