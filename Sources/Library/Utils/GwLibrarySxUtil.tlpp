@@ -73,8 +73,8 @@ Retorna o nome do campo "_FILIAL" de uma determinada tabela.
 /*/
 User Function SxUtilGetFilialFieldName( cAlias as character )
 
-    cPrefixo := U_SxUtilGetFieldPrefixByAlias(cAlias)
+    Local cResult := "" as character
 
-    cResult := ( cPrefixo + "_" )
+    cResult := U_SxUtilGetFieldPrefixByAlias(cAlias) + "FILIAL"
 
 Return cResult
