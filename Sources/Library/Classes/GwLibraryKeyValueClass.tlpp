@@ -23,13 +23,13 @@ Class GwKeyValue
     Public Method HasChildren( nPos as numeric ) as logical
     Public Method GetChildren( nPos as numeric ) as object
     Public Method GetKeyByPosition( nPos as numeric ) as character
-    Public Method GetNameByPosition( nPos as numeric ) as character
+    Public Method GetNameByPosition( nPos as numeric ) as character // TODO: descontinuar
     Public Method GetAllValues() as array
     Public Method GetValueTypeByPosition( nPos as numeric ) as character
     Public Method GetValueByPosition( nPos as numeric ) as variant
-    Public Method GetValueByKey( xSearch as variant ) as variant
+    Public Method GetValueByKey( cKey as character, cMatch as character, cMatchType as character ) as variant
     Public Method GetPositionKey( cKey as character ) as numeric
-    Public Method KeyExists( cKey as character, cMatch as character ) as logical
+    Public Method KeyExists( cKey as character, cMatch as character, cMatchType as character ) as logical
     Public Method ValueExists( cValue as character ) as logical
     Public Method ReplaceValueByKey( cKey as character, xValue as variant )
     Public Method AddOrReplaceByKey( cKey as character, xValue as variant )
@@ -165,23 +165,28 @@ Method GetValueByPosition( nPos as numeric ) as variant Class GwKeyValue // TODO
 Return xResult
 
 
-Method GetValueByKey( xSearch as variant, cMatch as character, cMatchType as character ) as variant Class GwKeyValue
+Method GetValueByKey( cKey as character, cMatch as character, cMatchType as character ) as variant Class GwKeyValue
 
     Local nPos         := 0   as numeric
     Local xResult      := nil as variant
 
-    Default xSearch    := nil
+    Default cKey    := nil
     Default cMatch     := ""
     Default cMatchType := ""
 
-    if Empty(xSearch)
-        UserException("GwKeyValue:GetValueByKey - Parâmetro xSearch inválido ou não informado!")
+    if Empty(cKey)
+        UserException("GwKeyValue:GetValueByKey - Parâmetro cKey inválido ou não informado!")
     endif
 
-    if !Empty(cMatch) .And. !Empty(cMatchType) .And. cMatch == ::cLastMatch .And. cMatchType == ::cLastMatchType
+    if !Empty(cMatch) .And. !Empty(cMatchType)
+        if cMatch != ::cLastMatch .Or. cMatchType != ::cLastMatchType
+            if !::KeyExists(cKey, cMatch, cMatchType)
+                Return nil
+            endif
+        endif
         nPos := ::nLastMatchPos
     else
-        nPos := aScan(::aKeyValue, {|x| x[1] == xSearch })
+        nPos := aScan(::aKeyValue, {|x| x[1] == cKey })
     endif
 
     if nPos > 0
