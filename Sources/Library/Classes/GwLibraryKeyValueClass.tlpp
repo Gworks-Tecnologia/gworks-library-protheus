@@ -70,7 +70,7 @@ Method HasName( cName as character ) as logical Class GwKeyValue
 
     Default cName := ""
 
-    nPos := aScan(::aKeyValue, {|x| x[1] == xSearch })
+    nPos := aScan(::aKeyValue, {|x| x[1] == cName })
 
     if nPos > 0
         lResult := .T.
