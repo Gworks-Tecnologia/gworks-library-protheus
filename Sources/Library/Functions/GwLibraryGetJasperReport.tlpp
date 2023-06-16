@@ -1,0 +1,105 @@
+#include "TOTVS.ch"
+
+namespace Gworks.Library.Functions
+
+/*/{Protheus.doc} getJasperReport
+Rotina de integração entre Protheus X JasperServer para execução de relatórios.
+@type function
+@version 12.1.25
+@author GWorks - Giovani Soares
+@since 01/10/2020
+@param cReport, character, Nome do Relatório a ser executado
+@param cGetParms, character, Parâmetros a serem enviados para o relatório
+@param cPath, character, Diretório do repositório conforme repositório do JasperServer
+@param cFormat, character, Formato do relatório. Ex.: pdf, xlsx, html.
+@return array, [1] = .T. para Sucesso e .F. para Falha / [2] = Msg de exibição
+/*/
+User Function GetJasperReport(cReport,cGetParms,cPath,cFormat) // Projects.Library.U_GetJasperReport
+
+    Local aHeadStr  := {}  as character
+    Local cErr      := ""  as character
+    Local cURL      := ""  as character
+    Local cHRet     := ""  as character
+    Local cResult   := ""  as character
+    Local lRet      := .F. as logical
+
+    cServer   := GetNewPar( "JASPER_SRV", "10.200.4.7:8780" ) // jasper server as character
+    cUser     := GetNewPar( "JASPER_USR","protheus"         ) // jasper user as character
+    cPassword := GetNewPar( "JASPER_PSW","\asd123"          ) // jasper password as character
+
+    Default cReport   := ""
+    Default cGetParms := ""
+    Default cPath     := GetNewPar("JASPER_FOL", "/jasperserver/rest_v2/reports/Reports/Protheus") // jasper folder path
+    Default cFormat   := ".pdf"
+
+    // Valida se foi informado o nome do relatório
+    If Empty(cReport)
+        cErr := "Relatório não informado."
+        Return {lRet,cErr}
+    EndIf
+
+    // Valida formato informado
+    If !(cFormat $ ".html/.pdf/.xlsx/.docx")
+        cErr := "Formato informado não reconhecido."
+        Return {lRet,cErr}
+    EndIf
+
+    // Adiciona '/' ao nome do diretório
+    If Left(cPath,1) != "/"
+        cPath := "/" + cPath
+    EndIf
+
+    // Adiciona '/' ao nome do relatório
+    If Left(cReport,1) != "/"
+        cReport := "/" + cReport
+    EndIf
+
+    cURL := 'http://'+cServer+cPath+cReport+cFormat
+
+    // Montagem do cabeçalho da requisição
+    aAdd(aHeadStr,'Content-Type: text/html')
+    aAdd(aHeadStr,'Authorization: Basic ' + Encode64(cUser+':'+cPassword) ) // jasperadmin:jasperadmin
+
+    /* Exemplo de parâmetros query-String
+    cGetParms += 'DOCUMENTO_COD='         + Escape('000000294')
+    cGetParms += '&DOCUMENTO_SERIE='      + Escape('1  ')
+    cGetParms += '&DOCUMENTO_FORNECEDOR=' + Escape('004610')
+    cGetParms += '&DOCUMENTO_LOJA='       + Escape('01')
+    cGetParms += '&EMPRESA_NOME='         + Escape('THOR GRANITOS E MARMORES LTDA')
+    cGetParms += '&EMPRESA_ENDERECO='     + Escape('ROD ES 080 - KM 11 - GALPAO 05 - BARRA DE SAO FRANCISCO ES')
+    cGetParms += '&EMPRESA_CEP='          + Escape('29.800-000')
+    cGetParms += '&EMPRESA_CNPJ='         + Escape('31.023.302/0003-70')
+    cGetParms += '&EMPRESA_INSCRICAO='    + Escape('082684960') */
+
+    // Chamada rest HttpGet
+    cResult := HttpGet(cURL, cGetParms, 600, aHeadStr, @cHRet)
+
+    // Valida retorno
+    If !('output-final: true' $ cHRet)
+        cErr := "Dados inválidos, verifique os parâmetros informados e tente novamente."
+        Return {lRet,cErr}
+    EndIf
+
+    // Valida existência do diretório C:\JasperReports na estação cliente
+    If !ExistDir("C:\JasperReports") .And. !makeDir("C:\JasperReports",,.F.) == 0
+        cErr := "Não foi possível criar o diretório C:\JasperReports."
+        Return {lRet,cErr}
+    EndIf
+
+    // Salva arquivo do response rest em disco
+    cFileName := SubStr(cReport,2,Len(cReport)-1) + "_-_"
+    cFileName += cValToChar(Year(Date())) + "-"
+    cFileName += cValToChar(Month(Date())) + "-"
+    cFileName += cValToChar(Day(Date())) + "_-_"
+    cFileName += StrTran(Time(),":","-")
+    cFileName += cFormat
+    If !memowrite("C:\JasperReports\"+cFileName,cResult)
+        cErr := "Falha ao gravar o arquivo do relatório em C:\JasperReports."
+        Return {lRet,cErr}
+    EndIf
+
+    // Abre o arquivo gravado em disco
+    shellExecute("Open", "C:JasperReports\"+cFileName, "", "C:\", 1 )
+    lRet := .T.
+
+Return {lRet,'Relatório gerado com sucesso em "C:\JasperReports".'}
