@@ -23,14 +23,14 @@ User Function GetJasperReport(cReport,cGetParms,cPath,cFormat)
     Local cResult   := ""  as character
     Local lRet      := .F. as logical
 
-    cServer   := GetNewPar( "JASPER_SRV", "10.200.4.7:8780" ) // jasper server as character
-    cUser     := GetNewPar( "JASPER_USR","protheus"         ) // jasper user as character
-    cPassword := GetNewPar( "JASPER_PSW","\asd123"          ) // jasper password as character
-
     Default cReport   := ""
     Default cGetParms := ""
     Default cPath     := GetNewPar("JASPER_FOL", "/jasperserver/rest_v2/reports/Reports/Protheus") // jasper folder path
     Default cFormat   := ".pdf"
+
+    cServer   := GetNewPar( "JASPER_SRV", "10.200.4.7:8780" ) // jasper server as character
+    cUser     := GetNewPar( "JASPER_USR","protheus"         ) // jasper user as character
+    cPassword := GetNewPar( "JASPER_PSW","\asd123"          ) // jasper password as character
 
     // Valida se foi informado o nome do relatório
     If Empty(cReport)
