@@ -14,7 +14,7 @@ Rotina de integração entre Protheus X JasperServer para execução de relatórios.
 @param cFormat, character, Formato do relatório. Ex.: pdf, xlsx, html.
 @return array, [1] = .T. para Sucesso e .F. para Falha / [2] = Msg de exibição
 /*/
-User Function GetJasperReport(cReport,cGetParms,cPath,cFormat) // Projects.Library.U_GetJasperReport
+User Function GetJasperReport(cReport,cGetParms,cPath,cFormat)
 
     Local aHeadStr  := {}  as character
     Local cErr      := ""  as character
