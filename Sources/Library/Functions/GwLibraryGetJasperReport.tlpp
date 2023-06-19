@@ -75,7 +75,7 @@ User Function GetJasperReport(cReport,cGetParms,cPath,cFormat)
     cResult := HttpGet(cURL, cGetParms, 600, aHeadStr, @cHRet)
 
     // Valida retorno
-    If !('output-final: true' $ cHRet)
+    If !("HTTP/1.1 200" $ cHRet .Or. 'output-final: true' $ cHRet)
         cErr := "Dados inválidos, verifique os parâmetros informados e tente novamente."
         Return {lRet,cErr}
     EndIf
