@@ -154,7 +154,7 @@ User Function GwDataAccessExemploDetalhado // Gworks.Sample.Classes.U_GwDataAcce
             cTes   := oResult:GetValueByKey('C6_TES')
 
             ConOut('...imprimindo o conteúdo dos campos C6_PRODUTO e C6_TES de todos os itens do pedido ') // TODO: testar...
-            for nI:=1 to len(oResult:Length())
+            for nI:=1 to oResult:Length()
                 cLinha := oResult:GetNameByPosition(nI)
                 oField := oResult:GetValueByPosition(nI)
                 ConOut( "...imprimindo valores referente aos itens: " + CRLF +;

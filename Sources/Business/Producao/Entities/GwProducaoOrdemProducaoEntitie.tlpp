@@ -1,0 +1,134 @@
+#include "TOTVS.ch"
+#include "FWMVCDEF.ch"
+#include "MsObject.ch"
+#include "TLPP-Core.th"
+#include "TLPP-Object.th"
+
+using namespace Gworks.Library.Utils
+using namespace Gworks.Library.Classes
+
+namespace Gworks.Business.Producao.Entities
+
+Class GwOrdemProducao From GwDataAccess
+
+    Public Data cIncluirOrdemProducaoResultId as character default ""
+
+    Public Method New()
+    Public Method ObterNovoOrdemProducaoId() as character
+    Public Method IncluirOrdemProducao() as logical
+    Public Method ConfirmarOrdemProducaoId()
+
+EndClass
+
+/*/{Protheus.doc} GwOrdemProducao::New
+Construtor da classe.
+@type method
+@version 12.1.33
+@author Giovani-Gworks
+@since 3/27/2023
+@return object, Instância do objeto.
+/*/
+Method New() Class GwOrdemProducao
+
+    // Inicializa atributos da classe herdada GwDataAccess
+    // Obs.: Sem ao menos referenciar um atributo da classe herdada,
+    //       pode ser que o interpretador gere erro em herança da heranaça,
+    //       ou seja, quando uma classe for herdada mais de uma vez.
+    ::cAlias := ""
+
+    // Atributos extendidos a classes herdadas
+    ::cDescription := "Ordem de Produção"
+    ::cSourceModel := ""
+    ::cSourceView  := ""
+    ::cSourceMenu  := ""
+
+    _Super:New("SC2")
+
+    ::oError:cFunName := "GwOrdemProducao"
+
+Return Self
+
+/*/{Protheus.doc} GwOrdemProducao::ObterNovoOrdemProducaoId() as character
+Obtem novo código conforme campo C2_NUM.
+@type method
+@version 12.1.33
+@author Giovani-Gworks
+@since 4/26/2023
+@return variant, Retorna o código novo.
+/*/
+Method ObterNovoOrdemProducaoId() as character Class GwOrdemProducao
+
+    Local cOrdemProducaoId := "" as character
+
+    cOrdemProducaoId := U_GwGetNumbering("SC2", "C2_NUM")
+
+Return Soma1(cOrdemProducaoId)
+
+/*/{Protheus.doc} GwOrdemProducao::ConfirmarOrdemProducaoId
+Confirma a numeração obtida conforme método ObterNovoOrdemProducaoId().
+@type method
+@version 12.1.33
+@author Giovani-Gworks
+@since 4/26/2023
+/*/
+Method ConfirmarOrdemProducaoId() Class GwOrdemProducao
+
+    U_GwConfirmNumbering()
+
+Return
+
+/*/{Protheus.doc} GwOrdemProducao::IncluirOrdemProducao( aKeyValue as array ) as logical
+Executa a rotina MATA650 por meio de ExecAuto().
+@type method
+@version 12.1.33
+@author Giovani-Gworks
+@since 3/27/2023
+@param aKeyValue, array, Array de objetos do tipo KeyValue.
+@param lRunAsJob, logical, Se .T. irá executar o ExecAuto() por meio da função StartJob().
+@param cJobEmpresa, character, Empresa para execução via job.
+@param cJobFilial, character, Filial para execução via job.
+@return logical, .T. sucesso e .F. falha.
+/*/
+Method IncluirOrdemProducao( aKeyValue as array,;
+                             lRunAsJob as logical,;
+                             cJobEmpresa as character,;
+                             cJobFilial as character ) as logical Class GwOrdemProducao
+
+    Local oExecAuto as object
+
+    Local lResult := .F. as logical
+
+    Private lMsErroAuto := .F. as logical
+
+    Default aKeyValue   := {}
+    Default lRunAsJob   := .F.
+    Default cJobEmpresa := ""
+    Default cJobFilial  := ""
+
+    ::oError:cMethod := "IncluirSolicitacaoArmazem"
+
+    if Empty(aKeyValue)
+        ::oError:cError := "Parâmetro aKeyValue não informado ou inválido!"
+        ::oError:ThrowException()
+    endif
+
+    oExecAuto := GwExecAuto():New("MATA650")
+
+    oExecAuto:SetSuccessExpression( 'SC2->(C2_NUM+C2_ITEM+C2_SEQUEN+C2_ITEMGRD)' )
+
+    if lRunAsJob
+        oExecAuto:SetStartJob( ;
+            cJobEmpresa, cJobFilial, 'PCP', FunName(), {'SB1', 'SG1', 'SG2', 'SC2'} )
+    endif
+
+    oExecAuto:RunExecAuto( MODEL_OPERATION_INSERT, aKeyValue )
+
+    ::oError:lError     := oExecAuto:oError:lError
+    ::oError:cAutoGRLog := oExecAuto:oError:cAutoGRLog
+
+    if !::oError:lError
+        ::cIncluirOrdemProducaoResultId := oExecAuto:cSuccessExpressionResult
+        lResult := .T.
+    endif
+
+Return lResult

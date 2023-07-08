@@ -12,15 +12,27 @@ namespace Gworks.Library.Classes
 Class GwKeyValue
 
     Public Data aKeyValue as array default {}
+    Public Data cLastMatch as character default ""
+    Public Data cLastMatchType as character default ""
+    Public Data nLastMatchPos as numeric default 0
 
     Public Method New() Constructor
     Public Method Add( cKey as character, xValue as variant )
     Public Method Length() as numeric
-    Public Method GetAllValues() as array
     Public Method HasName( cName as character ) as logical
-    Public Method GetNameByPosition( nPos as numeric ) as character
+    Public Method HasChildren( nPos as numeric ) as logical
+    Public Method GetChildren( nPos as numeric ) as object
+    Public Method GetKeyByPosition( nPos as numeric ) as character
+    Public Method GetNameByPosition( nPos as numeric ) as character // TODO: descontinuar
+    Public Method GetAllValues() as array
+    Public Method GetValueTypeByPosition( nPos as numeric ) as character
     Public Method GetValueByPosition( nPos as numeric ) as variant
-    Public Method GetValueByKey( xSearch as variant ) as variant
+    Public Method GetValueByKey( cKey as character, cMatch as character, cMatchType as character ) as variant
+    Public Method GetPositionKey( cKey as character ) as numeric
+    Public Method KeyExists( cKey as character, cMatch as character, cMatchType as character ) as logical
+    Public Method ValueExists( cValue as character ) as logical
+    Public Method ReplaceValueByKey( cKey as character, xValue as variant )
+    Public Method AddOrReplaceByKey( cKey as character, xValue as variant )
 
 EndClass
 
@@ -28,6 +40,9 @@ EndClass
 Method New() Class GwKeyValue
 
     Self:aKeyValue := {}
+    Self:cLastMatch := ""
+    Self:cLastMatchType := ""
+    Self:nLastMatchPos := 0
 
 Return Self
 
@@ -48,6 +63,74 @@ Method Length() as numeric Class GwKeyValue
 Return nResult
 
 
+Method HasName( cName as character ) as logical Class GwKeyValue
+
+    Local nPos    := 0   as numeric
+    Local lResult := .F. as logical
+
+    Default cName := ""
+
+    nPos := aScan(::aKeyValue, {|x| x[1] == cName })
+
+    if nPos > 0
+        lResult := .T.
+    endif
+
+Return lResult
+
+
+Method HasChildren( nPos as numeric ) as logical Class GwKeyValue
+
+    Local lResult := .F. as logical
+
+    Default nPos := 1 // vlr. padrão = 1 (mantido por compatibilidade)
+
+    if  ValType(::aKeyValue[nPos,2]) == "O" .And. ;
+        AllTrim(Upper(GetClassName(::aKeyValue[1,2]))) == "GWORKS.LIBRARY.CLASSES.GWKEYVALUE"
+
+        lResult := .T.
+
+    endif
+
+    // if ( Len(::aKeyValue) == 1 .And. ;
+    //      ValType(::aKeyValue[1,2]) == "O" .And. ;
+    //      AllTrim(Upper(GetClassName(::aKeyValue[1,2]))) == "GWORKS.LIBRARY.CLASSES.GWKEYVALUE" )
+    //     lResult := .T.
+    // endif
+
+Return lResult
+
+
+Method GetChildren( nPos as numeric ) as object Class GwKeyValue
+
+    Local oResult as object
+
+    Default nPos := 1 // vlr. padrão = 1 (mantido por compatibilidade)
+
+    if ::HasChildren()
+        oResult := ::aKeyValue[nPos,2]
+    endif
+
+Return oResult
+
+
+Method GetKeyByPosition( nPos as numeric ) as character Class GwKeyValue
+
+    Local cResult := "" as character
+
+    Default nPos := 0
+
+    if nPos > 0
+        cResult := ::aKeyValue[nPos,1]
+    endif
+
+Return cResult
+
+
+Method GetNameByPosition( nPos as numeric ) as character Class GwKeyValue
+Return ::GetKeyByPosition(nPos)
+
+
 Method GetAllValues() as array Class GwKeyValue
 
     Local aKeyValue := {} as array
@@ -57,63 +140,185 @@ Method GetAllValues() as array Class GwKeyValue
 Return aKeyValue
 
 
-Method HasName( cName as character ) as logical Class GwKeyValue
+Method GetValueTypeByPosition( nPos as numeric ) as character Class GwKeyValue
 
-    Local nPos := 0   as numeric
-    Local lRet := .F. as logical
+    Local xValue  := nil as variant
+    Local cResult := ""  as character
 
-    Default cName := ""
+    xValue := ::GetValueByPosition(nPos)
 
-    nPos := aScan(::aKeyValue, {|x| x[1] == xSearch })
+    cResult := ValType(xValue)
 
-    if nPos > 0
-        lRet := .T.
-    endif
-
-Return lRet
-
-
-Method GetNameByPosition( nPos as numeric ) as character Class GwKeyValue // TODO: testar...
-
-    Local cRet := "" as character
-
-    Default nPos := 0
-
-    if nPos > 0
-        cRet := ::aKeyValue[nPos,1]
-    endif
-
-Return cRet
+Return cResult
 
 
 Method GetValueByPosition( nPos as numeric ) as variant Class GwKeyValue // TODO: testar...
 
-    Local xRet := nil as variant
+    Local xResult := nil as variant
 
     Default nPos := 0
 
     if nPos > 0
-        xRet := ::aKeyValue[nPos,2]
+        xResult := ::aKeyValue[nPos,2]
     endif
 
-Return xRet
+Return xResult
 
 
-Method GetValueByKey( xSearch as variant ) as variant Class GwKeyValue
+Method GetValueByKey( cKey as character, cMatch as character, cMatchType as character ) as variant Class GwKeyValue
 
-    Local nPos := 0   as numeric
-    Local xRet := nil as variant
+    Local nPos         := 0   as numeric
+    Local xResult      := nil as variant
 
-    Default xSearch := nil
+    Default cKey    := nil
+    Default cMatch     := ""
+    Default cMatchType := ""
 
-    if Empty(xSearch)
-        UserException("GwKeyValue:GetValueByKey - Parâmetro xSearch inválido ou não informado!")
+    if Empty(cKey)
+        UserException("GwKeyValue:GetValueByKey - Parâmetro cKey inválido ou não informado!")
     endif
 
-    nPos := aScan(::aKeyValue, {|x| x[1] == xSearch })
+    if !Empty(cMatch) .And. !Empty(cMatchType)
+        if cMatch != ::cLastMatch .Or. cMatchType != ::cLastMatchType
+            if !::KeyExists(cKey, cMatch, cMatchType)
+                Return nil
+            endif
+        endif
+        nPos := ::nLastMatchPos
+    else
+        nPos := aScan(::aKeyValue, {|x| x[1] == cKey })
+    endif
 
     if nPos > 0
-        xRet := ::aKeyValue[nPos,2]
+        xResult := ::aKeyValue[nPos,2]
     endif
 
-Return xRet
+Return xResult
+
+
+Method GetPositionKey( cKey as character ) as numeric Class GwKeyValue
+
+    Local nPos := 0 as numeric
+
+    Default cKey := ""
+
+    if Empty(cKey)
+        UserException("GwKeyValue:GetPositionKey - Parâmetro cKey inválido ou não informado!")
+    endif
+
+    nPos := aScan(::aKeyValue, {|x| x[1] == cKey })
+
+Return nPos
+
+
+Method KeyExists( cKey as character, cMatch as character, cMatchType as character ) as logical Class GwKeyValue
+
+    Local nPos           := 0   as numeric
+    Local nStart         := 0   as numeric
+    Local nMatchPos      := 0   as numeric
+    Local lResult        := .F. as logical
+
+    Default cKey         := ""
+    Default cMatch       := ""
+    Default cMatchType   := "key"
+
+    if Empty(cKey)
+        UserException("GwKeyValue:KeyExists - Parâmetro cKey inválido ou não informado!")
+    endif
+
+    if !Empty(cMatch)
+
+        do case
+            case Lower(cMatchType) == "key"   ; nMatchPos := 1
+            case Lower(cMatchType) == "value" ; nMatchPos := 2
+            otherwise
+                UserException("GwKeyValue:KeyExists - Parâmetro cMatchType inválido ou não informado!")
+        endcase
+
+        nStart := 1
+        while .T.
+            nPos := aScan(::aKeyValue, {|x| x[1] == cKey }, nStart)
+            if nPos > 0
+                if ( cMatch $ ::aKeyValue[nPos,nMatchPos] )
+                    lResult := .T.
+                    exit
+                else
+                    nStart := nPos+1
+                    loop
+                endif
+            else
+                exit
+            endif
+        enddo
+
+    else
+        lResult := ( ( nPos := aScan( ::aKeyValue, {|x| x[1] == cKey } ) ) > 0 )
+    endif
+
+    if lResult
+        ::cLastMatch := cMatch
+        ::cLastMatchType := cMatchType
+        ::nLastMatchPos := nPos
+    else
+        ::cLastMatch := ""
+        ::cLastMatchType := ""
+        ::nLastMatchPos := 0
+    endif
+
+Return lResult
+
+
+Method ValueExists( cValue as character ) as logical Class GwKeyValue
+
+    Local lResult := .F. as logical
+
+    if Empty(cValue)
+        UserException("GwKeyValue:ValueExists - Parâmetro cValue inválido ou não informado!")
+    endif
+
+    lResult := ( aScan(::aKeyValue, {|x| x[2] == cValue }) > 0 )
+
+Return lResult
+
+
+Method ReplaceValueByKey( cKey as character, xValue as variant ) Class GwKeyValue
+
+    Local nPos    := 0   as numeric
+    Local lResult := .F. as logical
+
+    Default cKey := nil
+    Default xValue := nil
+
+    if Empty(cKey)
+        UserException("GwKeyValue:ReplaceValueByKey - Parâmetro cKey inválido ou não informado!")
+    endif
+
+    nPos := aScan(::aKeyValue, {|x| x[1] == cKey })
+
+    if nPos > 0
+        ::aKeyValue[nPos,2] := xValue
+        lRessult := .T.
+    endif
+
+Return lResult
+
+
+Method AddOrReplaceByKey( cKey as character, xValue as variant ) Class GwKeyValue
+
+    Local lResult := .F. as logical
+
+    Default cKey := nil
+    Default xValue := nil
+
+    if Empty(cKey)
+        UserException("AddOrReplaceByKey:ReplaceValueByKey - Parâmetro cKey inválido ou não informado!")
+    endif
+
+    if ::KeyExists(cKey)
+        lResult := ::ReplaceValueByKey(cKey, xValue)
+    else
+        ::Add(cKey, xValue)
+        lResult := .T.
+    endif
+
+Return lResult

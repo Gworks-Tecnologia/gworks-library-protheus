@@ -1,6 +1,9 @@
 #include "TOTVS.ch"
 #include "MsObject.ch"
 
+using namespace Gworks.Library.Utils
+using namespace Gworks.library.Functions
+
 namespace Gworks.Library.Classes
 
 Class GwSequence

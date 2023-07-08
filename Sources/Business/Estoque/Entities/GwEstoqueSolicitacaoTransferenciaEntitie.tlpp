@@ -1,0 +1,203 @@
+#include "TOTVS.ch"
+#include "FWMVCDEF.ch"
+#include "MsObject.ch"
+#include "TLPP-Core.th"
+#include "TLPP-Object.th"
+
+using namespace Gworks.Library.Classes
+
+namespace Gworks.Business.Estoque.Entities
+
+Class GwSolicitacaoTransferencia From GwDataAccess
+
+    Public Data lForceRelation as logical
+    Public Data oAttrEntidadeSolicitacaoTransferenciaItem as object
+    Public Data lStatusEntidadeSolicitacaoTransferenciaItem as logical default .F.
+
+    Public Method New()
+    Public Method RelacionarEntidadeSolicitacaoTransferenciaItem() as logical
+    Public Method IncluirSolicitacaoTransferencia( aDados as array ) as logical
+
+EndClass
+
+/*/{Protheus.doc} GwSolicitacaoTransferencia::New
+Construtor da classe.
+@type method
+@version 12.1.33
+@author Giovani-Gworks
+@since 3/27/2023
+@return object, Instância do objeto.
+/*/
+Method New() Class GwSolicitacaoTransferencia
+
+    ::lForceRelation := .T.
+
+    // Inicializa atributos da classe herdada GwDataAccess
+    // Obs.: Sem ao menos referenciar um atributo da classe herdada,
+    //       pode ser que o interpretador gere erro em herança da heranaça,
+    //       ou seja, quando uma classe for herdada mais de uma vez.
+    ::cAlias := ""
+
+    // Atributos extendidos a classes herdadas
+    ::cDescription := "Solicitação ao Transferência"
+    ::cSourceModel := ""
+    ::cSourceView  := ""
+    ::cSourceMenu  := ""
+
+    _Super:New("NNS")
+
+    ::oError:cFunName := "GwSolicitacaoTransferencia"
+
+Return Self
+
+/*/{Protheus.doc} GwSolicitacaoTransferencia::RelacionarEntidadeSolicitacaoTransferenciaItem
+Relaciona a entidade GwSolicitacaoTransferencia (tabela NNS) com a entidade Solicitação de TransferenciaItem (tabela NNT).
+@type method
+@version 12.1.33
+@author Giovani-Gworks
+@since 3/29/2023
+@return logical, Retorna .T. para relacionamento feito com sucesso e .F. para falhas.
+/*/
+Method RelacionarEntidadeSolicitacaoTransferenciaItem() as logical Class GwSolicitacaoTransferencia
+
+    Local lResult := .F. as logical
+
+    if Empty(::oAttrEntidadeSolicitacaoTransferenciaItem)
+
+        ::oAttrEntidadeSolicitacaoTransferenciaItem := GwKeyValue():New()
+        ::oAttrEntidadeSolicitacaoTransferenciaItem:Add( 'AliasFrom'  , 'NNS' )
+        ::oAttrEntidadeSolicitacaoTransferenciaItem:Add( 'AliasJoin'  , 'NNT' )
+        ::oAttrEntidadeSolicitacaoTransferenciaItem:Add( 'IndexFrom'  , 'NNS_FILIAL+NNS_COD' )
+        ::oAttrEntidadeSolicitacaoTransferenciaItem:Add( 'KeyFrom'    , 'NNS_FILIAL+NNS_COD' )
+        ::oAttrEntidadeSolicitacaoTransferenciaItem:Add( 'IndexJoinFK', 'NNT_FILIAL+NNT_COD+NNT_FILORI+NNT_PROD+NNT_LOCAL+NNT_LOCALI+NNT_NSERIE+NNT_LOTECT+NNT_NUMLOT+NNT_FILDES+NNT_PRODD+NNT_LOCLD+NNT_LOCDES+NNT_LOTED' )
+        ::oAttrEntidadeSolicitacaoTransferenciaItem:Add( 'IndexJoinPK', 'NNT_FILIAL+NNT_FILORI+NNT_COD+NNT_PROD' )
+
+    endif
+
+    if ::lForceRelation .Or. !::lStatusEntidadeSolicitacaoTransferenciaItem
+
+        _Super:SaveArea()
+        _Super:SelectArea()
+        _Super:SetOrder('NNS_FILIAL+NNS_COD')
+        _Super:GoTop()
+        if _Super:SetRelation(::oAttrEntidadeSolicitacaoTransferenciaItem)
+            lResult := .T.
+            ::lStatusEntidadeSolicitacaoTransferenciaItem := .T.
+        endif
+
+    else
+        lResult := _Super:RefreshRelation()
+    endif
+
+Return lResult
+
+/*/{Protheus.doc} GwSolicitacaoTransferencia::IncluirSolicitacao( aCabec as array, aItens as array, nOpc as numeric  ) as logical
+Executa a rotina MATA105 por meio de ExecAuto().
+@type method
+@version 12.1.33
+@author Giovani-Gworks
+@since 3/27/2023
+@param aCabec, array, Dados do cabeçalho.
+@param aItens, array, Dados dos itens.
+@param nOpc, numeric, opção de execução da rotina, podendo ser:
+    3-Inclusão;
+    4-Alteração;
+    5-Exclusão.
+@return logical, .T. sucesso e .F. falha.
+/*/
+Method IncluirSolicitacaoTransferencia( aDados as array ) as logical Class GwSolicitacaoTransferencia
+
+    Local oModel      as object
+    Local oModelField as object
+    Local oModelGrid  as object
+
+    Local oCabec      as object
+    Local oItens      as object
+    Local oItem       as object
+
+    Local nI            := 0   as numeric
+    Local nJ            := 0   as numeric
+    Local nK            := 0   as numeric
+    Local aItens        := {}  as array
+    Local cModelField   := ""  as character
+    Local cModelGrid    := ""  as character
+
+    Local lResult       := .F. as logical
+
+    Private lMsErroAuto := .F. as logical
+
+    Default aDados := {}
+
+    ::oError:cMethod := "IncluirSolicitacaoTransferencia"
+
+    if Empty(aDados)
+        ::oError:cError := "Parâmetro aDados não informado ou inválido!"
+        ::oError:ThrowException()
+    endif
+
+    oModel := FwLoadModel( 'MATA311' )
+    oModel:SetOperation( MODEL_OPERATION_INSERT )
+    oModel:Activate()
+
+    cModelField := oModel:GetDependency()[1,2]
+    cModelGrid  := oModel:GetDependency(cModelField)[1,2]
+
+    oModelField := oModel:GetModel(cModelField)
+    oModelGrid  := oModel:GetModel(cModelGrid)
+
+    oCabec := aDados[1]
+    oItens := aDados[2]
+
+    // Define os campos do cabeçalho
+    if !::oError:lError
+        for nI:=1 to oCabec:Length()
+            cField := oCabec:GetNameByPosition(nI)
+            xValue := oCabec:GetValueByPosition(nI)
+            if !oModelField:LoadValue(cField, xValue)
+                ::oError:lError := .T.
+                exit
+            endif
+        next
+    endif
+
+    // Define os campos da grid (itens)
+    if !::oError:lError
+        for nI:=1 to oItens:Length()
+            aItens := oItens:GetValueByPosition(nI)
+            for nJ:=1 to Len(aItens)
+                oItem := aItens[nJ]
+                for nK:=1 to oItem:Length()
+                    cField := oItem:GetNameByPosition(nK)
+                    xValue := oItem:GetValueByPosition(nK)
+                    if !oModelGrid:LoadValue(cField, xValue)
+                        ::oError:lError := .T.
+                        exit
+                    endif
+                next
+                if ::oError:lError
+                    exit
+                endif
+            next
+            if ::oError:lError
+                exit
+            endif
+        next
+    endif
+
+    if ::oError:lError
+        ::oError:cTitle := FunName()
+        ::oError:cError := "Falha ao definir o conteúdo do campo " + cField + " com o valor " + cValToChar(xValue) + "."
+        ::oError:cSuggestion := "Favor entrar em contato com o suporte técnico."
+        Return lResult
+    endif
+
+    if oModel:VldData()
+        oModel:CommitData()
+        lResult := .T.
+    else
+        ::oError:lError := .T.
+        ::oError:SetAutoGRLogFromModel(oModel)
+        ::oError:ShowError("HELP")
+    endif
+
+Return lResult

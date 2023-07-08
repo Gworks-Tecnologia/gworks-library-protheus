@@ -1,7 +1,5 @@
 #include 'totvs.ch'
 
-namespace Gworks.Library.Utils
-
 User Function GwListPngImages(oTrackMenu)
 
     Default oTrackMenu := nil

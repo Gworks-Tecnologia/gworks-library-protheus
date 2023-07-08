@@ -1,0 +1,62 @@
+
+
+
+
+
+{
+    "modelName":"GWFM001M",
+    "modelDescription":"Cadastro Kanban Ordens de Produção",
+    "modelEventNameSpace":"Modules.Producao.Projects.KanbanOrdemProducao.Events",
+    "modelEventClassName":"FormularioModelEvent",
+    "setPrimaryKey":[
+        "Z0_FILIAL",
+        "Z0_CODIGO"
+    ],
+    "setRelation":{
+        "componentName":"GRID",
+        "relationKeys":[
+            {
+                "chieldKey":"Z0_FILIAL",
+                "parentKey":"XFILIAL('SZ0')"
+            },
+            {
+                "chieldKey":"Z0_CODIGO",
+                "parentKey":"Z0_CODIGO"
+            }
+        ]
+    },
+    "fieldsComponents":[
+        {
+            "componentType":"FIELD",
+            "componentName":"FIELD",
+            "componentDescription":"Kanban Ordem Produção",
+            "componentOwner":null,
+            "componentDataBaseAlias":"SZ0",
+            "componentFields":"{ |cCampo| !( AllTrim(cCampo) $ 'Z0_DTIMP;Z0_USUIMP;Z0_DTPROC;Z0_USUPROC' ) }",
+            "componentProperties":[
+                { "field":"Z0_OPERPAD", "property": "MODEL_FIELD_WHEN", "value":"{|| .T. }" }
+            ]
+        }
+    ],
+    "gridComponents":[
+        {
+            "componentType":"GRID",
+            "componentName":"GRID",
+            "componentDescription":"Detalhes",
+            "componentOwner":"FIELD",
+            "componentDataBaseAlias":"SZ0",
+            "componentFields":"{ |cCampo| ( AllTrim(cCampo) $ 'Z0_DTIMP;Z0_USUIMP;Z0_DTPROC;Z0_USUPROC' ) }",
+            "componentProperties":[
+                {"field": "Z0_DTIMP"  , "property": "MODEL_FIELD_WHEN"   , "value": "{|| .T. }"},
+                {"field": "Z0_USUIMP" , "property": "MODEL_FIELD_WHEN"   , "value": "{|| .T. }"},
+                {"field": "Z0_DTPROC" , "property": "MODEL_FIELD_WHEN"   , "value": "{|| .T. }"},
+                {"field": "Z0_USUPROC", "property": "MODEL_FIELD_WHEN"   , "value": "{|| .T. }"},
+                {"field": "Z0_DTIMP"  , "property": "MODEL_FIELD_OBRIGAT", "value": ".F."},
+                {"field": "Z0_USUIMP" , "property": "MODEL_FIELD_OBRIGAT", "value": ".F."},
+                {"field": "Z0_DTPROC" , "property": "MODEL_FIELD_OBRIGAT", "value": ".F."},
+                {"field": "Z0_USUPROC", "property": "MODEL_FIELD_OBRIGAT", "value": ".F."}
+            ]
+        }
+    ],
+    "othersComponents":null
+}

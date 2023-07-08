@@ -1,8 +1,9 @@
 #include "TOTVS.ch"
 #include "MsObject.ch"
 
-#define PAR_DATASOURCE_REQUIRE .T.
-#define PAR_DATASOURCE_NOT_REQUIRE .F.
+#define REQUIRE_DATASOURCE_RELATION   "SX2/DIC"
+#define REQUIRE_DATASOURCE_DICTIONARY "SX2/DIC"
+#define REQUIRE_DATASOURCE_DBQUERY    "SQL"
 
 using namespace Gworks.Library.Utils
 using namespace Gworks.library.Functions
@@ -10,6 +11,9 @@ using namespace Gworks.library.Functions
 namespace Gworks.Library.Classes
 
 Class GwDataAccess
+
+    // Atributos de controle de erro
+    Public Data oError       as object    default nil
 
     // Atributos descritivos auxiliares
     Public Data cDescription as character default ""
@@ -21,7 +25,7 @@ Class GwDataAccess
     Public Data cAlias       as character default ""
     Public Data cDataSource  as character default ""
     Public Data aQuery       as array     default {}
-    Public Data lOppened     as logical   default .F.
+    Public Data lOpened      as logical   default .F.
     Public Data nRecnoId     as numeric   default 0
 
     // Atributos de controle de área
@@ -46,8 +50,11 @@ Class GwDataAccess
 
     // Métodos públicos da classe
     Public Method New() Constructor
+    Public Method GetErrorObject() as variant
     Public Method SetDataSource( cDataSource as character ) as variant
     Public Method SelectArea() as variant
+    Public Method SetFilter( cFilter as character ) as logical
+    Public Method ClearFilter()
     Public Method SetOrder( xOrder as variant )
     Public Method RetIndexOrder() as numeric
     Public Method GoTop() as variant
@@ -65,18 +72,20 @@ Class GwDataAccess
     Public Method EraseArea() as variant
     Public Method EraseOtherAreas() as variant
     Public Method EvalByCondition( bExec as codeblock, bCondition as codeblock ) as variant
-    Public Method GetValue( cName as character ) as variant
+    Public Method GetValue( cFieldName as character, cToken as character ) as variant
     Public Method EndOfFile() as logical
     Public Method NotEndOfFile() as logical
     Public Method TotalLines() as numeric
-    Public Method Oppened() as logical
+    Public Method GetOpenedStatus() as logical
     Public Method CloseArea() as variant
     Public Method ReleaseArea() as variant
     Public Method GetRecnoId() as variant
+    Public Method GetFieldPosition( cFieldName as character ) as numeric
+    Public Method FieldExists( cFieldName as character ) as logical
 
     // Métodos públicos da classe para fins de relacionamentos
     Public Method SetRelation( oAttr as object ) as variant
-    Public Method RefreshRelation() as logical
+    Public Method RefreshRelation() as logical // TODO: implementar melhoria para atualizar todos os relacionamentos existentes
     Public Method SelectRelation( cAliasJoin as character, cIndexJoin as character ) as logical
     Public Method RelationSearch( cFieldName as character, xContent as variant, cRetJoinId as character ) as logical
     Public Method RelationGetSearchResult() as object
@@ -97,18 +106,21 @@ Method New( cAlias as character ) Class GwDataAccess
         UserException("GwDataAccess:New - Argumento cAlias inválido ou não informado!")
     endif
 
+    Self:oError := GwError():New()
+
     Self:cAlias := cAlias
+    Self:lAutoFilial := .T.
+    Self:lFound := .F.
 
     Self:SelectArea()
     Self:SetDataSource()
 
-    Self:lOppened    := Select(cAlias) > 0
-    Self:aAliasArea  := (cAlias)->(GetArea())
+    Self:lOpened := Select(cAlias) > 0
+    Self:aAliasArea := (cAlias)->(GetArea())
     Self:aOtherAreas := {}
-    Self:aRelation   := {}
-    Self:lAutoFilial := .T.
+    Self:aRelation := {}
 
-    if ::lOppened
+    if ::lOpened
         ::nIndexOrd := (cAlias)->(IndexOrd())
         ::cIndexKey := (cAlias)->(IndexKey(::nIndexOrd))
         ::nRecnoId  := (cAlias)->(Recno())
@@ -117,12 +129,30 @@ Method New( cAlias as character ) Class GwDataAccess
 Return Self
 
 
+Method GetErrorObject() as variant Class GwDataAccess
+
+Return ::oError
+
+
 Method SetDataSource( cDataSource as character ) as variant Class GwDataAccess
 
-    Default cDataSource := "SX2"
+    Default cDataSource := ""
 
-    if !(cDataSource $ "SX2;SQL")
+    if Empty(cDataSource)
+        do case
+            case Len(::cAlias) == 3 ; cDataSource := "SX2"
+            case Len(::cAlias) == 6 .And. ( "DIC" $ ::cAlias ) ; cDataSource := "DIC"
+            otherwise
+                cDataSource := "SQL"
+        endcase
+    endif
+
+    if !(cDataSource $ "SX2;DIC;SQL")
         UserException("GwDataAccess:SetDataSource - Argumento cDataSource inválido!")
+    endif
+
+    if cDataSource == "DIC"
+        ::DisableAutoFilial()
     endif
 
     Self:cDataSource := cDataSource
@@ -130,11 +160,11 @@ Method SetDataSource( cDataSource as character ) as variant Class GwDataAccess
 Return
 
 
-Method ValidDataSource( lRequireDictionary as logical ) as logical Class GwDataAccess
+Method ValidDataSource( cDataSource as character ) as logical Class GwDataAccess
 
-    Default lRequireDictionary := .T.
+    Default cDataSource := ""
 
-    if lRequireDictionary .And. ::cDataSource != "SX2"
+    if !( ::cDataSource $ cDataSource )
         UserException("GwDataAccess:ValidDataSource - Acesso a método inválido para o DataSource " +'"'+ ::cDataSource +'"!')
     endif
 
@@ -148,11 +178,54 @@ Method SelectArea() as variant Class GwDataAccess
 Return
 
 
+Method SetFilter( cFilter as character ) as logical Class GwDataAccess
+
+    Local lResult := .T.
+
+    Local cFieldPrefix := "" as character
+    Local cFieldFilial := "" as character
+
+    Default cFilter := ""
+
+    if Empty(cFilter)
+        UserException("GwDataAccess:SetFilter - Argumento cFilter inválido ou não informado!")
+    endif
+
+    if ::lAutoFilial
+
+        cFieldPrefix := if( at('S',::cAlias) == 1, Right(::cAlias,2), ::cAlias )
+
+        cFieldFilial := cFieldPrefix + "_FILIAL"
+
+        cFilter := cFieldFilial +" == '"+ xFilial(::cAlias) +"' .And. "+ cFilter // XX_FILIAL == '01'...
+
+    endif
+
+    (::cAlias)->(DbSetFilter( {|| &cFilter }, cFilter ))
+
+    (::cAlias)->(DbGotop())
+
+    if !(::cAlias)->(EOF())
+        lResult := .T.
+    endif
+
+Return lResult
+
+
+Method ClearFilter() Class GwDataAccess
+
+    (::cAlias)->(DbClearFilter())
+
+    (::cAlias)->(DbGoTop())
+
+Return
+
+
 Method SetOrder( xOrder as variant )  as variant Class GwDataAccess
 
     Local cAlias := "" as character
 
-    ::ValidDataSource(PAR_DATASOURCE_REQUIRE)
+    ::ValidDataSource(REQUIRE_DATASOURCE_DICTIONARY)
 
     cAlias := Self:cAlias
 
@@ -183,7 +256,7 @@ Method RetIndexOrder() as numeric Class GwDataAccess
     Local cAlias := "" as character
     Local nOrder := 0 as numeric
 
-    ::ValidDataSource(PAR_DATASOURCE_REQUIRE)
+    ::ValidDataSource(REQUIRE_DATASOURCE_DICTIONARY)
 
     cAlias := Self:cAlias
 
@@ -207,6 +280,8 @@ Method GoBottom() as variant Class GwDataAccess
 
     Local cAlias := "" as character
 
+    ::ValidDataSource(REQUIRE_DATASOURCE_DICTIONARY)
+
     cAlias := Self:cAlias
 
     (cAlias)->(DbGoBottom())
@@ -221,7 +296,7 @@ Method GoToRecno( nRecno as numeric ) as logical Class GwDataAccess
 
     Default nRecno := 0
 
-    ::ValidDataSource(PAR_DATASOURCE_REQUIRE)
+    ::ValidDataSource(REQUIRE_DATASOURCE_DICTIONARY)
 
     if nRecno > 0
 
@@ -266,7 +341,7 @@ Method SeekStatus( cKey as character ) as logical Class GwDataAccess
 
     Default cKey  := ""
 
-    ::ValidDataSource(PAR_DATASOURCE_REQUIRE)
+    ::ValidDataSource(REQUIRE_DATASOURCE_DICTIONARY)
 
     cAlias := ::cAlias
 
@@ -296,7 +371,7 @@ Method Seek( cKey as character ) as logical Class GwDataAccess
 
     Default cKey := ""
 
-    ::ValidDataSource(PAR_DATASOURCE_REQUIRE)
+    ::ValidDataSource(REQUIRE_DATASOURCE_DICTIONARY)
 
     if Empty(cKey)
         UserException("GwDataAccess:Seek - Parâmetro cKey não informado!")
@@ -342,9 +417,9 @@ Method SaveArea() as variant Class GwDataAccess
 
     Local cAlias := "" as character
 
-    cAlias := Self:cAlias
+    ::ValidDataSource(REQUIRE_DATASOURCE_DICTIONARY)
 
-    ::ValidDataSource(PAR_DATASOURCE_REQUIRE)
+    cAlias := Self:cAlias
 
     if !Empty(Self:aAliasArea)
         Self:EraseArea()
@@ -380,7 +455,7 @@ Method RestoreArea() as variant Class GwDataAccess
 
     Local cAlias := "" as character
 
-    ::ValidDataSource(PAR_DATASOURCE_REQUIRE)
+    ::ValidDataSource(REQUIRE_DATASOURCE_DICTIONARY)
 
     cAlias := ::cAlias
 
@@ -439,8 +514,6 @@ Return
 
 Method EraseArea() as variant Class GwDataAccess
 
-    ::ValidDataSource(PAR_DATASOURCE_REQUIRE)
-
     FwFreeArray(Self:aAliasArea)
     Self:aAliasArea := {}
 
@@ -473,22 +546,50 @@ Method EvalByCondition( bExec as codeblock, bCondition as codeblock ) as variant
 Return
 
 
-Method GetValue( cName as character ) as variant Class GwDataAccess
+Method GetValue( cFieldName as character, cToken as character ) as variant Class GwDataAccess
 
-    Local cAlias := ""  as character
-    Local xRet   := nil as variant
+    Local nI             := 0   as numeric
+    Local aFieldName     := {}  as array
+    Local lMultipleNames := .F. as logical
+    Local xValue         := nil as variant
+    Local xResult        := nil as variant
 
-    Default cName := ""
+    Default cFieldName := ""
+    Default cToken     := ";"
 
-    if !Empty(cName)
+    if !Empty(cFieldName)
 
-        cAlias := Self:cAlias
+        aFieldName := StrToKarr(cFieldName, cToken)
 
-        xRet := (cAlias)->&(cName)
+        if Len(aFieldName) > 1
+            xResult := ""
+            lMultipleNames := .T.
+        endif
+
+        for nI:=1 to Len(aFieldName)
+
+            cFieldName := aFieldName[nI]
+
+            xValue := (::cAlias)->&(cFieldName)
+
+            if lMultipleNames
+
+                do case
+                    case ValType(xValue) == "N" ; xValue := cValToChar(xValue)
+                    case ValType(xValue) == "D" ; xValue := dToS(xValue)
+                endcase
+
+                xResult += xValue
+
+            else
+                xResult := (::cAlias)->&(cFieldName)
+            endif
+
+        next
 
     endif
 
-Return xRet
+Return xResult
 
 
 Method EndOfFile() as logical Class GwDataAccess
@@ -514,14 +615,14 @@ Method TotalLines() as numeric Class GwDataAccess
 Return nTotal
 
 
-Method Oppened() as logical Class GwDataAccess
+Method GetOpenedStatus() as logical Class GwDataAccess
 
-Return ::lOppened
+Return ::lOpened
 
 
 Method CloseArea() as variant Class GwDataAccess
 
-    Local cAlias := ""  as character
+    Local cAlias := "" as character
 
     cAlias := Self:cAlias
 
@@ -532,15 +633,15 @@ Return
 
 Method ReleaseArea() as variant Class GwDataAccess
 
-    Local cAlias := ""  as character
+    Local cAlias := "" as character
 
-    ::ValidDataSource(PAR_DATASOURCE_REQUIRE)
+    ::ValidDataSource(REQUIRE_DATASOURCE_DICTIONARY)
 
     cAlias := Self:cAlias
 
     do case
-        case  ::lOppened ; ::RestoreArea()
-        case !::lOppened ; ::CloseArea()
+        case  ::lOpened ; ::RestoreArea()
+        case !::lOpened ; ::CloseArea()
     endcase
 
 Return
@@ -550,11 +651,38 @@ Method GetRecnoId() Class GwDataAccess
 
     Local cAlias := "" as character
 
-    ::ValidDataSource(PAR_DATASOURCE_REQUIRE)
+    ::ValidDataSource(REQUIRE_DATASOURCE_DICTIONARY)
 
     cAlias := Self:cAlias
 
 Return (cAlias)->(Recno())
+
+
+Method GetFieldPosition( cFieldName as character ) as numeric Class GwDataAccess
+
+    Local nResult := 0 as numeric
+
+    ::ValidDataSource(REQUIRE_DATASOURCE_DICTIONARY)
+
+    ::SelectArea()
+
+    nResult := FieldPos(cFieldName)
+
+Return nResult
+
+
+Method FieldExists( cFieldName as character ) as logical Class GwDataAccess
+
+    Local lResult := .F. as logical
+
+    ::ValidDataSource(REQUIRE_DATASOURCE_DICTIONARY)
+
+    if ::GetFieldPosition(cFieldName) > 0
+        lResult := .T.
+    endif
+
+Return lResult
+
 
 /*/{Protheus.doc} GwDataAccess::SetRelation( oAttr as object,  ) as variant
 Cria um novo relacionamento para a tabela principal na classe conforme definido por cAlias.
@@ -576,6 +704,8 @@ Method SetRelation( oAttr as object ) as variant Class GwDataAccess
 
     Local lResult   := .F. as logical
     Local oRelation := nil as object
+
+    ::ValidDataSource(REQUIRE_DATASOURCE_RELATION)
 
     if !Empty(oAttr)
 
@@ -632,7 +762,9 @@ Method RefreshRelation() as logical Class GwDataAccess
 
     Local lResult := .F. as logical
 
-    if !Empty(::oRelation)
+    ::ValidDataSource(REQUIRE_DATASOURCE_RELATION)
+
+    if !Empty(::oRelation) // TODO: melhoria para reposicionar todos os relacionamentos em aRelation
 
         lResult := ::oRelation:Join()
 
@@ -662,6 +794,8 @@ Method SelectRelation( cAliasJoin as character, cIndexJoin as character ) as log
 
     Default cAliasJoin := ""
     Default cIndexJoin := ""
+
+    ::ValidDataSource(REQUIRE_DATASOURCE_RELATION)
 
     for nI:=1 to Len(::aRelation)
 
@@ -697,6 +831,8 @@ Method RelationSearch( cFieldName as character, xContent as variant ) as logical
 
     Local lResult := .F. as logical
 
+    ::ValidDataSource(REQUIRE_DATASOURCE_RELATION)
+
     if ::oRelation:Search( cFieldName, xContent )
         lResult := .T.
     endif
@@ -713,6 +849,8 @@ Retorna o resultado conforme execução do método ::RelationSearch()
 /*/
 Method RelationGetSearchResult() as object Class GwDataAccess
 
+    ::ValidDataSource(REQUIRE_DATASOURCE_RELATION)
+
 Return ::oRelation:GetSearchResult()
 
 /*/{Protheus.doc} GwDataAccess::RelationGetValue() as variant
@@ -724,6 +862,8 @@ Apenas retorna o conteúdo de um campo conforme tabela relacionada sem alterar se
 @return variant, conteúdo do campo.
 /*/
 Method RelationGetValue() as variant Class GwDataAccess
+
+    ::ValidDataSource(REQUIRE_DATASOURCE_RELATION)
 
 Return ::oRelation:GetValue()
 
@@ -756,6 +896,8 @@ Retorna o resultado de um determinado campo ou expressão em um objeto de tipo Gw
 Method RelationGetValues( aFieldName as array ) as object Class GwDataAccess
 
     Local oResult := nil as object
+
+    ::ValidDataSource(REQUIRE_DATASOURCE_RELATION)
 
     oResult := ::oRelation:GetValues(aFieldName)
 

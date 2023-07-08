@@ -1,0 +1,85 @@
+#include "TOTVS.ch"
+#include "FWMVCDEF.ch"
+#include "MsObject.ch"
+#include "TLPP-Core.th"
+#include "TLPP-Object.th"
+
+using namespace Gworks.Library.Classes
+
+namespace Gworks.Business.Estoque.Entities
+
+Class GwSolicitacaoArmazem From GwDataAccess
+
+    Public Method New()
+    Public Method IncluirSolicitacaoArmazem( aDados as array ) as logical
+
+EndClass
+
+/*/{Protheus.doc} GwSolicitacaoArmazem::New
+Construtor da classe.
+@type method
+@version 12.1.33
+@author Giovani-Gworks
+@since 3/27/2023
+@return object, Instância do objeto.
+/*/
+Method New() Class GwSolicitacaoArmazem
+
+    // Inicializa atributos da classe herdada GwDataAccess
+    // Obs.: Sem ao menos referenciar um atributo da classe herdada,
+    //       pode ser que o interpretador gere erro em herança da heranaça,
+    //       ou seja, quando uma classe for herdada mais de uma vez.
+    ::cAlias := ""
+
+    // Atributos extendidos a classes herdadas
+    ::cDescription := "Solicitação ao Armazém"
+    ::cSourceModel := ""
+    ::cSourceView  := ""
+    ::cSourceMenu  := ""
+
+    _Super:New("SCP")
+
+    ::oError:cFunName := "GwSolicitacaoArmazem"
+
+Return Self
+
+/*/{Protheus.doc} GwSolicitacaoArmazem::IncluirSolicitacao( aCabec as array, aItens as array, nOpc as numeric  ) as logical
+Executa a rotina MATA105 por meio de ExecAuto().
+@type method
+@version 12.1.33
+@author Giovani-Gworks
+@since 3/27/2023
+@param aDados, array, Array de itens no formato KeyValue para inclusão.
+@return logical, .T. sucesso e .F. falha.
+/*/
+Method IncluirSolicitacaoArmazem( aDados as array ) as logical Class GwSolicitacaoArmazem
+
+    Local oExecAuto as object
+
+    Local lResult := .F. as logical
+
+    Private lMsErroAuto := .F. as logical
+
+    Default aCabec      := {}
+    Default aItens      := {}
+    Default nOpc        := 0
+
+    ::oError:cMethod := "IncluirSolicitacaoArmazem"
+
+    if Empty(aDados)
+        ::oError:cError := "Parâmetro aDados não informado ou inválido!"
+        ::oError:ThrowException()
+    endif
+
+    oExecAuto := GwExecAuto():New("MATA105")
+
+    oExecAuto:RunExecAuto(MODEL_OPERATION_INSERT, aDados)
+
+    ::oError:lError     := oExecAuto:oError:lError
+    ::oError:cAutoGRLog := oExecAuto:oError:cAutoGRLog
+
+    if !::oError:lError
+        lResult := .T.
+    endif
+
+Return lResult

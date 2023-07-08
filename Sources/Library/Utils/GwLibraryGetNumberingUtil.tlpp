@@ -1,0 +1,106 @@
+#include "TOTVS.ch"
+
+namespace Gworks.Library.Utils
+
+/*/{Protheus.doc} GwConfirmNumbering
+Confirma a numeração obtida.
+@type function
+@version 12.1.33
+@author Gworks-Giovani
+@since 4/26/2023
+/*/
+User Function GwConfirmNumbering()
+
+    ConfirmSx8()
+
+Return
+
+/*/{Protheus.doc} GwGetNumbering
+Obtem uma nova sequência do controle de numeração padrão do sistema.
+@type function
+@version 12.1.33
+@author Gworks-Giovani
+@since 4/26/2023
+@param cAlias, character, Alias da tabela.
+@param cField, character, Campo da tabela.
+@param cAliasSxe, character, Alias conforme dicionário (opcional).
+@param nOrdem, numeric, Índice conforme tabela.
+@param lRunAsJob, logical, Se .T. executa via StartJob().
+@param cJobEmpresa, character, Empresa para execução via StartJob().
+@param cJobFilial, character, Filial para execução via StartJob().
+@return character, Nova numeração obtida.
+@obs Observações
+    Se executado via StartJob() já confirma a numeração antes do encerramento da thread.
+/*/
+User Function GwGetNumbering( cAlias as character, cField as character, cAliasSxe as character, nOrdem as numeric, lRunAsJob as logical, cJobEmpresa as character, cJobFilial as character )
+
+    Default cAlias      := ""
+    Default cField      := ""
+    Default cAliasSxe   := nil
+    Default nOrdem      := nil
+    Default lRunAsJob   := .F.
+    Default cJobEmpresa := ""
+    Default cJobFilial  := ""
+
+    if lRunAsJob .And. ( Empty(cJobEmpresa) .Or. Empty(cJobFilial) )
+        UserException( "GwGetNumbering - Informe cJobEmpresa e cJobFilial para execução via StartJob()!" )
+    endif
+
+    if !Empty(cAlias) .Or. Empty(cField)
+        UserException( "GwGetNumbering - Informe cAlias e cField!" )
+    endif
+
+    if lRunAsJob
+
+        cResult := StartJob( "Gworks.Library.Utils.U_GwRunGetSxeNum", GetEnvServer(), .T., cAlias, cField, lRunAsJob, cJobEmpresa, cJobFilial )
+
+    else
+
+        cResult := Gworks.Library.Utils.U_GwRunGetSxeNum( cAlias, cField, cAliasSxe, nOrdem, lRunAsJob, cJobEmpresa, cJobFilial )
+
+    endif
+
+Return cResult
+
+/*/{Protheus.doc} GwRunGetSxeNum
+Função auxiliar para execução e compatibilização com a função StartJob().
+@type function
+@version 12.1.33
+@author Gworks-Giovani
+@since 4/26/2023
+@param cAlias, character, Alias da tabela.
+@param cField, character, Campo da tabela.
+@param cAliasSxe, character, Alias conforme dicionário (opcional).
+@param nOrdem, numeric, Índice conforme tabela.
+@param lRunAsJob, logical, Se .T. executa via StartJob().
+@param cJobEmpresa, character, Empresa para execução via StartJob().
+@param cJobFilial, character, Filial para execução via StartJob().
+@return character, Nova numeração obtida.
+/*/
+User Function GwRunGetSxeNum( cAlias as character, cField as character, cAliasSxe as character, nOrdem as numeric, lRunAsJob as logical, cJobEmpresa as character, cJobFilial as character )
+
+    Local cNovaNumeracao as character
+
+    if lRunAsJob
+
+        RPCSetEnv(;
+                /* cRpcEmp  */ cJobEmpresa,;
+                /* cRpcFil  */ cJobFilial,;
+                /* cEnvUser */ ,;
+                /* cEnvPass */ ,;
+                /* cEnvMod  */ cJobModule,;
+                /* cFunName */ cJobName,;
+                /* aTables  */ aJobTables )
+    endif
+
+    cNovaNumeracao := GetSxEnum(cAlias, cField, cAliasSxe, nOrdem)
+
+    if lRunAsJob
+
+        ConfirmSx8()
+
+        RpcClearEnv()
+
+    endif
+
+Return cNovaNumeracao
