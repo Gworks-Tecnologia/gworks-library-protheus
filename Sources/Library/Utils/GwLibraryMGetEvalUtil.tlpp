@@ -1,0 +1,35 @@
+#include "TOTVS.ch"
+
+namespace Gworks.Library.Utils
+
+/*/{Protheus.doc} MGetEval
+Função auxiliar para permitir selecionar vários registros
+separados por ";" (ponto e vírgula) em consultas padrões do sistema.
+@type function
+@version 12.1.33
+@author Gworks - Giovani Soares
+@since 27/05/2022
+@param xContent, variant, conteúdo retornardo pela consulta padrão
+@return variant, conteúdo contatenado com ;
+/*/
+User Function MGetEval(xContent as variant)
+
+    Local _xRet as variant
+
+    If Type("cMVSource___") == "U"
+        cMVSource___ := ""
+    EndIf
+
+    IF Type("cMVMult___") == "U"
+        cMVMult___ := ""
+    EndIf
+
+    _xRet := xContent
+
+    If FunName() $ cMVSource___ .And. ReadVar() $ cMVMult___
+        If Valtype(xContent) == "C"
+            _xRet := AllTrim(&(ReadVar())) + xContent + ";" // insere conteúdo atual + conteúdo novo + ";"
+        EndIf
+    EndIf
+
+Return _xRet
