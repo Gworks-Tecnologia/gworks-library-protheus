@@ -517,7 +517,7 @@ Method RestoreOtherAreas( cNames as character ) as variant Class GwDataAccess
 
             aAreas := Self:aOtherAreas[nJ]
 
-            RestArea(aAreas[nJ])
+            RestArea(aAreas)
 
         next nJ
 
