@@ -31,6 +31,7 @@ Class GwDataAccess
     // Atributos de controle de área
     Public Data aAliasArea   as array     default {}
     Public Data aOtherAreas  as array     default {}
+    Public Data cOtherAreas  as character default {}
 
     // Atributos de controle de relacionamento com demais entidades
     Public Data cAliasFrom   as character default ""
@@ -66,7 +67,7 @@ Class GwDataAccess
     Public Method SeekStatus() as logical
     Public Method Seek( cKey as character ) as logical
     Public Method SaveArea() as variant
-    Public Method SaveOtherAreas( aNames as array )
+    Public Method SaveOtherAreas( cNames as character )
     Public Method RestoreArea() as variant
     Public Method RestoreOtherAreas( cNames as character ) as variant
     Public Method EraseArea() as variant
@@ -118,6 +119,7 @@ Method New( cAlias as character ) Class GwDataAccess
     Self:lOpened := Select(cAlias) > 0
     Self:aAliasArea := (cAlias)->(GetArea())
     Self:aOtherAreas := {}
+    Self:cOtherAreas := ""
     Self:aRelation := {}
 
     if ::lOpened
@@ -430,23 +432,34 @@ Method SaveArea() as variant Class GwDataAccess
 Return
 
 
-Method SaveOtherAreas( aNames as array ) as variant Class GwDataAccess
+Method SaveOtherAreas( cNames as character ) as variant Class GwDataAccess
 
-    Local aAreas := {} as array
-    Local cAlias := "" as character
-    Local nI     := 0  as numeric
+    Local aAreas   := {} as array
+    Local aNames   := {} as array
+    Local cName    := "" as character
+    Local cToken   := "" as character
+    Local nI       := 0  as numeric
 
-    Default aNames := {}
+    Default cNames := ""
+
+    if Empty(cNames)
+        Return
+    endif
+
+    cToken := ";"
+
+    aNames := if( at(cNames,cToken) > 0, StrToKarr(cNames,cToken), { cNames } )
 
     for nI:=1 to Len(aNames)
 
-        cAlias := aNames[nI]
+        cName := aNames[nI]
 
-        aAdd( aAreas, (cAlias)->(GetArea()) )
+        aAdd( aAreas, (cName)->(GetArea()) )
 
     next
 
     Self:aOtherAreas := aClone(aAreas)
+    Self:cOtherAreas := cNames
 
 Return
 
@@ -471,6 +484,7 @@ Return
 Method RestoreOtherAreas( cNames as character ) as variant Class GwDataAccess
 
     Local aAreas := {} as array
+    Local aNames := {} as array
     Local cName  := "" as character
     Local cToken := "" as character
     Local nI     := 0  as numeric
@@ -480,7 +494,7 @@ Method RestoreOtherAreas( cNames as character ) as variant Class GwDataAccess
     Default cNames := ""
 
     if Empty(cNames)
-        Return
+        cNames := Self:cOtherAreas
     endif
 
     cToken := ";"
@@ -539,9 +553,11 @@ Method EvalByCondition( bExec as codeblock, bCondition as codeblock ) as variant
 
         cAlias := Self:cAlias
 
-        (cAlias)->( DbEval( bExec, nil, bCondition ) )
+        (cAlias)->( DbEval( bExec, nil, bCondition, nil, nil, .T. ) )
 
     endif
+
+    ::RestoreArea()
 
 Return
 
