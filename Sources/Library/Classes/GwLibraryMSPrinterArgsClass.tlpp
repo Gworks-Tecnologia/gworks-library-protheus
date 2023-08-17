@@ -1,0 +1,185 @@
+#include "TOTVS.ch"
+#Include "RPTDef.ch"
+#Include "FWPrintSetup.ch"
+
+namespace Gworks.Library.Classes
+
+
+Class MSPrinterArgs From MailAttachments
+
+    Public Data cSetup        as character default ""
+    Public Data nDevice       as numeric   default 0   // Tipos de Saída: IMP_SPOOL - direto impressora, IMP_PDF: Gera arquivo PDF. Default é IMP_SPOOL
+    Public Data cFilePrinteRt as character default ""  // Nome do arquivo de relatório a ser criado
+    Public Data cPathInServer as character default ""  // Diretório onde o arquivo de relatório será salvo
+    Public Data cPrinter      as character default ""  // Impressora destino "forçada" pelo usuário
+    Public Data lViewPDF      as logical   default .F. // Quando o tipo de impressão for PDF, define se arquivo será exibido após a impressão
+    Public Data lServer       as logical   default .T. // Impressão via Server
+    Public Data lLegacy       as logical   default .T. // Recalcula as coordenadas para manter o legado de proporções com a classe TMSPrinter
+    Public Data lDisableSetup as logical   default .F. // Não exibe a tela de Setup
+
+    Public Method New() Constructor
+    Public Method CreateDirectory()
+    Public Method ReleaseDirectory()
+    Public Method CreatePDF()
+    Public Method SendPDF()
+
+EndClass
+
+
+Method New( cSetup        as character,;
+            cFileName     as character,;
+            cPath         as character,;
+            lLegacy       as logical,;
+            lDisableSetup as logical ) Class MSPrinterArgs
+
+    Default cSetup        := ""
+    Default cFileName     := ""
+    Default cPath         := ""
+    Default lLegacy       := .F.
+    Default lDisableSetup := .F.
+
+    if Empty(cSetup) .Or. Empty(cFileName) .Or. Empty(cPath)
+        UserException("MSPrinterArgs:New - Argumentos inválidos ou não informados!" )
+    endif
+
+    Self:cFilePrinteRt := cFileName
+    Self:cPathInServer := cPath
+    Self:cSetup        := Upper(cSetup)
+
+    do case
+
+        case ::cSetup == "NORMAL"
+            Self:nDevice       := IMP_SPOOL
+            Self:cPrinter      := ""
+            Self:lViewPDF      := .T.
+            Self:lServer       := .F.
+            Self:lDisableSetup := .F.
+
+        case ::cSetup == "PDF/LOCAL"
+            Self:nDevice       := IMP_PDF
+            Self:cPrinter      := ""
+            Self:lViewPDF      := .T.
+            Self:lServer       := .F.
+            Self:lDisableSetup := .T.
+
+        case ::cSetup == "PDF/EMAIL"
+            Self:nDevice       := IMP_SPOOL
+            Self:cPrinter      := "PDF"
+            Self:lViewPDF      := .F.
+            Self:lServer       := .T.
+            Self:lDisableSetup := .T.
+
+    endcase
+
+Return Self
+
+
+Method CreateDirectory( lEraseFiles as logical ) Class MSPrinterArgs
+
+    Default lEraseFiles := .T.
+
+    Local _lRet := .F. as logical
+
+    do case
+
+        case ::cSetup $ "NORMAL;PDF/LOCAL"
+
+            // Montagem do diretório de impressão
+            if !ExistDir(::cPathInServer)
+                MontaDir(::cPathInServer)
+            endif
+
+            _lRet := .T.
+
+        case ::cSetup == "PDF/EMAIL"
+
+            _Super:New()
+
+            _lRet :=  _Super:ReserveAttachDir(,lEraseFiles)
+
+    endcase
+
+Return _lRet
+
+
+Method ReleaseDirectory( lEraseFiles as logical ) Class MSPrinterArgs
+
+    do case
+
+        case ::cSetup $ "NORMAL;PDF/LOCAL"
+
+        case ::cSetup == "PDF/EMAIL"
+
+            _Super:ReleaseAttachDir(lEraseFiles)
+
+    endcase
+
+Return
+
+
+Method CreatePDF( cSenha as character ) Class MSPrinterArgs
+
+    Local nI         := 0   as numeric
+    Local cDirPrg    := ""  as character
+    Local cProgram   := ""  as character
+    Local cDirAttach := ""  as character
+    Local cDirFile   := ""  as character
+    Local cCommand   := ""  as character
+    Local aDirFiles  := {}  as array
+    Local aSrvInfo   := {}  as array
+    Local aAuxInfo   := {}  as array
+    Local lContinue  := .T. as logical
+    Local lRet       := .F. as logical
+
+    Default cSenha   := ""
+
+    if Empty(cSenha)
+        Return .T.
+    endif
+
+    aSrvInfo   := strToKarr(GetSrvGlbInfo(),chr(13)+chr(10))
+    nPos       := aScan(aSrvInfo, { |x| "\bin" $ x } )
+    aAuxInfo   := StrToKarr(aSrvInfo[nPos]," ")
+    nPos       := aScan(aAuxInfo, {|x| '\bin' $ x })
+    cDirPrg    := aAuxInfo[nPos] // "D:\Totvs\Protheus\bin\AppServer_1611_DEVGMS_APP\"
+    cDirPrg    := Replace(cDirPrg,"[","")
+    cDirPrg    := Replace(cDirPrg,"]","")
+    cDirPrg    := Replace(cDirPrg,"tlpp.rpo","")
+    cProgram   := cDirPrg + "printer.exe "
+    cDirAttach := GetSrvProfString ("ROOTPATH","") + ::cDirectory
+
+    aDirFiles := Directory(::cDirectory+"*.rel")
+
+    for nI:=1 to len(aDirFiles)
+
+        cDirFile := cDirAttach + Lower(aDirFiles[nI,1])
+
+        cCommand := cProgram + cDirFile + " PDF_WITH_PASSWORD " + cSenha
+
+        lContinue := WaitRunSrv( cCommand /*cCommandLine*/, .T. /*lWaitRun*/, cDirAttach /*cPath */ )
+
+        if !lContinue
+            Exit
+        endif
+
+    next
+
+    lRet := lContinue
+
+Return lRet
+
+
+Method SendPDF( cEmailTO  as character,;
+                cEmailCC  as character,;
+                cEmailCCO as character,;
+                cSubject  as character,;
+                cBody     as character ) Class MSPrinterArgs
+
+    Local _lRet := .F. as logical
+
+    Default cEmailCC  := ""
+    Default cEmailCCO := ""
+
+    _lRet := _Super:SendMail(cEmailTO, cEmailCC, cEmailCCO, cSubject, cBody, ".pdf" )
+
+Return _lRet
