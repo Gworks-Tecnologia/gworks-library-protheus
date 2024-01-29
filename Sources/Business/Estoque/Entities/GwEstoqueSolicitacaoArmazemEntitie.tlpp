@@ -49,12 +49,7 @@ Executa a rotina MATA105 por meio de ExecAuto().
 @version 12.1.33
 @author Giovani-Gworks
 @since 3/27/2023
-@param aCabec, array, Dados do cabeçalho.
-@param aItens, array, Dados dos itens.
-@param nOpc, numeric, opção de execução da rotina, podendo ser:
-    3-Inclusão;
-    4-Alteração;
-    5-Exclusão.
+@param aDados, array, Array de itens no formato KeyValue para inclusão.
 @return logical, .T. sucesso e .F. falha.
 /*/
 Method IncluirSolicitacaoArmazem( aDados as array ) as logical Class GwSolicitacaoArmazem

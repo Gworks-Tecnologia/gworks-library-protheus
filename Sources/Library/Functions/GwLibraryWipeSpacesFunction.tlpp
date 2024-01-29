@@ -1,0 +1,25 @@
+#include "TOTVS.ch"
+
+namespace Gworks.Library.Functions
+
+/*/{Protheus.doc} GwWipeSpaces
+Remove espaços duplicados de uma string.
+@type function
+@version 22010
+@author Gworks-Giovani
+@since 5/9/2023
+@param cString, character, String a normatizar.
+@return character, String normatizada.
+/*/
+User Function GwWipeSpaces( cString as character )
+
+	while at( "  ", cString ) > 0
+
+		cString := Replace( cString, "  ", " " )
+
+	enddo
+
+	cString := Replace( cString, '" "', '""' )
+	cString := Replace( cString, "' '", "''" )
+
+Return cString

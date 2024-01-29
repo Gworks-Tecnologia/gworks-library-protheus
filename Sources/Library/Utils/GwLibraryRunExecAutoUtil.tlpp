@@ -1,0 +1,166 @@
+#include "TOTVS.ch"
+
+using namespace Gworks.Library.Classes
+
+namespace Gworks.Library.Utils
+
+/*/{Protheus.doc} GwRunExecAuto
+Função utilitária para execução centralizada de ExecAuto().
+@type function
+@version 12.1.33
+@author Gwroks-Giovani
+@since 4/25/2023
+@param aData, array, Dados a serem considerados na execução do ExecAuto().
+@param nOperation, numeric, Tipo de operação para o ExecAuto(). Ex.: 3, inlclusão.
+@param cExecAuto, character, Nome do ExecAuto().
+@param cSuccessExpression, character, Expressão a ser retornada em caso de sucesso.
+@param lRunAsJob, logical, Se .T. irá executar o ExecAuto() por meio da função StartJob().
+@param cJobEmpresa, character, Empresa para execução via job.
+@param cJobFilial, character, Filial para execução via job.
+@param cJobModule, character, Módulo para execução via job.
+@param cJobName, character, Nome a ser exibido pela FunName() quando executado via job.
+@param aJobTables, array, Lista de tabelas a ser aberta no ambiente para execução via job.
+@obs Observações:
+    Suporta execução via StartJob().
+/*/
+User Function GwRunExecAuto( aData as array,;
+                             nOperation as numeric,;
+                             cExecAuto as character,;
+                             cSuccessExpression as character,;
+                             lRunAsJob as logical,;
+                             cJobEmpresa as character,;
+                             cJobFilial as character,;
+                             cJobModule as character,;
+                             cJobName as character,;
+                             aJobTables as array )
+
+    Local oError as object
+
+    Local nI           := 0   as numeric
+    Local cParamActual := ""  as character
+    Local cParamResult := ""  as character
+    Local cBlock       := ""  as character
+    Local bBlock       :={||} as codeblock
+    Local nLenParams   := 0   as numeric
+
+    Local lBlind       := .F. as logical
+
+    Default aData       := {}
+    Default lRunAsJob   := .F.
+    Default cJobEmpresa := ""
+    Default cJobFilial  := ""
+    Default cJobModule  := ""
+    Default cJobName    := ""
+    Default aJobTables  := {}
+
+    Private lMSHelpAuto    := .T. as logical
+    Private lAutoErrNoFile := .T. as logical
+    Private lMsErroAuto    := .F. as logical
+
+    // Determina se é execução com sem interface gráfica
+    lBlind := IsBlind()
+
+    // Prepara o ambiente se for execução via StartJob()
+    if lRunAsJob
+
+        RPCSetEnv(;
+                /* cRpcEmp  */ cJobEmpresa,;
+                /* cRpcFil  */ cJobFilial,;
+                /* cEnvUser */ ,;
+                /* cEnvPass */ ,;
+                /* cEnvMod  */ cJobModule,;
+                /* cFunName */ cJobName,;
+                /* aTables  */ aJobTables )
+    endif
+
+    oError := GwError():New()
+
+    // Monta o bloco de código que será executado
+    cParamActual := "q"
+    cParamResult := ""
+    for nI:=1 to Len(aData)+1 // adiciona mais 1 devido à operação (inclusão, alteração, etc...)
+        cParamResult += if( !empty(cParamResult),", ","" ) + cParamActual // "q, r, s" etc...
+        cParamActual := soma1(cParamActual)
+    next
+    cBlock := "{ | "+cParamResult+" | "+cExecAuto+"( "+cParamResult+" ) }"
+    bBlock := &(cBlock)
+
+    // Obtem o tamanho de parâmetros a ser passado para o job
+    nLenParams := Len(aData)
+
+    // Executa o ExecAuto dinamicamente conforme quantidade de parâmetros
+    // Exemplo:
+    //  - MsExecAuto( { | q, r, s | Mata105( q, r, s ) }, aCabec, aItens, nOpc )
+    do case
+
+        case nLenParams == 01
+            MsExecAuto( bBlock, aData[01], nOperation )
+        case nLenParams == 02
+            MsExecAuto( bBlock, aData[01], aData[02], nOperation )
+        case nLenParams == 03
+            MsExecAuto( bBlock, aData[01], aData[02], aData[03], nOperation )
+        case nLenParams == 04
+            MsExecAuto( bBlock, aData[01], aData[02], aData[03], aData[04], nOperation )
+        case nLenParams == 05
+            MsExecAuto( bBlock, aData[01], aData[02], aData[03], aData[04], aData[05], nOperation )
+        case nLenParams == 06
+            MsExecAuto( bBlock, aData[01], aData[02], aData[03], aData[04], aData[05], aData[06], nOperation )
+        case nLenParams == 07
+            MsExecAuto( bBlock, aData[01], aData[02], aData[03], aData[04], aData[05], aData[06], aData[07], nOperation )
+        case nLenParams == 08
+            MsExecAuto( bBlock, aData[01], aData[02], aData[03], aData[04], aData[05], aData[06], aData[07], aData[08], nOperation )
+        case nLenParams == 09
+            MsExecAuto( bBlock, aData[01], aData[02], aData[03], aData[04], aData[05], aData[06], aData[07], aData[08], aData[09], nOperation )
+        case nLenParams == 10
+            MsExecAuto( bBlock, aData[01], aData[02], aData[03], aData[04], aData[05], aData[06], aData[07], aData[08], aData[09], aData[10], nOperation )
+        otherwise
+            ThrowException("GwRunExecAuto:Quantidade de parâmetros no execauto não suportada!")
+
+    endcase
+
+    if lMsErroAuto
+
+        RollBackSx8()
+
+        DisarmTransaction()
+
+        oError:DefineWithError(.T.)
+
+        oError:SetAutoGRLogFromExecAuto(cExecAuto)
+
+        if !lBlind
+            oError:ShowError()
+        endif
+
+    else
+
+        oError:DefineWithError(.F.)
+
+        ConfirmSX8()
+
+        lResult := .T.
+
+    endif
+
+    if !oError:lError
+
+        cResult := 'SUCCESS'
+
+        cSuccessExpressionResult := &(cSuccessExpression)
+
+        if !Empty(cSuccessExpressionResult)
+            cResult += ":" + cSuccessExpressionResult
+        endif
+
+    else
+        cResult := oError:cAutoGRLog
+    endif
+
+    FwFreeObj(oError)
+
+    // Reinicia o ambiente se for execução via StartJob()
+    if lRunAsJob
+        RpcClearEnv()
+    endif
+
+Return cResult

@@ -356,13 +356,13 @@ Method SetAutoGRLogFromExecAuto( cExecAutoName as character ) as variant Class G
 
     Default cExecAutoName := ""
 
-    aErro := GetAutoGRLog()
+    aError := GetAutoGRLog()
 
     for nI:=1 to len(aError)
 
-        cError += aErro[nX] + CRLF
+        cError += aError[nI] + CRLF
 
-    next nX
+    next
 
     if !Empty(cError)
 

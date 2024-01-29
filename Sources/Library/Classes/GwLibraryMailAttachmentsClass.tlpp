@@ -1,0 +1,252 @@
+#include "TOTVS.ch"
+
+namespace Gworks.Library.Classes
+
+
+Class MailAttachments
+
+    Public Data cDirectory as character default ""
+    Public Data lReserved  as logical default .F.
+
+    Public Method New() Constructor
+    Public Method ReserveAttachDir()
+    Public Method ReleaseAttachDir()
+    Public Method GetNameAttachDir()
+    Public Method AttachFiles()
+    Public Method SendMail()
+
+EndClass
+
+
+Method New() Class MailAttachments
+
+    Self:cDirectory := ""
+    Self:lReserved  := .F.
+
+Return Self
+
+
+Method ReserveAttachDir( cAttachDirectory as character, lEraseFiles as logical ) Class MailAttachments
+
+    Local nInterval      := 5000 as numeric // intervalo entre tentativas
+    Local nAttempt       := 0    as numeric // nro. tentativas atual
+    Local nTotalAttempts := 10   as numeric // nro. tentativas
+    Local lContinue      := .F.  as logical
+    Local lRet           := .F.  as logical
+
+    Default cAttachDirectory := "\attachments\"
+    Default lEraseFiles      := .T.
+
+    // Tenta criar o semáforo para continuar com o processamento
+    // Obs.: É necessário empregar semáforo pois a pasta "attachments"
+    //       pode ser utilizada em diferentes processos/threads concorrentes.
+    while lContinue .Or. ( !lContinue .And. nAttempt < nTotalAttempts )
+
+        nAttempt++
+
+        if ::lReserved .Or. LockByName(cAttachDirectory, .F./*lEmpresa*/, .F./*lFilial*/)
+
+            lContinue := .T.
+
+            Exit
+
+        endif
+
+        lContinue := .F.
+
+        Sleep(nInterval)
+
+    enddo
+
+    if lContinue
+
+        ::lReserved := .T.
+        ::cDirectory := cAttachDirectory
+
+        // Cria o Diretório
+        if !ExistDir(cAttachDirectory)
+            MakeDir(cAttachDirectory) // MontaDir(cAttachDirectory)
+        endif
+
+        // Apaga qualquer arquivo existente no diretório
+        if lEraseFiles
+            aEval( Directory(cAttachDirectory+"*.*"), { |aFile| FErase(cAttachDirectory+aFile[1]) })
+        endif
+
+        lRet := .T.
+
+    else
+
+        lRet := .F.
+
+    endif
+
+Return lRet
+
+
+Method ReleaseAttachDir( lEraseFiles as logical ) Class MailAttachments
+
+    Default lEraseFiles := .T.
+
+    // Apaga qualquer arquivo existente no diretório
+    if lEraseFiles
+        aEval( Directory(::cDirectory+"*.*"), { |aFile| FErase(::cDirectory+aFile[1]) })
+    endif
+
+    // Libera o semáforo para o processamento
+	if ::lReserved
+        UnLockByName(::cDirectory, .F./*lEmpresa*/ , .F./*lFilial*/)
+    endif
+
+    ::lReserved := .F.
+    ::cDirectory := ""
+
+Return
+
+
+Method GetNameAttachDir() Class MailAttachments
+
+Return ::cDirectory
+
+
+Method AttachFiles( cLocalDir as character, lEraseLocal as logical ) Class MailAttachments
+
+    Local nI        := 0   as numeric
+    Local aFiles    := {}  as array
+    Local cFile     := ""  as character
+    Local lContinue := .T. as logical
+
+    Default cLocalDir   := ""  // diretório local, origem dos arquivos a serem copiados
+    Default lEraseLocal := .T. // apaga arquivos após a cópia para o servidor
+
+    if !::lReserved
+        if !::ReserveAttachDir(,.F.)
+            lContinue := .F.
+        endif
+    endif
+
+    if Empty(cLocalDir)
+        UserException("MailAttachments:AttachFiles - Argumentos inválidos ou não informados!")
+    endif
+
+    if Right(cLocalDir,1) != "\"
+        cLocalDir += "\"
+    endif
+
+    aFiles := Directory(cLocalDir+"*.*")
+
+    // Move os arquivos para o Servidor
+    for nI:=1 to Len(aFiles)
+
+        cFile := cLocalDir+aFiles[nI,1]
+
+        if CpyT2S(cFile, ::cDirectory, .F.) // se copiou...
+
+            if lEraseLocal // ...e deve-se remover os arquivos de origem...
+                FErase(cFile,,.T.) // ...então apaga-os do diretório local
+            endif
+
+        else
+            UserException("MailAttachments:AttachFiles - Falha ao copiar o arquivo " + cFile + " para o diretório " + ::cDirectory +;
+                ". Ferifique se o arquivo está em uso e ente novamente.")
+        endif
+
+    next
+
+Return .T.
+
+
+Method SendMail( cEmailTO  as character,;
+                 cEmailCC  as character,;
+                 cEmailCCO as character,;
+                 cSubject  as character,;
+                 cBody     as character,;
+                 cFileType as character,;
+                 lSlipMail ) Class MailAttachments
+
+    Local aDirFiles   := {}  as array
+    Local aFileType   := {}  as array
+    Local aFiles      := {}  as array
+    Local aEmail      := {}  as array
+    Local cFileName   := ""  as character
+    Local nI          := 0   as numeric
+    Local nJ          := 0   as numeric
+    Local lRet        := .T. as logical
+
+    Default cEmailTO  := ""
+    Default cEmailCC  := ""
+    Default cSubject  := ""
+    Default cBody     := ""
+    Default cFileType := "*.pdf"
+    Default lSlipMail := .F.
+
+    if  Empty(cEmailTO) .Or.;
+        Empty(cSubject) .Or.;
+        Empty(cBody)
+
+        UserException("MailAttachments:SendMail - Argumentos inválidos ou não informados!")
+
+    endif
+
+    cEmailTO  := Replace(cEmailTO ,' ','')
+    cEmailCC  := Replace(cEmailCC ,' ','')
+    cEmailCCO := Replace(cEmailCCO,' ','')
+
+    // Ontem a lista de e-mails caso seja necessário
+    // enviar um e-mail para cada destinatário separadamente
+    if lSlipMail
+        if Empty(aEmail) .And. At(',',cEmailTO) > 0
+            aEmail := StrTokArr(cEmailTO,',') // suporte a e-mails separados por ','
+        endif
+        if Empty(aEmail) .And. At(';',cEmailTO) > 0
+            aEmail := StrTokArr(cEmailTO,';') // suporte a e-mails separados por ';'
+        endif
+    endif
+    if Empty(aEmail)
+        aAdd(aEmail, cEmailTO)
+    endif
+    cEmailTO := ""
+
+    // Obtem a lista de extensões
+    if Empty(aFileType) .And. At(',',cFileType)
+        aFileType := StrTokArr(cFileType,',')
+    endif
+    if Empty(aFileType) .And. At(';',cFileType)
+        aFileType := StrTokArr(cFileType,';')
+    endif
+    if Empty(aFileType)
+        aAdd(aFileType, cFileType)
+    endif
+    cFileType := ""
+
+    // Obtem a lista de arquivos, conforme extensões
+    for nI:=1 to Len(aFileType)
+
+        cFileType := aFileType[nI]
+
+        aDirFiles := Directory(::cDirectory+cFileType)
+
+        for nJ:=1 to Len(aDirFiles)
+
+            cFileName := aDirFiles[nJ,1]
+
+            aAdd(aFiles, ::cDirectory + cFileName)
+
+        next nJ
+
+    next nI
+
+    // Envia e-mail
+    for nI:=1 to Len(aEmail)
+
+        cEmailTO := AllTrim(aEmail[nI])
+
+        lRet := Common.Library.U_SendMail(cSubject, cBody, cEmailTO, cEmailCC, cEmailCCO, aFiles)
+
+        if !lRet
+            exit
+        endif
+
+    next nI
+
+Return lRet

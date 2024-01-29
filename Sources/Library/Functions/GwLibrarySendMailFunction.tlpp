@@ -1,0 +1,146 @@
+#include "TOTVS.ch"
+
+namespace Gworks.Library.Functions
+
+/*/{Protheus.doc} SendMail
+Função para envio de e-mail com suporte a anexo.
+@type function
+@version 12.1.33
+@author Gworks - Giovani Soares
+@since 27/09/2022
+@param cSubject, character, assunto.
+@param cBody, character, texto.
+@param cMailTO, character, destinatário.
+@param cMailCC, character, destinatários em cópia.
+@param aAttachment, array, anexos (caminho relativo).
+@param cError, character, variável para retorno da mensagem de erro (informar via ref. de memória).
+@return logical, se .T. e-mail enviado com sucesso e .F. e-mail não enviado.
+@sample xRet := Common.Library.U_SendMail("teste", "Teste abc...", "giovani.manenti@gmail.com", "", "\attachments\rm20220927112746.pdf")
+/*/
+User Function GwSendMail( cSubject as character,;
+						cBody as character,;
+						cMailTO as character,;
+						cMailCC as character,;
+						cMailCCO as character,;
+						aAttachment as array,;
+						cError )
+
+	Local aFile         := {}  as array
+	Local aSmtpServer   := {}  as array
+	Local cAccount      := ""  as character
+	Local cPassword     := ""  as character
+	Local cFileName     := ""  as character
+	Local oServer       := nil as object
+	Local oMessage      := nil as object
+	Local nRes          := 0   as numeric
+	Local nI            := 0   as numeric
+	Local lSSL          := .F. as logical
+	Local lTLS          := .F. as logical
+	Local lAuth         := .F. as logical
+	Local lAtthErr      := .F. as logical
+	Local lRet          := .F. as logical
+
+	Default cSubject    := ""
+	Default cBody       := ""
+	Default cMailTO     := ""
+	Default cMailCC     := ""
+	Default cMailCCO    := ""
+	Default aAttachment := {}
+	Default cError      := ""
+
+	aSmtpServer := StrToKarr(AllTrim(GetMV("MV_RELSERV")),":")
+	cAccount    := AllTrim(GetMV("MV_RELACNT"))
+	cPassword   := AllTrim(GetMV("MV_RELPSW" ))
+	lSSL        := GetMV("MV_RELTLS")
+	lTLS        := GetMV("MV_RELSSL")
+	lAuth       := GetMv("MV_RELAUTH",,.F.)
+
+	cSmtpServer := aSmtpServer[1]
+	nSmtpPort   := Val(aSmtpServer[2])
+
+    //Cria a conexão com o server STMP ( Envio de e-mail )
+	oServer := TMailManager():New()
+	oServer:SetUseSSL(lSSL)
+	oServer:SetUseTLS(lTLS)
+	oServer:Init( "",;          // cPopServer
+                  cSmtpServer,; // cSmtpServer
+                  cAccount,;    // cAccount
+                  cPassword,;   // cPassword
+                  0,;           // nPopPort
+                  nSmtpPort )   // nSmtpPort
+
+	while .T.
+
+		// Define o tempo de time out com servidor de Smtp
+		if ( nRes := oServer:SetSmtpTimeOut( 60 ) ) != 0
+			cError := oServer:GetErrorString( nRes )
+			exit
+		endif
+
+		// Conecta no servidor Smtp
+		if ( nRes := oServer:SmtpConnect() ) != 0
+			cError := oServer:GetErrorString( nRes )
+			exit
+		endif
+
+		if lAuth
+			if ( nRet := oServer:SMTPAuth( cAccount, cPassword ) ) != 0
+				cError := oServer:GetErrorString( nRes )
+				exit
+			endif
+		endif
+
+		// Após conexão, cria o objeto da mensagem
+		oMessage := TMailMessage():New()
+		oMessage:Clear() // limpa o objeto
+
+		// Popula com os dados de envio
+		oMessage:cFrom := cAccount
+		oMessage:cTo := cMailTO // e-mails de destinatário (separados por vírgula)
+		oMessage:cCc := cMailCC // e-mails em cópia (separados por vírgula)
+		oMessage:cBcc := cMailCCO // e-mails em cópia oculta (separados por vírgula)
+		oMessage:cSubject := cSubject
+		oMessage:cBody := cBody
+
+		// Adiciona anexos ao e-mail, podendo ser informado apenas o caminho relativo
+		// Ex.: "\myFoler\myFile.pdf"
+		for nI:=1 to len(aAttachment)
+			cAttachment := aAttachment[nI]
+			aFile := StrToKarr(cAttachment,"\")
+			cFileName := aFile[Len(aFile)]
+			if !Empty(cAttachment) .And. !Empty(cFileName)
+				if ( nRes := oMessage:AttachFile( cAttachment ) ) < 0 //!= 0
+					oServer:SmtpDisconnect()
+					cError := oServer:GetErrorString( nRes )
+					lAtthErr := .T.
+					exit
+				endif
+				// Adiciona uma tag informando que é um attach e o nome do arquivo
+				oMessage:AddAtthTag( 'Content-Disposition: attachment; filename='+cFileName)
+			endif
+		next
+		if lAtthErr
+			exit
+		endif
+
+		//Envia o e-mail
+		if ( nRes := oMessage:Send( oServer ) ) != 0
+			cError := oServer:GetErrorString( nRes )
+			oServer:SmtpDisconnect()
+			exit
+		endif
+
+		//Desconecta do servidor
+		if oServer:SmtpDisconnect() != 0
+			exit
+		endif
+
+		lRet := .T.
+
+		exit
+
+	enddo
+
+	Freeobj(oServer)
+
+Return lRet

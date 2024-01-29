@@ -17,12 +17,32 @@ Classe para execução dinâmica de ExecAutos e com tratamento automático de erro.
 /*/
 Class GwExecAuto
 
+    // Controle de erro
     Public data oError as object
 
-    Public Data cExecAuto as character default ""
+    // Atributos do negócio
+    Public Data cExecAuto   as character default ""
+    Public Data lRunAsJob   as logical default .F.
+    Public Data cJobEmpresa as character default ""
+    Public Data cJobFilial  as character default ""
+    Public Data cJobModule  as character default ""
+    Public Data cJobName    as character default ""
+    Public Data aJobTables  as array default {}
 
+    Public Data cSuccessExpression       as character default ""
+    Public Data cSuccessExpressionResult as character default ""
+
+    // Atributos de controle
+    Public Data lResult            as logical default .F.
+
+    // Método construtor
     Public Method New() Constructor
-    Public Method RunExecAuto( nOpc as numeric, aData as array ) as logical
+
+    // Métodos públicos
+    Public Method SetSuccessExpression( cExpression as character )
+    Public Method GetSuccessExpressionResult() as character
+    Public Method SetStartJob( cJobEmpresa as character, cJobFilial as character, cJobModule as character, cJobName as character, aJobTables as array )
+    Public Method RunExecAuto( nOperation as numeric, aKeyValue as array ) as logical
 
 EndClass
 
@@ -49,9 +69,84 @@ Method New( cExecAuto as character ) Class GwExecAuto
 
     ::oError := GwError():New()
 
-    ::cExecAuto := cExecAuto
+    ::cExecAuto   := cExecAuto
+    ::lRunAsJob   := .F.
+    ::cJobEmpresa := ""
+    ::cJobFilial  := ""
+    ::cJobModule  := ""
+    ::cJobName    := ""
+    ::aJobTables  := {}
 
 Return Self
+
+/*/{Protheus.doc} GwExecAuto::SetSuccessExpression
+Define a expressão que será executada para retorno em caso de sucesso.
+@type method
+@version 12.1.33
+@author Gwroks-Giovani
+@since 4/26/2023
+@param cSuccessExpression, character, Expresão (sintaxe advpl).
+/*/
+Method SetSuccessExpression( cExpression as character ) Class GwExecAuto
+
+    ::cSuccessExpression := cExpression
+
+Return
+
+/*/{Protheus.doc} GwExecAuto::GetSuccessExpressionResult
+Retorna a expressão definida em Self:cSuccessExpression.
+@type method
+@version 12.1.33
+@author Gwroks-Giovani
+@since 4/26/2023
+@Retun character, Conteúdo da expressão.
+/*/
+Method GetSuccessExpressionResult() Class GwExecAuto
+
+Return ::cSuccessExpressionResult
+
+/*/{Protheus.doc} GwExecAuto::SetStartJob
+Método para iniciarlizar os atributos de execução por meio da função StartJob().
+@type method
+@version 12.1.33
+@author Gwroks-Giovani
+@since 4/25/2023
+@param cJobEmpresa, character, Empresa.
+@param cJobFilial, character, Filial.
+@param cJobModule, character, Módulo.
+@param cJobName, character, Nome do Job a ser exibido pela função FunName() (opcional).
+@param aJobTables, array, Lista de tabelas (opcional).
+/*/
+Method SetStartJob( cJobEmpresa as character, cJobFilial as character, cJobModule as character, cJobName as character, aJobTables as array ) Class GwExecAuto
+
+    Default cJobEmpresa := ""
+    Default cJobFilial  := ""
+    Default cJobModule  := ""
+    Default cJobName    := FunName()
+    Default aJobTables  := {}
+
+    ::lRunAsJob   := .F.
+    ::cJobEmpresa := ""
+    ::cJobFilial  := ""
+    ::cJobModule  := ""
+    ::cJobName    := ""
+    ::aJobTables  := {}
+
+    if !Empty(cJobEmpresa) ;
+        .And. !Empty(cJobFilial) ;
+        .And. !Empty(cJobModule) ;
+        .And. ( CEMPANT != cJobEmpresa .Or. CFILANT != cJobFilial )
+
+        ::lRunAsJob   := .T.
+        ::cJobEmpresa := cJobEmpresa
+        ::cJobFilial  := cJobFilial
+        ::cJobModule  := cJobModule
+        ::cJobName    := cJobName
+        ::aJobTables  := aJobTables
+
+    endif
+
+Return
 
 /*/{Protheus.doc} GwExecAuto::RunExecAuto( nOperation as numeric, aKeyValue as array ) as logical
 Método para executar ExecAutos de maneira dinâmica.
@@ -69,23 +164,11 @@ Method RunExecAuto( nOperation as numeric, aKeyValue as array ) as logical Class
     Local aData         := {}   as array
     Local aChildren     := {}   as array
     Local lChildren     := .F.  as logical
-
     Local cField        := ""   as character
     Local xValue        := nil  as variant
 
-    Local cParamActual  := ""   as character
-    Local cParamResult  := ""   as character
-    Local cBlock        := ""   as character
-    Local bBlock        := {||} as codeblock
-    Local nLenParams    := 0    as numeric
-
-    Local lResult       := .F.  as logical
-
-    Private lMsErroAuto := .F.  as logical
-
     Default cExecAuto   := ""
     Default nOperation  := 0
-    Default aKeyValue   := {}
 
     ::oError:cMethod := "RunExecAuto"
 
@@ -132,91 +215,27 @@ Method RunExecAuto( nOperation as numeric, aKeyValue as array ) as logical Class
         ::oError:ThrowException()
     endif
 
-    cParamActual := "q"
-    cParamResult := ""
-    for nI:=1 to Len(aData)+1 // adiciona mais 1 devido à operação (inclusão, alteração, etc...)
-        cParamResult += if( !empty(cParamResult),", ","" ) + cParamActual // "q, r, s" etc...
-        cParamActual := soma1(cParamActual)
-    next
-
-    cBlock := "{ | "+cParamResult+" | "+::cExecAuto+"( "+cParamResult+" ) }"
-    bBlock := &(cBlock)
-    nLenParams := Len(aData)
-
-    do case
-
-        case nLenParams == 01
-
-            MsExecAuto( bBlock, aData[01], nOperation )
-
-        case nLenParams == 02
-
-            MsExecAuto( bBlock, aData[01], aData[02], nOperation )
-
-        case nLenParams == 03
-
-            MsExecAuto( bBlock, aData[01], aData[02], aData[03], nOperation )
-
-        case nLenParams == 04
-
-            MsExecAuto( bBlock, aData[01], aData[02], aData[03], aData[04], nOperation )
-
-        case nLenParams == 05
-
-            MsExecAuto( bBlock, aData[01], aData[02], aData[03], aData[04], aData[05], nOperation )
-
-        case nLenParams == 06
-
-            MsExecAuto( bBlock, aData[01], aData[02], aData[03], aData[04], aData[05], aData[06], nOperation )
-
-        case nLenParams == 07
-
-            MsExecAuto( bBlock, aData[01], aData[02], aData[03], aData[04], aData[05], aData[06], aData[07], nOperation )
-
-        case nLenParams == 08
-
-            MsExecAuto( bBlock, aData[01], aData[02], aData[03], aData[04], aData[05], aData[06], aData[07], aData[08], nOperation )
-
-        case nLenParams == 09
-
-            MsExecAuto( bBlock, aData[01], aData[02], aData[03], aData[04], aData[05], aData[06], aData[07], aData[08], aData[09], nOperation )
-
-        case nLenParams == 10
-
-            MsExecAuto( bBlock, aData[01], aData[02], aData[03], aData[04], aData[05], aData[06], aData[07], aData[08], aData[09], aData[10], nOperation )
-
-        otherwise
-            ::oError:cError := "Quantidade de parâmetros no execauto não suportada!"
-            ::oError:ThrowException()
-
-    endcase
-
-    // Exemplo:
-    // MsExecAuto( { | q, r, s | Mata105( q, r, s ) }, aCabec, aItens, nOpc )
-
-    if lMsErroAuto
-
-        RollBackSx8()
-
-        DisarmTransaction()
-
-        ::oError:DefineWithError(.T.)
-
-        ::oError:SetAutoGRLogFromExecAuto(::cExecAuto)
-
-        // TODO: melhorar tratativa...
-        // if Empty(::oError:cAutoGRLog)
-        //     ::oError:SetAutoGRLog(MostraErro())
-        // endif
-
+    if ::lRunAsJob
+        cResult := StartJob( "Gworks.Library.Utils.U_GwRunExecAuto", ;
+            GetEnvServer(), .T., aData, nOperation, ::cExecAuto, ::cSuccessExpression, ::lRunAsJob, ::cJobEmpresa, ::cJobFilial, ::cJobModule, ::cJobName, ::aJobTables )
     else
-
-        ::oError:DefineWithError(.F.)
-
-        ConfirmSX8()
-
-        lResult := .T.
-
+        cResult := Gworks.Library.Utils.U_GwRunExecAuto( aData, nOperation, ::cExecAuto, ::cSuccessExpression )
     endif
 
-Return lResult
+    if 'SUCCESS' $ cResult
+
+        if ":" $ cResult
+
+            ::cSuccessExpressionResult := StrToKarr(cResult,":")[2]
+
+        endif
+
+        ::lResult := .T.
+
+    else
+        ::oError:DefineWithError(.T.)
+        ::oError:SetAutoGRLog(cResult)
+        ::lResult := .F.
+    endif
+
+Return ::lResult

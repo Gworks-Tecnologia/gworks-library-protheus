@@ -1,0 +1,58 @@
+#include 'TOTVS.CH'
+
+#Define EOL chr(13)+chr(10) // end of file (quebra de linha)
+#Define EOL2 (chr(13)+chr(10))+(chr(13)+chr(10)) // quebra de linha dupla
+
+Namespace Projects.CertificadoMaterial.Reports
+
+/*/{Protheus.doc} GWRL001
+Certificado de Materiais Vimetal.
+@author Brasoft | Gworks - Giovani Soares
+@since 07/28/2022
+@type function
+/*/
+User Function GWRL001() // Projects.CertificadoMaterial.Reports.U_GWRL001
+
+    Local nCnt        := 0
+    Local aGet        := {}
+    Local aParam      := {}
+    Local aRetParam   := {}
+    Local cGetParms   := ""
+    Local lOK         := .F.
+    Local cReportName := "CertificadoMaterial"
+
+    aAdd(aParam,{01,"Pedido"        , Space(6)  , "", ".T."/*cValid*/, nil , ".T."/*cWhen*/,  70, .T.}) // MV_PAR01
+    aAdd(aParam,{01,"Certificado(s)", Space(200), "", ".T."/*cValid*/, nil , ".T."/*cWhen*/, 100, .T.}) // MV_PAR02
+
+    nCnt := 1
+    While !lOK .And. nCnt <= 10 // 10 tentativas...
+
+        aRetParam := {}
+        If ParamBox(aParam,"JasperReport - Parâmetros Jasper", @aRetParam,/*bOk*/,/*aButtons*/,/*lCentered*/,/*nPosX*/,/*nPosY*/,;
+                /*oDlgWizard*/,/*cLoad*/,/*lCanSave*/.T.,/*lUserSave*/.T.)
+
+            cPedido       := AllTrim(aRetParam[01])
+            cCertidicados := AllTrim(aRetParam[02])
+
+            // Parâmetros query-string
+            cGetParms := 'PEDIDO='        + Escape( cPedido       )
+            cGetParms += '&CERTIFICADOS=' + Escape( cCertidicados )
+
+            MsgRun("Gerando relatório...", "Aguarde...",;
+                {|| aGet := Projects.Library.U_GetJasperReport( cReportName, cGetParms, /*cReportPath*/, ".pdf") })
+
+            If aGet[1]
+                FwAlertSuccess(aGet[2],"Sucesso!") ; lOK := .T.
+            Else
+                MsgStop(aGet[2],"Atenção!")
+            EndIf
+
+        Else
+            MsgInfo("Operação cancelada.","TOTVS") ; lOK := .T.
+        EndIf
+
+        nCnt++ // controle de tentativas
+
+    EndDo
+
+Return
