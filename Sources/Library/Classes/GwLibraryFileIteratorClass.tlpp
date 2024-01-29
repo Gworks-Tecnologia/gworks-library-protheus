@@ -11,11 +11,13 @@ Class GwFileIterator
     Public Data oError      as object
     Public data oFile       as object
 
-    Public Data aFile       as array     default {}
-    Public Data cFile       as character default ""
-    Public Data nTotalLines as numeric   default 0
-    Public Data lLoadStatus as logical   default .F.
-    Public Data lStop       as logical   default .F.
+    Public Data aFile             as array     default {}
+    Public Data cFile             as character default ""
+    Public Data cOS               as character default ""
+    Public Data nTotalLines       as numeric   default 0
+    Public Data lLoadStatus       as logical   default .F.
+    Public Data lStop             as logical   default .F.
+    Public Data lIgnoreBlankLines as logical   default .F.
 
     // Métodos construtores da classe
     Public Method New() Constructor
@@ -45,6 +47,7 @@ Method New( cFile as character ) Class GwFileIterator
     Default cFile := ""
 
     ::cFile := cFile
+    ::lIgnoreBlankLines := .F.
 
     ::Init()
 
@@ -68,6 +71,7 @@ Method Init() Class GwFileIterator
 
     ::aFile := {}
     ::lLoadStatus := .F.
+    ::cOS := U_GWRemoteType()
 
     if !Empty(::cFile)
         ::LoadFile()
@@ -115,6 +119,8 @@ Method SetFile( cFile as character ) Class GwFileIterator
         ::oError:ThrowException()
     endif
 
+    ::cFile := cFile
+
     ::Init()
 
 Return
@@ -138,6 +144,9 @@ Method LoadFile() as logical Class GwFileIterator
     endif
 
     ::oFile := FWFileReader():New(::cFile)
+    if ::cOS == "LINUX"
+        ::oFile:lCaseSensitive := .T.
+    endif
 
     if ::oFile:Open()
 
@@ -152,7 +161,7 @@ Method LoadFile() as logical Class GwFileIterator
     endif
 
     ::nTotalLines := Len(::aFile)
-    if ::nTotalLines >= 2 // cabeçalho e 1 (uma) linha de dados = 2 linhas no mínimo
+    if ::nTotalLines >= 1 // cabeçalho e 1 (uma) linha de dados = 2 linhas no mínimo
 
         lResult := .T.
 
@@ -207,6 +216,10 @@ Method EvalByCondition( bLoad as codeblock, bValid as codeblock, bExec as codebl
         endif
 
         cLine  := ::aFile[nI]
+
+        if ::lIgnoreBlankLines .And. Empty(AllTrim(cLine))
+            Loop // ignora linhas vazias
+        endif
 
         xLoad  := Eval( bLoad, cLine, nI, ::cFile )
 
