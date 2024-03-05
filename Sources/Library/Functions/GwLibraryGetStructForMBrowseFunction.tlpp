@@ -1,0 +1,51 @@
+#include "TLPP-Core.th"
+
+namespace Gworks.Library.Functions
+
+/*/{Protheus.doc} GwGetStructForMBrowse
+Define estrutura de colunas a serem exibidas por um browser do tipo FwMBrowse.
+@type function
+@version 12.1.2210
+@author Gworks - Giovani
+@since 26/02/2024
+@param oStruct, object, Objeto do tipo KeyValue contendo a estrutura de dicionário de dados do referido campo.
+@param cField, character, Nome do campo no alias correspondente ao FWMBrowse().
+@param nAlign, numeric, Alinhamento da coluna, entre:
+                                                1 - Esquerda;
+                                                2 - Centralizado;
+                                                3 - Direita.
+@param nSize, numeric, Tamanho da coluna;
+@param bData, codeblock, Codeblock para insersão de dados na coluna.
+@return array, Estrutura do campo para uso com classes do tipo FWMBrowse.
+/*/
+User Function GwGetStructForMBrowse( oStruct, cField, nAlign, nSize, bData )
+
+    Local aHeader := {}
+	Local aColumn := {}
+
+    Default nAlign := 1 // esquerda
+    Default nSize := oStruct:GetValueByKey('X3_TAMANHO')
+    Default bData := &("{|| " + cField + "}")
+
+    aColumn := {;
+        oStruct:GetValueByKey('X3_TITULO'),;  // [n][01] Título da coluna
+        bData,;                               // [n][02] Code-Block de carga dos dados
+        oStruct:GetValueByKey('X3_TIPO'),;    // [n][03] Tipo de dados
+        oStruct:GetValueByKey('X3_PICTURE'),; // [n][04] Máscara
+        nAlign,;                              // [n][05] Alinhamento (0=Centralizado, 1=Esquerda ou 2=Direita)
+        nSize,;                               // [n][06] Tamanho
+        oStruct:GetValueByKey('X3_DECIMAL'),; // [n][07] Decimal
+        .F.,;                                 // [n][08] Indica se permite a edição
+        {||.T.},;                             // [n][09] Code-Block de validação da coluna após a edição
+        .F.,;                                 // [n][10] Indica se exibe imagem
+        {||.T.},;                             // [n][11] Code-Block de execução do duplo clique
+        NIL,;                                 // [n][12] Variável a ser utilizada na edição (ReadVar)
+        {||.T.},;                             // [n][13] Code-Block de execução do clique no header
+        .F.,;                                 // [n][14] Indica se a coluna está deletada
+        .F.,;                                 // [n][15] Indica se a coluna será exibida nos detalhes do Browse
+        {} ;                                  // [n][16] Opções de carga dos dados (Ex: 1=Sim, 2=Não)
+    }
+
+    aadd(aHeader,aColumn)
+
+Return(aHeader)
