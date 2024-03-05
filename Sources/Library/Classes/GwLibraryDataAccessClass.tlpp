@@ -1,4 +1,5 @@
 #include "TOTVS.ch"
+#include "FWMVCDef.ch"
 #include "MsObject.ch"
 
 #define REQUIRE_DATASOURCE_RELATION   "SX2/DIC"
@@ -25,8 +26,11 @@ Class GwDataAccess
     Public Data cAlias       as character default ""
     Public Data cDataSource  as character default ""
     Public Data aQuery       as array     default {}
+    Public Data aInsert      as array     default {}
+    Public Data aUpdate      as array     default {}
     Public Data lOpened      as logical   default .F.
     Public Data nRecnoId     as numeric   default 0
+    Public Data nOperation   as numeric   default 0
 
     // Atributos de controle de área
     Public Data aAliasArea   as array     default {}
@@ -42,6 +46,7 @@ Class GwDataAccess
     Public Data cIndexJoinPK as character default ""
     Public Data aRelation    as array     default {}
     Public Data oRelation    as object    default nil
+    Public Data lRelation    as logical   default .F.
 
     // Atributos de manipulação de índices
     Public Data nIndexOrd    as numeric   default 0
@@ -83,18 +88,18 @@ Class GwDataAccess
     Public Method GetRecnoId() as variant
     Public Method GetFieldPosition( cFieldName as character ) as numeric
     Public Method FieldExists( cFieldName as character ) as logical
+    Public Method SetOperation( nOperation as numeric ) as logical
+    Public Method SetValue( cFieldName as character, xValue as variant )
+    Public Method CommitData()
 
     // Métodos públicos da classe para fins de relacionamentos
     Public Method SetRelation( oAttr as object ) as variant
     Public Method RefreshRelation() as logical // TODO: implementar melhoria para atualizar todos os relacionamentos existentes
     Public Method SelectRelation( cAliasJoin as character, cIndexJoin as character ) as logical
-    Public Method RelationSearch( cFieldName as character, xContent as variant, cRetJoinId as character ) as logical
-    Public Method RelationGetSearchResult() as object
     Public Method RelationGetValue( cFieldName as character ) as variant
-    Public Method RelationGetValues( cFieldName as character ) as object
 
     // Métodos internos da classe
-    Private Method ValidDataSource( lRequireDictionary as logical ) as logical
+    Private Method ValidDataSource( cDataSource as character ) as logical
 
 EndClass
 
@@ -110,17 +115,25 @@ Method New( cAlias as character ) Class GwDataAccess
     Self:oError := GwError():New()
 
     Self:cAlias := cAlias
+    Self:aAliasArea := (cAlias)->(GetArea())
+    Self:aInsert := {}
+    Self:aUpdate := {}
+    Self:aQuery := {}
+    Self:aRelation := {}
+    Self:aOtherAreas := {}
+    Self:cOtherAreas := ""
+    Self:nOperation := MODEL_OPERATION_VIEW
     Self:lAutoFilial := .T.
     Self:lFound := .F.
+    Self:lRelation := .F.
+    Self:lOpened := Select(cAlias) > 0
 
     Self:SelectArea()
     Self:SetDataSource()
 
-    Self:lOpened := Select(cAlias) > 0
-    Self:aAliasArea := (cAlias)->(GetArea())
-    Self:aOtherAreas := {}
-    Self:cOtherAreas := ""
-    Self:aRelation := {}
+    if Self:cDataSource == "SQL"
+        Self:aQuery := GetLastQuery()
+    endif
 
     if ::lOpened
         ::nIndexOrd := (cAlias)->(IndexOrd())
@@ -700,6 +713,100 @@ Method FieldExists( cFieldName as character ) as logical Class GwDataAccess
 Return lResult
 
 
+Method SetOperation( nOperation as numeric ) as logical Class GwDataAccess
+
+    do case
+
+        case nOperation == MODEL_OPERATION_VIEW  ; ::nOperation := nOperation
+        case nOperation == MODEL_OPERATION_UPDATE; ::nOperation := nOperation
+        case nOperation == MODEL_OPERATION_INSERT; ::nOperation := nOperation
+        otherwise
+            Return .F.
+
+    endcase
+
+Return .T.
+
+
+Method SetValue( cFieldName as character, xValue as variant ) as variant Class GwDataAccess
+
+    Local cAlias := "" as character
+
+    ::ValidDataSource(REQUIRE_DATASOURCE_DICTIONARY)
+
+    cAlias := Self:cAlias
+
+    do case
+
+        case ::nOperation == MODEL_OPERATION_UPDATE
+
+            aAdd(::aUpdate, {cFieldName, xValue} ) // TODO: criar melhoria para atualizar o relacionamento quando houver...
+
+
+        case ::nOperation == MODEL_OPERATION_INSERT
+
+            aAdd(::aInsert, {cFieldName, xValue} ) // TODO: criar melhoria para atualizar o relacionamento quando houver...
+
+
+        otherwise
+            UserException("GwDataAccess:SetValue - Modo de operação inválido para o método!")
+
+    endcase
+
+Return
+
+
+Method CommitData() Class GwDataAccess
+
+    Local aData as array
+    Local nI as numeric
+    Local cFieldName as character
+    Local cAlias as character
+    Local xValue as variant
+
+    cAlias := Self:cAlias
+
+    aData := {}
+
+    BEGIN TRANSACTION
+
+    do case
+
+        case ::nOperation == MODEL_OPERATION_INSERT
+
+            RecLock(cAlias, .T. )
+
+            aData := aClone(Self:aInsert)
+
+            Self:aInsert := {}
+
+
+        case ::nOperation == MODEL_OPERATION_UPDATE
+
+            RecLock(cAlias, .F. )
+
+            aData := aClone(Self:aUpdate)
+
+            Self:aUpdate := {}
+
+    endcase
+
+    for nI:=1 to Len(aData)
+
+        cFieldName := aData[nI,1]
+
+        xValue := aData[nI,2]
+
+        (cAlias)->&(cFieldName) := xValue
+
+    next
+
+    (cAlias)->(MsUnLock())
+
+    END TRANSACTION
+
+Return
+
 /*/{Protheus.doc} GwDataAccess::SetRelation( oAttr as object,  ) as variant
 Cria um novo relacionamento para a tabela principal na classe conforme definido por cAlias.
 @type method
@@ -754,9 +861,13 @@ Method SetRelation( oAttr as object ) as variant Class GwDataAccess
         oRelation:cIndexJoinPK := ::cIndexJoinPK
 
         if oRelation:Join()
+
             lResult := .T.
+
         else
+
             lResult := .F.
+
         endif
 
     endif
@@ -764,6 +875,10 @@ Method SetRelation( oAttr as object ) as variant Class GwDataAccess
     ::oRelation := oRelation
 
     aAdd(::aRelation, ::oRelation)
+
+    if !Self:lRelation
+        Self:lRelation := .T.
+    endif
 
 Return lResult
 
@@ -832,43 +947,6 @@ Method SelectRelation( cAliasJoin as character, cIndexJoin as character ) as log
 
 Return lResult
 
-/*/{Protheus.doc} GwDataAccess::RelationSearch( cFieldName as character, xContent as variant, cRetJoinId as character ) as logical
-Localiza, com base no conteúdo de um terminado campo ou expressão, em todos os elementos relacionados à tabela join.
-@type method
-@version 12.1.33
-@author Gworks
-@since 10/03/2023
-@param cFieldName, character, Nome do campo desejado a localizar o conteúdo, Ex.: "C6_TES".
-@param xContent, variant, valor correspondente à cFieldName que se deseja localizar, ex.: "501'
-@return logical, .T. sucesso e .F. falha.
-@obs Utilize o método RelationGetSearchResult() para retornar um objeto de tipo GwKeyValue() contendo todos os elementos correspondentes ao campo e conteúdo procurados.
-/*/
-Method RelationSearch( cFieldName as character, xContent as variant ) as logical Class GwDataAccess
-
-    Local lResult := .F. as logical
-
-    ::ValidDataSource(REQUIRE_DATASOURCE_RELATION)
-
-    if ::oRelation:Search( cFieldName, xContent )
-        lResult := .T.
-    endif
-
-Return lResult
-
-/*/{Protheus.doc} GwDataAccess::RelationGetSearchResult() as object
-Retorna o resultado conforme execução do método ::RelationSearch()
-@type method
-@version 12.1.33
-@author Gworks
-@since 10/03/2023
-@return object, resultado.
-/*/
-Method RelationGetSearchResult() as object Class GwDataAccess
-
-    ::ValidDataSource(REQUIRE_DATASOURCE_RELATION)
-
-Return ::oRelation:GetSearchResult()
-
 /*/{Protheus.doc} GwDataAccess::RelationGetValue() as variant
 Apenas retorna o conteúdo de um campo conforme tabela relacionada sem alterar seu posicionamento.
 @type method
@@ -877,44 +955,12 @@ Apenas retorna o conteúdo de um campo conforme tabela relacionada sem alterar se
 @since 10/03/2023
 @return variant, conteúdo do campo.
 /*/
-Method RelationGetValue() as variant Class GwDataAccess
+Method RelationGetValue( cFieldName as character, cToken as character ) as variant Class GwDataAccess
+
+    Local xResult as variant
 
     ::ValidDataSource(REQUIRE_DATASOURCE_RELATION)
 
-Return ::oRelation:GetValue()
+    xResult := ::oRelation:GetValue( cFieldName, cToken )
 
-/*/{Protheus.doc} GwDataAccess::RelationGetValues( cFieldName as character ) as object
-Retorna o resultado de um determinado campo ou expressão em um objeto de tipo GwKeyValue().
-@type method
-@version 12.1.33
-@author Gworks
-@since 09/03/2023
-@return object, resultado.
-@example
-    Considerando o cenário em que um pedido de venda com 2 (dois) itens, onde:
-        Item 1 - C6_FILIAL = "0101" | C6_ITEM = "01" | C6_PRODUTO = "000000000000111" | C6_PRCVEN = 1.99 | C6_QUANT = 5
-        Item 2 - C6_FILIAL = "0101" | C6_ITEM = "02" | C6_PRODUTO = "000000000000112" | C6_PRCVEN = 2.98 | C6_QUANT = 5
-    E deseja-se obter o preço de venda do segundo item, podemos implementar da seguinte maneira:
-    Código
-        - oResult := oRelation:GetValues("C6_PRCVEN")
-        - oValue := oResult:GetValueByKey("010102000000000000112")
-        - nValue := oValue:GetValueByKey("C6_PRCVEN") // 2.98
-
-    Obs.: Para melhor entendimento, oResult pode ser compreendido e ilustrado como um objeto Json:
-    Objeto Json representando oResult
-        "key":"010101000000000000111" // item 1
-        "values": [ { "Key" : "C6_PRCVEN", "Value" : 1.99 },
-                    { "key" : "C6_QUANT" , "value" : 5    } ]
-        "key":"010102000000000000112" // item 2
-        "values": [ { "Key" : "C6_PRCVEN", "value" : 2.98 },
-                    { "key" : "C6_QUANT" , "value" : 5    } ]
-/*/
-Method RelationGetValues( aFieldName as array ) as object Class GwDataAccess
-
-    Local oResult := nil as object
-
-    ::ValidDataSource(REQUIRE_DATASOURCE_RELATION)
-
-    oResult := ::oRelation:GetValues(aFieldName)
-
-Return oResult
+Return xResult
