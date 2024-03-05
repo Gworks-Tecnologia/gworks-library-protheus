@@ -1,0 +1,112 @@
+#include "TOTVS.ch"
+
+User Function xTest( cArgs as character )
+
+    Local aOut as array
+    Local aSrc as array
+    Local aInfo as array
+    Local nI as numeric
+    Local nRpo as numeric
+    Local cSrc as character
+    Local cRemoteType as character
+
+    Local aArgs as array
+    Local nArgs as numeric
+    Local cArgx as character
+    Local cOutFile as character
+
+    Local cSrcName as character
+    Local cLanguage as character
+    Local cCompilation as character
+    Local cLastChangeTime as character
+    Local dLastChangeDate as date
+
+    Default cArgs := ""
+
+    // Inicializa variáveis
+    nRpo := 3 // somente rpo custom
+    cSrc := "*" // todos arquivos
+    aSrc := {}
+    aInfo := {}
+
+    if Empty(cArgs)
+
+        cRemoteType := Common.Library.U_GetRemoteType()
+
+        do case
+            case cRemoteType $ "LINUX/UNIX" ; cArgs := "--out=l:\deploy\protheus-rpo-sources.csv"
+            case cRemoteType $ "WINDOWS" ; cArgs := "--out=l:\deploy\protheus-rpo-sources.csv"
+            otherwise
+                UserException("Invalid remote type!")
+        endcase
+
+    endif
+
+    cArgs := Replace(cArgs," ","")
+    aArgs := StrToKarr2(cArgs, '--')
+    nArgs := Len(aArgs)
+    for nI:=1 to nArgs
+        cArgx := aArgs[nI]
+        do case
+            case "out" $ cArgx ; cOutFile := Replace(cArgx, "dir=", "")
+        endcase
+    next
+
+    aOut := {}
+
+    // Obtem lista de fontes do RPO custom
+    aSrc := U_GetSrcArray( cSrc, nRpo )
+
+    for nI:=1 to len(aSrc)
+
+        aInfo := GetApoInfo(aSrc[nI])
+            cSrcName := aInfo[1]
+            cLanguage := aInfo[2]
+            cCompilation := aInfo[3]
+            dLastChangeDate := aInfo[4]
+            cLastChangeTime := aInfo[5]
+
+        aAdd( aOUt,;
+            cSrcName + ";" +;
+            dToC(dLastChangeDate) + " " + cLastChangeTime )
+
+    next
+
+    if Len(aOut) == 0
+        UserException("Falha!")
+    endif
+
+
+Return
+
+
+
+
+
+
+
+
+
+//
+// if Empty(cDirFrom) .Or. !ExistDir(cDirFrom, nil, /*lChangeCase*/.F.)
+//     UserException("Invalid source directory!")
+// endif
+//
+// aDir := {}
+// aDir := Directory(cDirFrom+"\*.*","HDS", nil, /*lChanceCase*/.F.)
+//
+// for nI:=1 to Len(aDir)
+//     if aDir[nI,1] == "." .Or. aDir[nI,1] == ".."
+//         loop
+//     endif
+//     cDirFrom := cDirFrom +"\"+ aDir[nI,1]
+//     aDir2 := Directory(cDirFrom+"\*.*","DS", nil, /*lChanceCase*/.F.)
+// next
+//
+// aFiles:= {}
+// aSizes := {}
+// aDatas := {}
+// aHoras := {}
+// aAtributos := {}
+// ADir(cDirFrom+"\*.*", @aFiles, @aSizes, @aDatas, @aHoras, @aAtributos, /*lChangeCase*/.F.)
+
