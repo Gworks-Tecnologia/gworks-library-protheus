@@ -1,0 +1,83 @@
+#include "TLPP-Core.th"
+
+using namespace Gworks.Library.Classes
+using namespace Gworks.Library.Utils
+
+namespace Gworks.Library.Functions
+
+/*/{Protheus.doc} GwGetFieldStruct
+Obtem a estrutura do dicionário de dados de um ou mais campos conforme argumento.
+@type function
+@version 12.1.2210
+@author Gworks - Giovani
+@since 26/02/2024
+@param cField, character, Campo(s) a obter a estrutura de dicionário.
+@return array, Estrutura do(s) campos(s) conforme dicionário SX3.
+/*/
+User Function GwGetFieldStruct(cField as character)
+
+    Local oStruct as object
+    Local oFields as object
+    Local oError as object
+
+    oError := GwError():Create()
+    oError:cError := "Erro indefinido ao ler o dicionário de dados SX3."
+    oError:cSuggestion := "Entre em contato com o suporte técnico."
+    oError:cTitleError := "GwGetFieldStruct"
+    oError:lError := .F.
+
+    cField := Upper(AllTrim(cField))
+    oFields := GwKeyValue():New()
+
+    TRY
+        If !u_GwOpenDictionary("SX3","X3DIC")
+            oError:SetError("Erro ao ler o dicionário de dados SX3.",;
+                            "Tente novamente em instantes ou entre em contato com o suporte técnico.",;
+                            "GwGetFieldStruct")
+            oError:ShowError()
+            THROW oError
+        EndIf
+
+        X3DIC->(DbSetOrder(2)) // X3_CAMPO
+        If !X3DIC->(MsSeek(cAlias))
+            oError:SetError("Alias " + cAlias + " inexistente no dicionário de dados SX3.",;
+                            "Informe outro alias na chamada da função ou entre em contato com o suporte técnico.",;
+                            "GwGetFieldStruct")
+            oError:ShowError()
+            THROW oError
+        EndIf
+
+        While !X3DIC->(EOF()) ;
+            .And. AllTrim(X3DIC->X3_CAMPO) $ cField
+
+            oStruct := GwKeyValue():New()
+
+            oStruct:Add("X3_ARQUIVO", AllTrim(X3DIC->&("X3_ARQUIVO")))
+            oStruct:Add("X3_ORDEM", AllTrim(X3DIC->&("X3_ORDEM")))
+            oStruct:Add("X3_CAMPO", AllTrim(X3DIC->&("X3_CAMPO")))
+            oStruct:Add("X3_TIPO", AllTrim(X3DIC->&("X3_TIPO")))
+            oStruct:Add("X3_TAMANHO", AllTrim(X3DIC->&("X3_TAMANHO")))
+            oStruct:Add("X3_DECIMAL", AllTrim(X3DIC->&("X3_DECIMAL")))
+            oStruct:Add("X3_TITULO", AllTrim(X3DIC->&("X3_TITULO")))
+            oStruct:Add("X3_DESCRIC", AllTrim(X3DIC->&("X3_DESCRIC")))
+            oStruct:Add("X3_PICTURE", AllTrim(X3DIC->&("X3_PICTURE")))
+            oStruct:Add("X3_NIVEL", AllTrim(X3DIC->&("X3_NIVEL")))
+            oStruct:Add("X3_CONTEXT", AllTrim(X3DIC->&("X3_CONTEXT")))
+            oStruct:Add("X3_VISUAL", AllTrim(X3DIC->&("X3_VISUAL")))
+            oStruct:Add("X3_OBRIGAT", AllTrim(X3DIC->&("X3_OBRIGAT")))
+
+            oFields:Add( AllTrim(X3DIC->X3_CAMPO), oStruct )
+
+            X3DIC->(DbSkip())
+
+        EndDo
+
+    CATCH oError
+        oError:ShowError()
+    FINALLY
+        If Select("X3DIC")
+            X3DIC->(DbCloseArea())
+        EndIf
+    ENDTRY
+
+Return oFields
