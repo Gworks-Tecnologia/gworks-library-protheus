@@ -54,13 +54,27 @@ Class GwDataAccess
     Public Data lAutoFilial  as logical   default .T.
     Public Data lFound       as logical   default .F.
 
-    // Métodos públicos da classe
+    // Construtore(s)
     Public Method New() Constructor
+
+    // Métodos para tratativa de erro
     Public Method GetErrorObject() as variant
+
+    // Demais
     Public Method SetDataSource( cDataSource as character ) as variant
+
+    // Métodos para manipulação de área
     Public Method SelectArea() as variant
-    Public Method SetFilter( cFilter as character ) as logical
-    Public Method ClearFilter()
+    Public Method SaveArea() as variant
+    Public Method SaveOtherAreas( cNames as character )
+    Public Method RestoreArea() as variant
+    Public Method RestoreOtherAreas( cNames as character ) as variant
+    Public Method EraseArea() as variant
+    Public Method EraseOtherAreas() as variant
+    Public Method CloseArea() as variant
+    Public Method ReleaseArea() as variant
+
+    // Métodos para busca, definição de ordem e manipulação de posição
     Public Method SetOrder( xOrder as variant )
     Public Method RetIndexOrder() as numeric
     Public Method GoTop() as variant
@@ -69,41 +83,53 @@ Class GwDataAccess
     Public Method SkipLine() as variant
     Public Method EnableAutoFilial() as variant
     Public Method DisableAutoFilial() as variant
-    Public Method SeekStatus() as logical
+    Public Method SeekStatus( cKey as character ) as logical
     Public Method Seek( cKey as character ) as logical
-    Public Method SaveArea() as variant
-    Public Method SaveOtherAreas( cNames as character )
-    Public Method RestoreArea() as variant
-    Public Method RestoreOtherAreas( cNames as character ) as variant
-    Public Method EraseArea() as variant
-    Public Method EraseOtherAreas() as variant
     Public Method EvalByCondition( bExec as codeblock, bCondition as codeblock ) as variant
-    Public Method GetValue( cFieldName as character, cToken as character ) as variant
     Public Method EndOfFile() as logical
     Public Method NotEndOfFile() as logical
     Public Method TotalLines() as numeric
-    Public Method GetOpenedStatus() as logical
-    Public Method CloseArea() as variant
-    Public Method ReleaseArea() as variant
+
+    // Métodos para manipulação e definição de filtros
+    Public Method SetFilter( cFilter as character ) as logical
+    Public Method ClearFilter()
+
+    // Métodos para obtenção e manipulação de dados
     Public Method GetRecnoId() as variant
-    Public Method GetFieldPosition( cFieldName as character ) as numeric
-    Public Method FieldExists( cFieldName as character ) as logical
+    Public Method GetValue( cFieldName as character, cToken as character ) as variant
     Public Method SetOperation( nOperation as numeric ) as logical
     Public Method SetValue( cFieldName as character, xValue as variant )
     Public Method CommitData()
 
-    // Métodos públicos da classe para fins de relacionamentos
+    // Métodos de relacionamentos entre entidades
     Public Method SetRelation( oAttr as object ) as variant
     Public Method RefreshRelation() as logical // TODO: implementar melhoria para atualizar todos os relacionamentos existentes
     Public Method SelectRelation( cAliasJoin as character, cIndexJoin as character ) as logical
     Public Method RelationGetValue( cFieldName as character ) as variant
+
+    // Métodos diversos
+    Public Method GetOpenedStatus() as logical
+    Public Method GetFieldPosition( cFieldName as character ) as numeric
+    Public Method FieldExists( cFieldName as character ) as logical
 
     // Métodos internos da classe
     Private Method ValidDataSource( cDataSource as character ) as logical
 
 EndClass
 
-
+/*/{Protheus.doc} GwDataAccess::New
+Construtor da classe.
+@type method
+@version 12.2210.
+@author Gworks - Giovani
+@since 05/03/2024
+@param cAlias, character, Alias principal.
+@return object, retorna instância da classe.
+@obs Suporta:
+            - Alias padrão, como SB1 (Cad. Produto);
+            - Alias de consulta SQL usado com a função GetNextAlias();
+            - Alias de dicionário, como SX3 (Descrição de Campos).
+/*/
 Method New( cAlias as character ) Class GwDataAccess
 
     Default cAlias := ""
@@ -143,12 +169,25 @@ Method New( cAlias as character ) Class GwDataAccess
 
 Return Self
 
-
+/*/{Protheus.doc} GwDataAccess::GetErrorObject() as variant
+Obtem o objeto de erro da classe.
+@type method
+@version 12.1.2210.
+@author giovani
+@since 05/03/2024
+@return object, Objeto de erro.
+/*/
 Method GetErrorObject() as variant Class GwDataAccess
-
 Return ::oError
 
-
+/*/{Protheus.doc} GwDataAccess::SetDataSource( cDataSource as character ) as variant
+Define a Origem de Dados (DataSource) do alias princial do objeto.
+@type method
+@version 12.1.2210
+@author Gworks - Giovani
+@since 05/03/2024
+@obs Pode-se forçar uma determinada fonte de dados ao informar o argumento cDataSource.
+/*/
 Method SetDataSource( cDataSource as character ) as variant Class GwDataAccess
 
     Default cDataSource := ""
@@ -174,68 +213,232 @@ Method SetDataSource( cDataSource as character ) as variant Class GwDataAccess
 
 Return
 
-
-Method ValidDataSource( cDataSource as character ) as logical Class GwDataAccess
-
-    Default cDataSource := ""
-
-    if !( ::cDataSource $ cDataSource )
-        UserException("GwDataAccess:ValidDataSource - Acesso a método inválido para o DataSource " +'"'+ ::cDataSource +'"!')
-    endif
-
-Return .T.
-
-
+/*/{Protheus.doc} GwDataAccess::SelectArea() as variant
+Abre o alias do objeto e o define como alias corrente.
+@type method
+@version 12.1.2210
+@author Gworks - Giovani
+@since 05/03/2024
+/*/
 Method SelectArea() as variant Class GwDataAccess
-
     DbSelectArea(Self:cAlias)
+Return
+
+/*/{Protheus.doc} GwDataAccess::SaveArea() as variant
+Salva área do alias corrente.
+@type method
+@version 12.1.2210
+@author Gworks - Giovani
+@since 05/03/2024
+/*/
+Method SaveArea() as variant Class GwDataAccess
+
+    Local cAlias := "" as character
+
+    ::ValidDataSource(REQUIRE_DATASOURCE_DICTIONARY)
+
+    cAlias := Self:cAlias
+
+    if !Empty(Self:aAliasArea)
+        Self:EraseArea()
+    endif
+
+    Self:aAliasArea := (cAlias)->(GetArea())
 
 Return
 
+/*/{Protheus.doc} GwDataAccess::SaveOtherAreas( cNames as character ) as variant
+Salva todas as áreas informadas no argumento cNames.
+@type method
+@version 12.1.2210
+@author Gworks - Giovani
+@since 05/03/2024
+@obs O argumento cNames deve ser separado pelo token ";" em caso de múltiplas áreas.
+/*/
+Method SaveOtherAreas( cNames as character ) as variant Class GwDataAccess
 
-Method SetFilter( cFilter as character ) as logical Class GwDataAccess
+    Local aAreas   := {} as array
+    Local aNames   := {} as array
+    Local cName    := "" as character
+    Local cToken   := "" as character
+    Local nI       := 0  as numeric
 
-    Local lResult := .T.
+    Default cNames := ""
 
-    Local cFieldPrefix := "" as character
-    Local cFieldFilial := "" as character
-
-    Default cFilter := ""
-
-    if Empty(cFilter)
-        UserException("GwDataAccess:SetFilter - Argumento cFilter inválido ou não informado!")
+    if Empty(cNames)
+        Return
     endif
 
-    if ::lAutoFilial
+    cToken := ";"
 
-        cFieldPrefix := if( at('S',::cAlias) == 1, Right(::cAlias,2), ::cAlias )
+    aNames := if( at(cNames,cToken) > 0, StrToKarr(cNames,cToken), { cNames } )
 
-        cFieldFilial := cFieldPrefix + "_FILIAL"
+    for nI:=1 to Len(aNames)
 
-        cFilter := cFieldFilial +" == '"+ xFilial(::cAlias) +"' .And. "+ cFilter // XX_FILIAL == '01'...
+        cName := aNames[nI]
 
-    endif
+        aAdd( aAreas, (cName)->(GetArea()) )
 
-    (::cAlias)->(DbSetFilter( {|| &cFilter }, cFilter ))
+    next
 
-    (::cAlias)->(DbGotop())
-
-    if !(::cAlias)->(EOF())
-        lResult := .T.
-    endif
-
-Return lResult
-
-
-Method ClearFilter() Class GwDataAccess
-
-    (::cAlias)->(DbClearFilter())
-
-    (::cAlias)->(DbGoTop())
+    Self:aOtherAreas := aClone(aAreas)
+    Self:cOtherAreas := cNames
 
 Return
 
+/*/{Protheus.doc} GwDataAccess::RestoreArea() as variant
+Restaura a área do alias atual conforme prévia execução do método SaveArea().
+@type method
+@version 12.1.2210
+@author Gworks - Giovani
+@since 05/03/2024
+/*/
+Method RestoreArea() as variant Class GwDataAccess
 
+    Local cAlias := "" as character
+
+    ::ValidDataSource(REQUIRE_DATASOURCE_DICTIONARY)
+
+    cAlias := ::cAlias
+
+    RestArea(Self:aAliasArea)
+
+    ::nIndexOrd := (cAlias)->(IndexOrd())
+    ::cIndexKey := (cAlias)->(IndexKey(::nIndexOrd))
+    ::nRecnoId  := (cAlias)->(Recno())
+
+Return
+
+/*/{Protheus.doc} GwDataAccess::RestoreOtherAreas( cNames as character ) as variant
+Restaura todas as áreas contidas no argumento cNames.
+@type method
+@version 12.1.2210
+@author Gworks - Giovani
+@since 05/03/2024
+@obs O argumento cNames deve ser separado pelo token ";" em caso de múltiplas áreas.
+/*/
+Method RestoreOtherAreas( cNames as character ) as variant Class GwDataAccess
+
+    Local aAreas := {} as array
+    Local aNames := {} as array
+    Local cName  := "" as character
+    Local cToken := "" as character
+    Local nI     := 0  as numeric
+    Local nJ     := 0  as numeric
+    Local nPos   := 0  as numeric
+
+    Default cNames := ""
+
+    if Empty(cNames)
+        cNames := Self:cOtherAreas
+    endif
+
+    cToken := ";"
+
+    aNames := if( at(cNames,cToken) > 0, StrToKarr(cNames,cToken), { cNames } )
+
+    For nI:=1 to Len(aNames)
+
+        cName := aNames[nI]
+
+        if !Empty(cName)
+            nPos := aScan(Self:aOtherAreas, {|x| x[1]==cName})
+        endif
+
+        for nJ:=1 to Len(Self:aOtherAreas)
+
+            if nPos > 0 .And. nJ != nPos
+                loop
+            endif
+
+            aAreas := Self:aOtherAreas[nJ]
+
+            RestArea(aAreas)
+
+        next nJ
+
+    next nI
+
+Return
+
+/*/{Protheus.doc} GwDataAccess::EraseOtherAreas() as variant
+Apaga a área contida na propridade aAliasArea.
+@type method
+@version 12.1.2210
+@author Gworks - Giovani
+@since 05/03/2024
+/*/
+Method EraseArea() as variant Class GwDataAccess
+    FwFreeArray(Self:aAliasArea)
+    Self:aAliasArea := {}
+Return
+
+/*/{Protheus.doc} GwDataAccess::EraseOtherAreas() as variant
+Apaga todas as áreas contidas na propridade aOtherAreas.
+@type method
+@version 12.1.2210
+@author Gworks - Giovani
+@since 05/03/2024
+/*/
+Method EraseOtherAreas() as variant Class GwDataAccess
+    FwFreeArray(Self:aOtherAreas)
+    Self:aOtherAreas := {}
+Return
+
+/*/{Protheus.doc} GwDataAccess::CloseArea() as variant
+Encerra a área corrente.
+@type method
+@version 12.1.2210
+@author Gworks - Giovani
+@since 05/03/2024
+/*/
+Method CloseArea() as variant Class GwDataAccess
+
+    Local cAlias := "" as character
+
+    cAlias := Self:cAlias
+
+    (cAlias)->(DbCloseArea())
+
+Return
+
+/*/{Protheus.doc} GwDataAccess::ReleaseArea() as variant
+Método para restaurar ou fechar a área mediante atributo lOpened, onde:
+    - lOpened igual à 'true', restaura a área para seu status original
+    - lOpened igual à 'false', fecha a área.
+@type method
+@version 12.1.2210
+@author Gworks - Giovani
+@since 05/03/2024
+@obs O atributo lOpened sinaliza se a área corrente estava aberta ou não
+     no ato da instânciação do objeto.
+/*/
+Method ReleaseArea() as variant Class GwDataAccess
+
+    Local cAlias := "" as character
+
+    ::ValidDataSource(REQUIRE_DATASOURCE_DICTIONARY)
+
+    cAlias := Self:cAlias
+
+    do case
+        case  ::lOpened ; ::RestoreArea()
+        case !::lOpened ; ::CloseArea()
+    endcase
+
+Return
+
+/*/{Protheus.doc} GwDataAccess::SetOrder( xOrder as variant )  as variant
+Define/redefine ordenação (índice) no alias corrente conforme argumento xOrder.
+@type method
+@version 12.1.2210
+@author Gworks - Giovani
+@since 05/03/2024
+@obs xOrder pode ser informado
+     conforme:
+        - Ordem numérica corresponde ao índice desejável no dicionário SIX, exemplo: 1;
+        - Ordem descritiva correspondente ao índice desejável no dicionário SIX, exemplo: "B1_FILIAL+B1_DESC".
+/*/
 Method SetOrder( xOrder as variant )  as variant Class GwDataAccess
 
     Local cAlias := "" as character
@@ -265,7 +468,14 @@ Method SetOrder( xOrder as variant )  as variant Class GwDataAccess
 
 Return
 
-
+/*/{Protheus.doc} GwDataAccess::RetIndexOrder() as numeric
+Retorna a ordem do índice do alias corrente.
+@type method
+@version 12.1.2210
+@author Gworks - Givoani
+@since 05/03/2024
+@return numeric, retorna ordem do índice conforme dicionário SIX.
+/*/
 Method RetIndexOrder() as numeric Class GwDataAccess
 
     Local cAlias := "" as character
@@ -279,7 +489,13 @@ Method RetIndexOrder() as numeric Class GwDataAccess
 
 Return nOrder
 
-
+/*/{Protheus.doc} GwDataAccess::GoTop() as variant
+Posiciona no primeiro registro do alias corrente.
+@type method
+@version 12.1.2210
+@author Gworks - Givoani
+@since 05/03/2024
+/*/
 Method GoTop() as variant Class GwDataAccess
 
     Local cAlias := "" as character
@@ -290,7 +506,13 @@ Method GoTop() as variant Class GwDataAccess
 
 Return
 
-
+/*/{Protheus.doc} GwDataAccess::GoBottom() as variant
+Posiciona no último registro do alias corrente.
+@type method
+@version 12.1.2210
+@author Gworks - Givoani
+@since 05/03/2024
+/*/
 Method GoBottom() as variant Class GwDataAccess
 
     Local cAlias := "" as character
@@ -303,7 +525,14 @@ Method GoBottom() as variant Class GwDataAccess
 
 Return
 
-
+/*/{Protheus.doc} GwDataAccess::GoToRecno( nRecno as numeric ) as logical
+Posiciona no ID (campo R_E_C_N_O_) do alias corrente, conforme argumento nRecno informado.
+@type method
+@version 12.1.2210
+@author Gworks - Giovani
+@since 05/03/2024
+@return logical, retorna 'true' para registro posicionado com sucesso e 'false' para falha na operação.
+/*/
 Method GoToRecno( nRecno as numeric ) as logical Class GwDataAccess
 
     Local cAlias  := ""  as character
@@ -327,7 +556,13 @@ Method GoToRecno( nRecno as numeric ) as logical Class GwDataAccess
 
 Return lResult
 
-
+/*/{Protheus.doc} GwDataAccess::SkipLine() as variant
+Posiciona no próximo registro do alias corrente.
+@type method
+@version 12.1.2210
+@author Gworks - Giovani
+@since 05/03/2024
+/*/
 Method SkipLine() as variant Class GwDataAccess
 
     Local cAlias := "" as character
@@ -338,17 +573,36 @@ Method SkipLine() as variant Class GwDataAccess
 
 Return
 
-
+/*/{Protheus.doc} GwDataAccess::EnableAutoFilial() as variant
+Habilita a inserção automática da filial na busca de registros realizada pelo método Seek().
+@type method
+@version 12.1.2210
+@author Gworks - Giovani
+@since 05/03/2024
+/*/
 Method EnableAutoFilial() as variant Class GwDataAccess
     ::lAutoFilial := .T.
 Return
 
-
+/*/{Protheus.doc} GwDataAccess::DisableAutoFilial() as variant
+Desabilita a inserção automática da filial na busca de registros realizada pelo método Seek().
+@type method
+@version 12.1.2210
+@author Gworks - Giovani
+@since 05/03/2024
+/*/
 Method DisableAutoFilial() as variant Class GwDataAccess
     ::lAutoFilial := .F.
 Return
 
-
+/*/{Protheus.doc} GwDataAccess::SeekStatus( cKey as character ) as logical
+Avalia se o argumento cKey corresponde ao registro posicionado.
+@type method
+@version 12.1.2210
+@author Gworks - Giovani
+@since 05/03/2024
+@return logical, retorna 'true' para chave correspondente e 'false' para chave não correspondente.
+/*/
 Method SeekStatus( cKey as character ) as logical Class GwDataAccess
 
     Local cAlias  := ""  as character
@@ -378,7 +632,15 @@ Method SeekStatus( cKey as character ) as logical Class GwDataAccess
 
 Return lResult
 
-
+/*/{Protheus.doc} GwDataAccess::Seek( cKey as character ) as logical
+Realiza uma busca no alias corrente conforme conteúdo de cKey.
+@type method
+@version 12.1.2210
+@author Gworks - Giovani
+@since 05/03/2024
+@return logical, retorna 'true' para busca encontrada e 'false' para busca não encontrada.
+@obs Necessita de um índice definido pelo método SetOrder().
+/*/
 Method Seek( cKey as character ) as logical Class GwDataAccess
 
     Local cAlias  := ""  as character
@@ -427,134 +689,13 @@ Method Seek( cKey as character ) as logical Class GwDataAccess
 
 Return lResult
 
-
-Method SaveArea() as variant Class GwDataAccess
-
-    Local cAlias := "" as character
-
-    ::ValidDataSource(REQUIRE_DATASOURCE_DICTIONARY)
-
-    cAlias := Self:cAlias
-
-    if !Empty(Self:aAliasArea)
-        Self:EraseArea()
-    endif
-
-    Self:aAliasArea := (cAlias)->(GetArea())
-
-Return
-
-
-Method SaveOtherAreas( cNames as character ) as variant Class GwDataAccess
-
-    Local aAreas   := {} as array
-    Local aNames   := {} as array
-    Local cName    := "" as character
-    Local cToken   := "" as character
-    Local nI       := 0  as numeric
-
-    Default cNames := ""
-
-    if Empty(cNames)
-        Return
-    endif
-
-    cToken := ";"
-
-    aNames := if( at(cNames,cToken) > 0, StrToKarr(cNames,cToken), { cNames } )
-
-    for nI:=1 to Len(aNames)
-
-        cName := aNames[nI]
-
-        aAdd( aAreas, (cName)->(GetArea()) )
-
-    next
-
-    Self:aOtherAreas := aClone(aAreas)
-    Self:cOtherAreas := cNames
-
-Return
-
-
-Method RestoreArea() as variant Class GwDataAccess
-
-    Local cAlias := "" as character
-
-    ::ValidDataSource(REQUIRE_DATASOURCE_DICTIONARY)
-
-    cAlias := ::cAlias
-
-    RestArea(Self:aAliasArea)
-
-    ::nIndexOrd := (cAlias)->(IndexOrd())
-    ::cIndexKey := (cAlias)->(IndexKey(::nIndexOrd))
-    ::nRecnoId  := (cAlias)->(Recno())
-
-Return
-
-
-Method RestoreOtherAreas( cNames as character ) as variant Class GwDataAccess
-
-    Local aAreas := {} as array
-    Local aNames := {} as array
-    Local cName  := "" as character
-    Local cToken := "" as character
-    Local nI     := 0  as numeric
-    Local nJ     := 0  as numeric
-    Local nPos   := 0  as numeric
-
-    Default cNames := ""
-
-    if Empty(cNames)
-        cNames := Self:cOtherAreas
-    endif
-
-    cToken := ";"
-
-    aNames := if( at(cNames,cToken) > 0, StrToKarr(cNames,cToken), { cNames } )
-
-    For nI:=1 to Len(aNames)
-
-        cName := aNames[nI]
-
-        if !Empty(cName)
-            nPos := aScan(Self:aOtherAreas, {|x| x[1]==cName})
-        endif
-
-        for nJ:=1 to Len(Self:aOtherAreas)
-
-            if nPos > 0 .And. nJ != nPos
-                loop
-            endif
-
-            aAreas := Self:aOtherAreas[nJ]
-
-            RestArea(aAreas)
-
-        next nJ
-
-    next nI
-
-Return
-
-
-Method EraseArea() as variant Class GwDataAccess
-
-    FwFreeArray(Self:aAliasArea)
-    Self:aAliasArea := {}
-
-Return
-
-
-Method EraseOtherAreas() as variant Class GwDataAccess
-
-    FwFreeArray(Self:aOtherAreas)
-    Self:aOtherAreas := {}
-
-Return
-
-
+/*/{Protheus.doc} GwDataAccess::EvalByCondition( bExec as codeblock, bCondition as codeblock ) as variant
+Executa uma expressão contida em bExec, avaliando a condição em bCondition para cada linha do alias corrente.
+@type method
+@version 12.1.2210
+@author Gworks - Giovani
+@since 05/03/2024
+/*/
 Method EvalByCondition( bExec as codeblock, bCondition as codeblock ) as variant Class GwDataAccess
 
     Local cAlias := "" as character
@@ -574,7 +715,133 @@ Method EvalByCondition( bExec as codeblock, bCondition as codeblock ) as variant
 
 Return
 
+/*/{Protheus.doc} GwDataAccess::EndOfFile() as logical
+Avalia o estado de End Of File (EOF) do alias corrente.
+@type method
+@version 12.1.2210
+@author Gworks - Giovani
+@since 05/03/2024
+@return logical, retorna 'true' para indicar que está em EOF e 'false' para indicar que não está em EOF.
+/*/
+Method EndOfFile() as logical Class GwDataAccess
+Return (Self:cAlias)->(EOF())
 
+/*/{Protheus.doc} GwDataAccess::NotEndOfFile() as logical
+Avalia o estado de End Of File (EOF) do alias corrente.
+@type method
+@version 12.1.2210
+@author Gworks - Giovani
+@since 05/03/2024
+@return logical, retorna 'true' para indicar que não está em EOF e 'false' para indicar que está em EOF.
+/*/
+Method NotEndOfFile() as logical Class GwDataAccess
+Return !(Self:cAlias)->(EOF())
+
+/*/{Protheus.doc} GwDataAccess::TotalLines() as numeric
+Obtem o total de linhas de área corrente.
+@type method
+@version 12.1.2210
+@author Gworks - Giovani
+@since 05/03/2024
+@return numeric, nTotal
+/*/
+Method TotalLines() as numeric Class GwDataAccess
+
+    Local cAlias := "" as character
+    Local nTotal := 0  as numeric
+
+    cAlias := Self:cAlias
+    nTotal := Contar(cAlias,"!EOF()")
+
+    (cAlias)->(DbGoTop())
+
+Return nTotal
+
+/*/{Protheus.doc} GwDataAccess::SetFilter( cFilter as character ) as logical
+Aplica a expressão de filtro contida em cFilter ao alias corrente.
+@type method
+@version 12.1.2210
+@author Gworks - Giovani
+@since 05/03/2024
+@return logical, retorna 'true' para sucesso e 'false' para falha na operação de filtragem.
+/*/
+Method SetFilter( cFilter as character ) as logical Class GwDataAccess
+
+    Local lResult := .T.
+
+    Local cFieldPrefix := "" as character
+    Local cFieldFilial := "" as character
+
+    Default cFilter := ""
+
+    if Empty(cFilter)
+        UserException("GwDataAccess:SetFilter - Argumento cFilter inválido ou não informado!")
+    endif
+
+    if ::lAutoFilial
+
+        cFieldPrefix := if( at('S',::cAlias) == 1, Right(::cAlias,2), ::cAlias )
+
+        cFieldFilial := cFieldPrefix + "_FILIAL"
+
+        cFilter := cFieldFilial +" == '"+ xFilial(::cAlias) +"' .And. "+ cFilter // XX_FILIAL == '01'...
+
+    endif
+
+    (::cAlias)->(DbSetFilter( {|| &cFilter }, cFilter ))
+
+    (::cAlias)->(DbGotop())
+
+    if !(::cAlias)->(EOF())
+        lResult := .T.
+    endif
+
+Return lResult
+
+/*/{Protheus.doc} GwDataAccess::ClearFilter
+Remove filtros aplicados ao alias corrente.
+@type method
+@version 12.1.2210
+@author Gworks - Giovani
+@since 05/03/2024
+/*/
+Method ClearFilter() Class GwDataAccess
+
+    (::cAlias)->(DbClearFilter())
+
+    (::cAlias)->(DbGoTop())
+
+Return
+
+/*/{Protheus.doc} GwDataAccess::GetRecnoId
+Retorna o ID de um registro conforme álias corrente no objeto.
+@type method
+@version 12.1.2210
+@author Gworks - Giovani
+@since 05/03/2024
+@return numeric, ID (campo R_E_C_N_O_) do registro.
+/*/
+Method GetRecnoId() Class GwDataAccess
+
+    Local cAlias := "" as character
+
+    ::ValidDataSource(REQUIRE_DATASOURCE_DICTIONARY)
+
+    cAlias := Self:cAlias
+
+Return (cAlias)->(Recno())
+
+/*/{Protheus.doc} GwDataAccess::GetValue( cFieldName as character, cToken as character ) as variant
+Obtem o conteúdo do campo definido em cFieldName conforme o alias corrente do objeto.
+@type method
+@version 12.1.2210
+@author Gworks - Giovani
+@since 05/03/2024
+@return variant, retorna o conteúdo do campo.
+@obs Suporta a passagem de vários campos em cFieldName, separados por um token (padrão ";").
+     Neste caso, o conteúdo dos campos serão concatenados em uma string única e valores do tipo
+     'date' e 'numeric' serão convertidos para 'character'.
+/*/
 Method GetValue( cFieldName as character, cToken as character ) as variant Class GwDataAccess
 
     Local nI             := 0   as numeric
@@ -620,100 +887,22 @@ Method GetValue( cFieldName as character, cToken as character ) as variant Class
 
 Return xResult
 
-
-Method EndOfFile() as logical Class GwDataAccess
-
-Return (Self:cAlias)->(EOF())
-
-
-Method NotEndOfFile() as logical Class GwDataAccess
-
-Return !(Self:cAlias)->(EOF())
-
-
-Method TotalLines() as numeric Class GwDataAccess
-
-    Local cAlias := "" as character
-    Local nTotal := 0  as numeric
-
-    cAlias := Self:cAlias
-    nTotal := Contar(cAlias,"!EOF()")
-
-    (cAlias)->(DbGoTop())
-
-Return nTotal
-
-
-Method GetOpenedStatus() as logical Class GwDataAccess
-
-Return ::lOpened
-
-
-Method CloseArea() as variant Class GwDataAccess
-
-    Local cAlias := "" as character
-
-    cAlias := Self:cAlias
-
-    (cAlias)->(DbCloseArea())
-
-Return
-
-
-Method ReleaseArea() as variant Class GwDataAccess
-
-    Local cAlias := "" as character
-
-    ::ValidDataSource(REQUIRE_DATASOURCE_DICTIONARY)
-
-    cAlias := Self:cAlias
-
-    do case
-        case  ::lOpened ; ::RestoreArea()
-        case !::lOpened ; ::CloseArea()
-    endcase
-
-Return
-
-
-Method GetRecnoId() Class GwDataAccess
-
-    Local cAlias := "" as character
-
-    ::ValidDataSource(REQUIRE_DATASOURCE_DICTIONARY)
-
-    cAlias := Self:cAlias
-
-Return (cAlias)->(Recno())
-
-
-Method GetFieldPosition( cFieldName as character ) as numeric Class GwDataAccess
-
-    Local nResult := 0 as numeric
-
-    ::ValidDataSource(REQUIRE_DATASOURCE_DICTIONARY)
-
-    ::SelectArea()
-
-    nResult := FieldPos(cFieldName)
-
-Return nResult
-
-
-Method FieldExists( cFieldName as character ) as logical Class GwDataAccess
-
-    Local lResult := .F. as logical
-
-    ::ValidDataSource(REQUIRE_DATASOURCE_DICTIONARY)
-
-    if ::GetFieldPosition(cFieldName) > 0
-        lResult := .T.
-    endif
-
-Return lResult
-
-
+/*/{Protheus.doc} GwDataAccess::SetOperation( nOperation as numeric ) as logical
+Define o modo de operação para manipulação de dados por meio dos métodos SetValue() e CommitData().
+@type method
+@version 12.1.2210
+@author Gworks - Giovani
+@since 05/03/2024
+@return logical, retorna 'true' para modo de operação válido e 'false' para modo de operação inválido.
+@obs Os modos de operação disponíveis para uso,
+     são:
+        - MODEL_OPERATION_VIEW
+        - MODEL_OPERATION_UPDATE
+        - MODEL_OPERATION_INSERT
+/*/
 Method SetOperation( nOperation as numeric ) as logical Class GwDataAccess
+
+    ::ValidDataSource(REQUIRE_DATASOURCE_DICTIONARY)
 
     do case
 
@@ -727,7 +916,14 @@ Method SetOperation( nOperation as numeric ) as logical Class GwDataAccess
 
 Return .T.
 
-
+/*/{Protheus.doc} GwDataAccess::SetValue( cFieldName as character, xValue as variant ) as variant
+Define o valor de um campo a ser persistido na base de dados.
+@type method
+@version 12.1.2210
+@author Gworks - Giovani
+@since 05/03/2024
+@obs Depende da execução do método CommitData() para efetivar a persistência na base de dados.
+/*/
 Method SetValue( cFieldName as character, xValue as variant ) as variant Class GwDataAccess
 
     Local cAlias := "" as character
@@ -755,7 +951,13 @@ Method SetValue( cFieldName as character, xValue as variant ) as variant Class G
 
 Return
 
-
+/*/{Protheus.doc} GwDataAccess::CommitData
+Persiste os dados no Banco de Dados conforme operação realizada via método SetValue().
+@type method
+@version 12.1.2210
+@author Gworks - Giovani
+@since 05/03/2024
+/*/
 Method CommitData() Class GwDataAccess
 
     Local aData as array
@@ -763,6 +965,8 @@ Method CommitData() Class GwDataAccess
     Local cFieldName as character
     Local cAlias as character
     Local xValue as variant
+
+    ::ValidDataSource(REQUIRE_DATASOURCE_DICTIONARY)
 
     cAlias := Self:cAlias
 
@@ -964,3 +1168,78 @@ Method RelationGetValue( cFieldName as character, cToken as character ) as varia
     xResult := ::oRelation:GetValue( cFieldName, cToken )
 
 Return xResult
+
+/*/{Protheus.doc} GwDataAccess::GetOpenedStatus() as logical
+Retorna o conteúdo da propriedade lOpened que sinaliza se a área
+correspondente ao objeto da classe, estava ou não aberta no momento
+da sua instânciação.
+@type method
+@version 12.1.2210
+@author Gworks - Giovani
+@since 05/03/2024
+@return logical, Retorna 'true' para área aberta previamente e 'false' para área fechada previamente.
+/*/
+Method GetOpenedStatus() as logical Class GwDataAccess
+Return ::lOpened
+
+/*/{Protheus.doc} GwDataAccess::GetFieldPosition( cFieldName as character ) as numeric
+Retorna a posição de um determinado campo informado via parâmetro conforme dicionário de dados SX3.
+@type method
+@version 12.1.2210
+@author Gworks - Giovani
+@since 05/03/2024
+@return numeric, Posição correspondente do campo no dicionário.
+/*/
+Method GetFieldPosition( cFieldName as character ) as numeric Class GwDataAccess
+
+    Local nResult := 0 as numeric
+
+    ::ValidDataSource(REQUIRE_DATASOURCE_DICTIONARY)
+
+    ::SelectArea()
+
+    nResult := FieldPos(cFieldName)
+
+Return nResult
+
+/*/{Protheus.doc} GwDataAccess::FieldExists( cFieldName as character ) as logical
+Verifica se um campo correspondente ao alías do objeto, existe no dicnário de dados SX3.
+@type method
+@version 12.1.2210
+@author Gworks - Giovani
+@since 05/03/2024
+@return logical, retorna 'true' para campo existente e 'false' para inexistente.
+/*/
+Method FieldExists( cFieldName as character ) as logical Class GwDataAccess
+
+    Local lResult := .F. as logical
+
+    ::ValidDataSource(REQUIRE_DATASOURCE_DICTIONARY)
+
+    if ::GetFieldPosition(cFieldName) > 0
+        lResult := .T.
+    endif
+
+Return lResult
+
+/*/{Protheus.doc} GwDataAccess::ValidDataSource( cDataSource as character ) as logical
+Valida a fonte de dados informada via argumento cDataSource, condiz com o DataSource real do objeto da classe.
+@type method
+@version 12.1.2210
+@author Gworks - Giovani
+@since 05/03/2024
+@return logical, sempre retorna 'true'.
+@obs Este método é usado para determinar se outro método pode ou não ser executado, a dependnter da sua origem de dados.
+     Por exemplo, uma query, não pode manipular dados com CommitData().
+     Portanto, quando houver incompatibilidade entre o método executado e a origem de dados, a execução
+     será interrompida via UserException().
+/*/
+Method ValidDataSource( cDataSource as character ) as logical Class GwDataAccess
+
+    Default cDataSource := ""
+
+    if !( ::cDataSource $ cDataSource )
+        UserException("GwDataAccess:ValidDataSource - Acesso a método inválido para o DataSource " +'"'+ ::cDataSource +'"!')
+    endif
+
+Return .T.
