@@ -1,9 +1,11 @@
 #include "TOTVS.ch"
 
+using namespace Gworks.Library.Functions
+
 namespace Gworks.Library.Classes
 
 
-Class MailAttachments
+Class GWMailAttachments
 
     Public Data cDirectory as character default ""
     Public Data lReserved  as logical default .F.
@@ -241,7 +243,7 @@ Method SendMail( cEmailTO  as character,;
 
         cEmailTO := AllTrim(aEmail[nI])
 
-        lRet := Common.Library.U_SendMail(cSubject, cBody, cEmailTO, cEmailCC, cEmailCCO, aFiles)
+        lRet := U_GwSendMail(cSubject, cBody, cEmailTO, cEmailCC, cEmailCCO, aFiles)
 
         if !lRet
             exit
