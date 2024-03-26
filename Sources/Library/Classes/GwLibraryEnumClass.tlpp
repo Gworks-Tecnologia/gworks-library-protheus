@@ -1,48 +1,193 @@
-#include "TOTVS.ch"
-#include "MsObject.ch"
-// #include "TLPP-Core.th"
-// #include "TLPP-Object.th"
+#include "TLPP-Core.th"
+#include "TLPP-Object.th"
 
 using namespace Gworks.Library.Utils
 using namespace Gworks.library.Functions
 
 namespace Gworks.Library.Classes
 
+/*/{Protheus.doc} GwEnum
+Classe para definição de enumeradores.
+@type class
+@version 12.1.2210
+@author Gworks - Giovani
+@since 11/03/2024
+@example Código de exemplo:
+
+    #include 'FWMVCDef.th'
+
+    using namespace Gworks.Library.Classes
+
+    User Function GWEnumSample()
+
+        Private oEnum_ as object
+
+        oEnum_ := GwEnum():New()
+
+        oEnum_:SetEnum( 'Pendente' , 'Solicitação de Compra aprovada!'  )
+        oEnum_:SetEnum( 'Aprovado' , 'Solicitação de Compra aprovada!'  )
+        oEnum_:SetEnum( 'Reprovado', 'Solicitação de Compra reprovada!' )
+
+        do case
+
+            case nOpc == oEnum_:GetEnum( 'Pendente'  ) ; ConOut( 'Description: ' + oEnum_:GetDescription( nOpc ) )
+            case nOpc == oEnum_:GetEnum( 'Aprovado'  ) ; ConOut( 'Description: ' + oEnum_:GetDescription( nOpc ) )
+            case nOpc == oEnum_:GetEnum( 'Reprovado' ) ; ConOut( 'Description: ' + oEnum_:GetDescription( nOpc ) )
+
+        endcase
+
+    Return
+
+/*/
 Class GwEnum
 
+    Public Data aEnum as array default {}
     Public Data oEnum as object default nil
 
     Public Method New() Constructor
-    Public Method SetEnum( oSelf as object ) as variant
-    Public Method GetDescription() as character
+    Public Method SetEnum() as variant
+    Public Method GetEnum as variant
+    Public Method GetDescription as character
 
 EndClass
 
+/*/{Protheus.doc} GwEnum::New
+Cria instância do objeto.
+@type method
+@version 12.1.2210
+@author Gworks - Giovani
+@since 11/03/2024
+@return variant, Objeto instanciado da classe.
+@example Código de exemplo:
+    oEnum_ := GwEnum():New()
+/*/
+Method New() class GwEnum
 
-Method New( oSelf as object ) Class GwEnum
-
-    if Empty(::oSelf)
-        UserException("GwEnum:New - Atributo oSelf inválido!")
-    endif
-
-    ::oEnum := oSelf
+    ::aEnum := {}
+    ::nEnum := 0
 
 Return Self
 
+/*/{Protheus.doc} GwEnum::SetEnum
+Define um enumerador.
+@type method
+@version 12.1.2210
+@author Gworks - Giovani
+@since 11/03/2024
+@param cName, character, Nome do Enumerador.
+@param cDescription, character, Descrição do Enumarador.
+@param nId, numeric, Id do Enumerador (opcional).
+@example Código de exemplo:
+    oEnum_:SetEnum( 'Pendente' , 'Solicitação de Compra aprovada!'  )
+/*/
+Method SetEnum( cName as character, cDescription as character, nId as numeric ) class GwEnum
 
-Method GetDescription( cAttrName as character ) as character Class GwEnum
+    Local jEnum as json
 
-    Local jResult := {} as json
-    Local cResult := "" as character
+    Default cName := ""
+    Default cDescription := ""
+    Default nId := -1
 
-    Default cAttrName := "Description"
-
-    if Empty(::oEnum)
-        UserException("GwEnum:GetDescription - Atributo oEnum inválido!")
+    if empty(cName)
+        UserException('GwEnum:New - Argumentos inválidos ou não informados!')
     endif
 
-    jResult := Reflection.getDataAnnotation(::oEnum, cAttrName, 'attr')
+    if nId == -1
+        nId := ::nEnum++
+        ::nEnum := nId
+    endif
 
-    cResult := jRet[cAttrName]
+    jEnum := JsonObject():New()
+    jEnum['id'] := nId
+    jEnum['name'] := cName
+    jEnum['description'] = cDescription
 
-Return cResult
+    aAdd(::aEnum, jEnum)
+
+Return
+
+/*/{Protheus.doc} GwEnum::GetEnum
+Retorna conteúdo do Enumarador conforme argumentos de entrada.
+@type method
+@version 12.1.2210
+@author Gworks - Giovani
+@since 11/03/2024
+@param xSearch, variant, Conteúdo para busca do Enumerador.
+@param cProperty, character, Propriedade que deseja-se retornar do Enumerador.
+@return variant, Retorno conforme argumento cProperty.
+@example Código de exemplo:
+
+    // retorna o correspondente numérico do enumerador 'Pendente'.
+    nOpc := oEnum_:GetEnum( 'Pendente' ) // ...retorna 1
+
+    // Retorna o nome correspondente do enumerador 1.
+    cEnum := oEnum_:GetEnum( 1 ) // ...retorna "Pendente"
+
+/*/
+Method GetEnum( xSearch as variant, cProperty as character ) class GwEnum
+
+    Local jEnum as json
+    Local nPos as numeric
+    Local xResult as variant
+
+    Default xSearch := nil
+    Default cProperty := 'id'
+
+    if!(lower(cProperty) $ 'id;name;description')
+        Return nil
+    endif
+
+    nPos := 0
+
+    do case
+
+        case valType(xSearch) == "N"
+
+            nPos := aScan(::aEnum, { |x| x['id'] == xSearch  }  )
+
+
+        case valType(xSearch) == "C"
+
+            nPos := aScan(::aEnum, { |x| x['name'] == xSearch  }  )
+
+    endcase
+
+    if nPos > 0
+
+        jEnum := ::aEnum[nPos]
+
+        xResult := jEnum[cProperty]
+
+    endif
+
+Return xResult
+
+/*/{Protheus.doc} GwEnum::GetDescription( xSearch as variant ) as character
+Obtem a descrição de um enumerador.
+@type method
+@version 12.1.2210
+@author Gworks - Giovani
+@since 11/03/2024
+@return character, Descrição do enumerador
+@example Código de exemplo:
+
+    // Obtem a descrição do enumerador 1
+    cDesc := oEnum_:GetDescription( 1 ) // ...retorna "Solicitação de Compra aprovada!"
+
+    // Obtem a descrição do enumerador 'Pendente'
+    cDesc := oEnum_:GetDescription( 'Pendente' ) // ...retorna "Solicitação de Compra aprovada!"
+
+/*/
+Method GetDescription( xSearch as variant ) as character class GwEnum
+
+    Local cDescription as character
+
+    Default xSearch := nil
+
+    if valType(xSearch) $ "N;C"
+
+        cDescription := ::GetEnum( xSearch, 'description' )
+
+    endif
+
+Return cDescription
