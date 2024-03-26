@@ -1,33 +1,33 @@
 #include "TOTVS.ch"
 #include "TLPP-Core.th"
-#include "TLPP-Object.th"
-
-@annotation attr
-    Description as character
-@end
 
 using namespace Gworks.Library.Classes
 
-namespace Gworks.Sample.Enum
+namespace Gworks.Samples
 
-Class StatusTipoDocumentoXmlEnum From GwEnum
+User Function GwEnum( nOpc as numeric )
 
-    @attr(Description = 'Arquivo válido')
-    Public Data cArquivoValido as character default 'S' // success
+    Default nOpc == 2 // simulação...
 
-    @attr(Description = 'Arquivo inválido')
-    Public Data cArquivoInvalido as character default 'E' // error
+    Private oEnum_ as object
 
-    Public Method New() Constructor
-    Public Method GetDescription() as character
+    ConOut('GwEnum - Start Sample')
 
-EndClass
+    ConOut('GwEnum - inicializando enumerador...')
 
-Method New() Class DocumentoXmlEnum
+    oEnum_ := GwEnum():New()
+    oEnum_:SetEnum( 'Pendente' , 'Solicitação de Compra aprovada! ' )
+    oEnum_:SetEnum( 'Aprovado' , 'Solicitação de Compra aprovada! ' )
+    oEnum_:SetEnum( 'Reprovado', 'Solicitação de Compra reprovada!' )
 
-    ::cArquivoValido := 'S'
-    ::cArquivoInvalido := 'E'
+    do case
 
-    _Super:New(Self) // TODO: testar...
+        case nOpc == oEnum_:GetEnum( 'Pendente'  ) ; ConOut( 'Description: ' + oEnum_:GetDescription( nOpc ) )
+        case nOpc == oEnum_:GetEnum( 'Aprovado'  ) ; ConOut( 'Description: ' + oEnum_:GetDescription( nOpc ) )
+        case nOpc == oEnum_:GetEnum( 'Reprovado' ) ; ConOut( 'Description: ' + oEnum_:GetDescription( nOpc ) )
 
-Return Self
+    endcase
+
+    ConOut('GwEnum - End Sample')
+
+Return
