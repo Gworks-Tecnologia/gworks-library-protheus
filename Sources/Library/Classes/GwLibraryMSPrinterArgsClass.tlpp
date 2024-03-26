@@ -5,7 +5,7 @@
 namespace Gworks.Library.Classes
 
 
-Class MSPrinterArgs From MailAttachments
+Class MSPrinterArgs From GwMailAttachments
 
     Public Data cSetup        as character default ""
     Public Data nDevice       as numeric   default 0   // Tipos de Saída: IMP_SPOOL - direto impressora, IMP_PDF: Gera arquivo PDF. Default é IMP_SPOOL
