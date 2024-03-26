@@ -5,9 +5,17 @@ using namespace Gworks.Library.Classes
 
 namespace Gworks.Samples
 
+/*/{Protheus.doc} GwEnum
+Exemplo de uso da classe GwEnum() para definição de enumeradores.
+@type function
+@version 12.1.2210
+@author Gworks - Giovani
+@since 26/03/2024
+@param nOpc, numeric,
+/*/
 User Function GwEnum( nOpc as numeric )
 
-    Default nOpc == 2 // simulação...
+    Default nOpc := 1
 
     Private oEnum_ as object
 
