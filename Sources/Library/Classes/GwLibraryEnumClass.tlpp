@@ -43,6 +43,7 @@ Class GwEnum
 
     Public Data aEnum as array default {}
     Public Data oEnum as object default nil
+    Public Data nEnum as numeric default 0
 
     Public Method New() Constructor
     Public Method SetEnum() as variant
@@ -93,8 +94,8 @@ Method SetEnum( cName as character, cDescription as character, nId as numeric ) 
     endif
 
     if nId == -1
-        nId := ::nEnum++
-        ::nEnum := nId
+        ::nEnum++
+        nId := ::nEnum
     endif
 
     jEnum := JsonObject():New()
@@ -131,7 +132,11 @@ Method GetEnum( xSearch as variant, cProperty as character ) class GwEnum
     Local xResult as variant
 
     Default xSearch := nil
-    Default cProperty := 'id'
+    Default cProperty := nil // 'id'
+
+    if empty(cProperty)
+        cProperty := iif( valType(xSearch) == 'N', 'name', 'id' )
+    endif
 
     if!(lower(cProperty) $ 'id;name;description')
         Return nil
