@@ -30,7 +30,7 @@ User Function GwGetDbFieldMapping( aTabelas as array, cLang as character, cDtFie
     Default cDtFields := ""
 
     if(Empty(aTabelas) .Or. Empty(cLang))
-        UserException("Parametros aTabelas e cLang são obrigatorios!")
+        UserException("GwGetDbFieldMapping - Parametros não informados ou inválidos.")
     endIf
 
     aArea := GetArea()
