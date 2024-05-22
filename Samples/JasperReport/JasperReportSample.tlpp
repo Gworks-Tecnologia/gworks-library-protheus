@@ -39,7 +39,7 @@ User Function GWRL001() // Projects.CertificadoMaterial.Reports.U_GWRL001
             cGetParms += '&CERTIFICADOS=' + Escape( cCertidicados )
 
             MsgRun("Gerando relatório...", "Aguarde...",;
-                {|| aGet := Projects.Library.U_GetJasperReport( cReportName, cGetParms, /*cReportPath*/, ".pdf") })
+                {|| aGet := Projects.Library.U_GwGetJasperReport( cReportName, cGetParms, /*cReportPath*/, ".pdf") })
 
             If aGet[1]
                 FwAlertSuccess(aGet[2],"Sucesso!") ; lOK := .T.
