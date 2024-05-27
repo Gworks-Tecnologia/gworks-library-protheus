@@ -23,7 +23,7 @@ User Function GwSendMail( cSubject as character,;
 						cMailCC as character,;
 						cMailCCO as character,;
 						aAttachment as array,;
-						cError )
+						cError as character )
 
 	Local aFile         := {}  as array
 	Local aSmtpServer   := {}  as array

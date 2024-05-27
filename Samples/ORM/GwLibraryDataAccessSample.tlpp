@@ -3,16 +3,23 @@
 using namespace Gworks.Library.Classes
 
 namespace Gworks.Sample.Orm
+/*/{Protheus.doc} fSetEnv
+Inicializa/define um ambiente qualquer para testes sem necessidade de login.
+@type function
+@version 12.1.2210
+@author Gworks - Giovani Soares
+@since 11/04/2024
+/*/
+Static Function fSetEnv( cEmp as character, cFil as character )
 
-Static Function fSetEnv()
-
-    Local cJobEmp := "01" as character
-    Local cJobFil := "01" as character
     Local aTables := {"SA1", "SC5", "SC6"} as array
 
+    Default cEmp := "01"
+    Default cFil := "01"
+
     RPCSetEnv(;
-        /* cRpcEmp  */ cJobEmp,;
-        /* cRpcFil  */ cJobFil,;
+        /* cRpcEmp  */ cEmp,;
+        /* cRpcFil  */ cFil,;
         /* cEnvUser */ ,;
         /* cEnvPass */ ,;
         /* cEnvMod  */ ,;
@@ -21,41 +28,145 @@ Static Function fSetEnv()
 
 Return
 
-
+/*/{Protheus.doc} fResetEnv
+Reinicia o ambiente.
+@type function
+@version 12.1.2210
+@author Gworks - Giovani Soares
+@since 11/04/2024
+/*/
 Static Function fResetEnv()
 
     RpcClearEnv()
 
 Return
 
+/*/{Protheus.doc} GwDataAccessSeekSample
+Exemplo de busca com o método Seek() da classe GwDataAccess().
+@type function
+@version 12.1.2210
+@author Gworks - Giovani Soares
+@since 11/04/2024
+/*/
+User Function GwDataAccessSeekSample()
 
-User Function GwDataAccessExemploSimples() // Gworks.Sample.Classes.U_GwDataAccessExemploSimples
+    Local oDao as object
 
-    Local cNome := "" as character
+    if empty(CFILANT) .Or. isBlind()
+        fSetEnv()
+    endif
 
-    Local oData as object
-
-    oData := GwDataAccess():New('SA1')
-    oData:SelectArea()
-    oData:SetOrder('A1_FILIAL+A1_COD+A1_LOJA')
-    oData:GoTop()
-    if oData:Seek('001910')
-
-        cNome := oData:GetValue('A1_NOME')
-
-        ConOut("O nome do cliente é " + cNome + ".")
-
+    oDao := GwDataAccess():New('SA1')
+    oDao:SetOrder('A1_FILIAL+A1_NOME+A1_LOJA')
+    if oDao:Seek('GIOVANI SOARES')
+        ConOut("CPF " + oDao:GetValue('A1_CGC') )
     endif
 
 Return
 
+/*/{Protheus.doc} GwDataAccessWhileSample
+Exemplo de uso da classe GwDataAccess() com while.
+@type function
+@version 12.1.2210
+@author Gworks - Giovani Soares
+@since 11/04/2024
+@param cPedido, character, Número do Pedido de Venda.
+/*/
+User Function GwDataAccessWhileSample( cPedido as character )
+
+    Default cPedido := '000321' // pedido de exemplo
+
+    Local lContinue := .T. as logical
+    Local oDaoPedido
+    Local oDaoItens
+
+    oDaoPedido := GwDataAccess():New('SC5')
+    oDaoPedido:SetOrder("C5_FILIAL+C5_NUM")
+    if !oDaoPedido:Seek(cPedido)
+        conOut( 'FALHA AO LOCALIZAR O PEDIDO ' + cPedido  )
+        lContinue := .T.
+    endif
+
+    oDaoItens := GwDataAccess():New('SC6')
+    oDaoItens:SetOrder("C6_FILIAL+C6_NUM+C6_ITEM+C6_PRODUTO")
+    if !oDaoItens:Seek( cPedido )
+        conOut( 'FALHA AO LOCALIZAR OS ITENS DO PEDIDO ' + cPedido  )
+        lContinue := .F.
+    endif
+
+    if lContinue
+
+        // Imprime todos os itens do pedido
+
+        while oDaoItens:NotEndOfFile() ;
+            .and. oDaoItens:GetValue('C6_FILIAL') == xFilial("SC6");
+            .and. oDaoItens:GetValue('C6_NUM') == oDaoPedido:GetValue('C5_NUM')
+
+            conOut( 'ITEM ' +;
+                            oDaoItens:GetValue('C6_ITEM') +'-'+;
+                            oDaoItens:GetValue('C6_PRODUTO') )
+
+            oDaoItens:SkipLine()
+
+        enddo
+
+    endif
+
+    oDaoPedido:CloseArea()
+    oDaoItens:CloseArea()
+
+Return
+
+/*/{Protheus.doc} GwDataAccessWhileQuerySample
+Exemplo de uso da classe GwDataAccess() com while usando query SQL.
+@type function
+@version 12.1.2210
+@author Gworks - Giovani Soares
+@since 11/04/2024
+@param cPedido, character, Número do Pedido de Venda.
+/*/
+User Function GwDataAccessWhileQuerySample( cPedido as character )
+
+    Default cPedido := '000321' // pedido de exemplo
+
+    Local cAlias as character
+    Local oDaoQuery
+
+    cAlias := GetNextQuery()
+
+    BeginSql Alias cAlias
+
+        SELECT C6_ITEM, C6_PRODUTO
+        FROM %table:SC6% SC6
+        WHERE SC6.C6_FILIAL = %xFilial:SC6%
+            AND SC6.C6_NUM = %cPedido%
+            AND SC6.%notDel%
+
+    EndSql
+
+    oDaoQuery := GwDataAccess():New(cAlias)
+
+    // Imprime todos os itens do pedido
+
+    while oDaoQuery:NotEndOfFile()
+
+        conOut( 'ITEM ' +;
+                        oDaoQuery:GetValue('C6_ITEM') +'-'+;
+                        oDaoQuery:GetValue('C6_PRODUTO') )
+
+        oDaoItens:SkipLine()
+
+    enddo
+
+    oDaoPedido:CloseArea()
+    oDaoItens:CloseArea()
+
+Return
 
 User Function GwDataAccessExemploComRelacionamentoPorIndice() // Gworks.Sample.Classes.U_GwDataAccessExemploComRelacionamentoPorIndice
 
     Local oAttr   as object
     Local oData   as object
-
-    fSetEnv()
 
     oAttr := GwKeyValue():New()
     oAttr:Add( 'AliasFrom'  , 'SC5'               )

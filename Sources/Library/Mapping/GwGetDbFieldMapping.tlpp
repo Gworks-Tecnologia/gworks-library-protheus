@@ -1,0 +1,88 @@
+#include 'tlpp-core.th'
+
+using namespace Gworks.Library.Classes
+using namespace Gworks.Library.Utils
+using namespace Gworks.Library.Functions
+
+namespace Gworks.Library.Mapping
+
+/*/{Protheus.doc} GwGetDbFieldMapping
+Retorna a descrição de tabelas conforme dicionário de dados.
+@type function
+@version 12.1.2210
+@author Gworks-Giovani
+@since 21/05/2024
+@param aTabelas, array, Array de tabelas conforme SX3.
+@param cLang, character, Idioma desejado.
+@param cDtFields, character, Retorna as colunas que são do tipo data.
+@return object, Objeto do da classe GwKeyValue() contendo o mapeamento.
+/*/
+User Function GwGetDbFieldMapping( aTabelas as array, cLang as character, cDtFields as character ) as object
+
+    Local aArea         := {}                 as array
+    Local cTabela       := ""                 as character
+    Local cDescricao    := ""                 as character
+    Local nX            := 0                  as numeric
+    Local oGwKeyValue   := GwKeyValue():New() as object
+
+    default aTabelas  := {}
+    default cLang     := ""
+    Default cDtFields := ""
+
+    if(Empty(aTabelas) .Or. Empty(cLang))
+        UserException("GwGetDbFieldMapping - Parametros não informados ou inválidos.")
+    endIf
+
+    aArea := GetArea()
+
+    U_GwOpenDictionary("SX3","SX3DIC")
+
+    SX3DIC->(DbSetOrder(1)) // X3_ARQUIVO+X3_ORDEM
+
+    for nX:=1 to Len(aTabelas)
+
+        cTabela := aTabelas[nX]
+
+        SX3DIC->(DbGoTop())
+        SX3DIC->(MsSeek(cTabela))
+        while !SX3DIC->(EOF()) .And. SX3DIC->X3_ARQUIVO == cTabela
+
+            if SX3DIC->X3_CONTEXT == "V"
+                SX3DIC->(DbSkip())
+                loop // ignora campos virtuais
+            endif
+
+            cTable := AllTrim( SX3DIC->X3_ARQUIVO )
+
+            do case
+
+                case Lower(cLang) == "db"  ; cDescricao := AllTrim( SX3DIC->X3_ARQUIVO )
+                case Lower(cLang) == "pt"  ; cDescricao := AllTrim( SX3DIC->X3_TITULO  )
+                case Lower(cLang) == "spa" ; cDescricao := AllTrim( SX3DIC->X3_TITSPA  )
+                case Lower(cLang) == "eng" ; cDescricao := AllTrim( SX3DIC->X3_TITeng  )
+
+            endcase
+
+            if Lower(cLang) != "db"
+
+                cDescricao := U_GwCamelCase( cDescricao )
+                cDescricao := U_GwCleanSpecialChar( cDescricao )
+
+            endif
+
+            oGwKeyValue:Add( AllTrim( SX3DIC->X3_CAMPO ), cDescricao )
+
+            if SX3DIC->X3_TIPO == "D"
+                cDtFields += AllTrim(SX3DIC->X3_CAMPO) + ";"
+            endif
+
+            SX3DIC->(DbSkip())
+
+        enddo
+
+    next
+
+    SX3DIC->(DbCloseArea())
+    RestArea(aArea)
+
+Return oGwKeyValue

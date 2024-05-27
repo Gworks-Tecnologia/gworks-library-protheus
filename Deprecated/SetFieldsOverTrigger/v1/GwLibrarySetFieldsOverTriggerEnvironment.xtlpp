@@ -1,0 +1,137 @@
+#include "TOTVS.ch"
+#include "TLpp-core.th"
+
+#define true .T.
+#define false .F.
+
+#define OPT_TYPE_FIELD 1
+#define OPT_TYPE_GRID 2
+
+namespace Environment
+
+Static oAliasDao__ as object
+Static cAlias__ := "" as character
+Static cKey__ := "" as character
+Static nOrder__ := 0 as numeric
+Static nType__ := 1 as numeric
+Static nFieldPos__ := 0 as numeric
+
+/*/{Protheus.doc} FSGT014
+Gatilho para atualizar dados a partir do cadastro de cliente
+@type function
+@version 12.1.2210
+@author Gworks - Giovani
+@since 08/01/2024
+@sample
+    Gworks.Environment.U_('SA1',1,'A1_YXPTO')
+/*/
+
+// TODO: repensar código, não precisa retornar múltiplos campos e deve ler a chave diretamente do índice
+User Function GwSet( cAlias as character,;
+                                    cKey as character,;
+                                    nOrder as numeric,;
+                                    aFields as array,;
+                                    nType as numeric,;
+                                    nFieldPos as numeric,;
+                                    xReturn as variant )
+
+    Local nI as numeric
+
+    Default cAlias := ""
+    Default cKey := ""
+    Default nOrder := 0
+    Default aFields := {}
+    Default nType := 1
+    Default nFieldPos := 0
+
+    if !Empty(cAlias) .And. cAlias__ != cAlias
+        cAlias__ := cAlias
+        fInitAlias()
+    endif
+
+    if !Empty(nOrder) .And. nOrder__ != nOrder
+        nOrder__ := nOrder
+        fSetOrder()
+    endif
+
+    if !Empty(cKey) .And. cKey__ != cKey
+        cKey__ := cKey
+        fSeekByKey()
+    endif
+
+    nType__ := nType
+    do case
+        case nType__ == OPT_TYPE_FIELD
+            nFieldPos := 0
+            nFieldPos__ := nFieldPos
+
+        case nType__ == OPT_TYPE_GRID
+            if !Empty(nFieldPos)
+                nFieldPos__ := nFieldPos
+            elseif Empty(nFieldPos) .And. Type('N') == 'N'
+                nFieldPos := N
+                nFieldPos__ := nFieldPos
+            endif
+
+    end case
+
+
+    for nI:=1 to Len(aFields)
+
+
+
+        fSetValue( aFields[nI,1], aFiels[nI,2] )
+
+    next
+
+Return xReturn
+
+/*/{Protheus.doc} fInitAlias
+Inicializa alias.
+@type function
+@version 12.1.2210
+@author Gworks - Giovani
+@since 08/01/2024
+/*/
+Static Function fInitAlias()
+
+    oAliasDao__ := GwDataAccess():New(cAlias__)
+    oAliasDao__:DisableAutoFilial()
+
+Return
+
+
+Static Function fSetOrder()
+
+    oAliasDao__:SetOrder( nOrder__ )
+
+Return
+
+
+Static Function fSeekByKey()
+
+    if oAliasDao__:Seek( cKey__ )
+
+        UserException('SetFieldsOverTrigger:fSeekByKey - Falha ao localizar a chave de busca!')
+
+    endif
+
+Return
+
+
+Static Function fSetValue( cField as character, xValue as variant )
+
+    do case
+
+        case nType__ == OPT_TYPE_FIELD
+            M->&(cField) := xValue
+
+        case nType__ == OPT_TYPE_GRID
+            GdFieldPut( cField, xValue, nFieldPos__ )
+
+        otherwise
+            UserException('SetFieldsOverTrigger:fSetValue - Operação não suportada!')
+
+    endcase
+
+Return

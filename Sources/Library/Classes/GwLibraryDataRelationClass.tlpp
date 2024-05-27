@@ -31,9 +31,7 @@ Class GwDataRelation
     // Métodos públicos da classe
     Public Method Join() as logical
     Public Method Search( cFieldName as character, xContent as variant ) as logical
-    Public Method GetSearchResult() as object
     Public Method GetValue( cFieldName as character, cToken as character ) as variant
-    Public Method GetValues( aFieldName as array ) as object
 
     // Métodos internos da classe
     Private Method ValidAttr() as logical
@@ -222,106 +220,6 @@ Method Join() as logical Class GwDataRelation
 
 Return lResult
 
-/*/{Protheus.doc} GwDataRelation::Search( cFieldName as character, xContent as variant, cRetJoinId as character ) as logical
-Localiza, com base no conteúdo de um terminado campo ou expressão, em todos os elementos relacionados à tabela join.
-@type method
-@version 12.1.33
-@author Gworks
-@since 09/03/2023
-@param cFieldName, character, Nome do campo desejado a localizar o conteúdo, Ex.: "C6_TES".
-@param xContent, variant, valor correspondente à cFieldName que se deseja localizar, ex.: "501'
-@return logical, .T. sucesso e .F. falha.
-@obs Utilize o método GetSearchResult() para retornar um objeto de tipo GwKeyValue() contendo todos os elementos correspondentes ao campo e conteúdo procurados.
-@example lResult := oRelation:Search("C6_TES","501")
-/*/
-Method Search( cFieldName as character, xContent as variant ) as logical Class GwDataRelation
-
-    Local aArea        := {}  as array
-    Local aAreaJoin    := {}  as array
-    Local nI           := 0   as numeric
-    Local cAliasJoin   := ""  as character
-    Local cKey         := ""  as character
-    Local lMatch       := .F. as logical
-    Local lResult      := .F. as logical
-    Local oResult      := nil as object
-
-    Default cFieldName := ""
-    Default xContent   := nil
-
-    if Empty(cFieldName)
-        UserException("GwDataRelation:Search - Parâmetro cFieldName não informado!")
-    endif
-
-    if ValType(xContent) == "U"
-        UserException("GwDataRelation:Search - Parâmetro xContent não pode ser nulo!")
-    endif
-
-    ::ValidAttr()
-    ::ValidJoin()
-
-    cAliasJoin := ::cAliasJoin
-
-    aArea := GetArea()
-    aAreaJoin := (cAliasJoin)->(GetArea())
-
-    if Empty(::aJoinRecno)
-        ::Load()
-    endif
-
-    oResult := GwKeyValue():New()
-
-    for nI:=1 to Len(::aJoinRecno)
-
-        (cAliasJoin)->(DbGoTo(::aJoinRecno[nI]))
-
-        lMatch := .F.
-
-        do case
-
-            case ValType(xContent) == "N"
-                lMatch := (cAliasJoin)->&(cFieldName) == xContent
-
-            case ValType(xContent) == "D"
-                lMatch := (cAliasJoin)->&(cFieldName) == xContent
-
-            case ValType(xContent) == "C"
-                lMatch := AllTrim(Upper((cAliasJoin)->&(cFieldName))) == AllTrim(Upper(xContent))
-
-        endcase
-
-        if lMatch
-
-            cKey   := "IndexJoinPK"
-            cValue := (cAliasJoin)->&(::cIndexJoinPK)
-            oResult:Add(cKey, cValue)
-
-            if !lResult
-                lResult := .T.
-            endif
-
-        endif
-
-    next
-
-    ::oSearchResult := oResult
-
-    RestArea(aAreaJoin)
-    RestArea(aArea)
-
-Return lResult
-
-/*/{Protheus.doc} GwDataRelation::GetSearchResult() as object
-Retorna o resultado conforme execução do método ::Search()
-@type method
-@version 12.1.33
-@author Gworks
-@since 09/03/2023
-@return object, resultado.
-/*/
-Method GetSearchResult() as object Class GwDataRelation
-
-Return ::oSearchResult
-
 /*/{Protheus.doc} GwDataRelation::GetValue( cFieldName as character, cToken as character ) as variant
 Apenas retorna o conteúdo de um campo conforme tabela relacionada sem alterar seu posicionamento.
 @type method
@@ -340,14 +238,14 @@ Method GetValue( cFieldName as character, cToken as character ) as variant Class
 
     Local nI           := 0   as numeric
     Local aFieldName   := {}  as array
-    Local xRet         := nil as variant
+    Local xResult      := nil as variant
 
     Default cFieldName := ""
     Default cToken     := ";"
 
     if !Empty(cFieldName)
 
-        xRet := ""
+        xResult := ""
 
         aFieldName := StrToKarr(cFieldName, cToken)
 
@@ -355,92 +253,10 @@ Method GetValue( cFieldName as character, cToken as character ) as variant Class
 
             cFieldName := aFieldName[nI]
 
-            xRet += (::cAliasJoin)->&(cFieldName)
+            xResult += (::cAliasJoin)->&(cFieldName)
 
         next
 
     endif
 
-Return
-
-/*/{Protheus.doc} GwDataRelation::GetValues( aFieldName as array ) as object
-Retorna o resultado de um determinado campo ou expressão em um objeto de tipo GwKeyValue().
-@type method
-@version 12.1.33
-@author Gworks
-@since 09/03/2023
-@return object, resultado.
-@example
-    Considerando o cenário em que um pedido de venda com 2 (dois) itens, onde:
-        Item 1 - C6_FILIAL = "0101" | C6_ITEM = "01" | C6_PRODUTO = "000000000000111" | C6_PRCVEN = 1.99 | C6_QUANT = 5
-        Item 2 - C6_FILIAL = "0101" | C6_ITEM = "02" | C6_PRODUTO = "000000000000112" | C6_PRCVEN = 2.98 | C6_QUANT = 5
-    E deseja-se obter o preço de venda do segundo item, podemos implementar da seguinte maneira:
-    Código
-        - oResult := oRelation:GetValues("C6_PRCVEN")
-        - oValue  := oResult:GetValueByKey("010102000000000000112")
-        - nValue  := oValue:GetValueByKey("C6_PRCVEN") // 2.98
-
-    Obs.: Para melhor entendimento, oResult pode ser compreendido e ilustrado como um objeto Json:
-    Objeto Json representando oResult
-        "key":"010101000000000000111" // item 1
-        "values": [ { "Key" : "C6_PRCVEN", "Value" : 1.99 },
-                    { "key" : "C6_QUANT" , "value" : 5    } ]
-        "key":"010102000000000000112" // item 2
-        "values": [ { "Key" : "C6_PRCVEN", "value" : 2.98 },
-                    { "key" : "C6_QUANT" , "value" : 5    } ]
-/*/
-Method GetValues( aFieldName as array ) as object Class GwDataRelation
-
-    Local aArea      := {}  as array
-    Local aAreaJoin  := {}  as array
-    Local nI         := 0   as numeric
-    Local nJ         := 0   as numeric
-    Local cAliasJoin := ""  as character
-    Local cFieldName := ""  as character
-    Local cKey       := ""  as character
-    Local xValue     := nil as variant
-    Local oResult    := nil as object
-    Local oValues    := nil as object
-
-    Default aFieldName := {}
-
-    ::ValidAttr()
-    ::ValidJoin()
-
-    cAliasJoin := ::cAliasJoin
-
-    aArea := GetArea()
-    aAreaJoin := (cAliasJoin)->(GetArea())
-
-    if Empty(::aJoinRecno)
-        ::Load()
-    endif
-
-    oResult := GwKeyValue():New()
-
-    for nI:=1 to Len(::aJoinRecno)
-
-        oValues := GwKeyValue():New()
-
-        (cAliasJoin)->(DbGoTo(::aJoinRecno[nI]))
-
-        for nJ:=1 to Len(aFieldName)
-
-            cFieldName := aFieldName[nJ]
-
-            cKey := cFieldName
-            xValue := (cAliasJoin)->&(cFieldName)
-            oValues:Add(cKey, xValue)
-
-        next
-
-        cKey := (cAliasJoin)->&(::cIndexJoinPK)
-        xValue := oValues
-        oResult:Add(cKey, xValue)
-
-    next
-
-    RestArea(aAreaJoin)
-    RestArea(aArea)
-
-Return oResult
+Return xResult
