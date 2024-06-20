@@ -26,15 +26,15 @@ sequêncial por prefixos.
 /*/
 User Function GwGetSequence( cCampo as character, cPrefixo as character, cFamilia as character, lReboot as logical )
 
-    Local cRet := "" as character
+    Local xRet as variant
 
-    Default cCampo   := ""
+    Default cCampo := ""
     Default cPrefixo := ""
     Default cFamilia := ""
-    Default lReboot  := .T.
+    Default lReboot := .T.
 
-    oSequence__ := GWSequence():New( cCampo, cPrefixo, cFamilia, lReboot )
+    oSequence__ := GWSequence():New( cCampo, cPrefixo, cEmpAnt+AllTrim(cFamilia), lReboot )
 
-    cRet := oSequence__:GetSequence()
+    xRet := oSequence__:GetSequence()
 
-Return cRet
+Return xRet
