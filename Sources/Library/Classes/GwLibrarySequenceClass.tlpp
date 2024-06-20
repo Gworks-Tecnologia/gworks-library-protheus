@@ -1,0 +1,298 @@
+#include "TOTVS.ch"
+#include "MsObject.ch"
+
+using namespace Gworks.Library.Utils
+using namespace Gworks.library.Functions
+
+namespace Gworks.Library.Classes
+
+/*/{Protheus.doc} GwSequence
+Classe para numeração sequêncial.
+@type class
+@version 12.1.2310
+@author Gworks - Giovani
+@since 6/20/2024
+/*/
+Class GwSequence
+
+    // Public   : métodos/atributos disponíveis em qualquer lugar
+    // Private  : métodos/atributos disponíveis apenas dentro da classe
+    // Protected: métodos/atributos extendidos à classes herdadas desta
+
+    Protected Data aArea as array default {}
+    Protected Data nLenCampo as numeric default 0
+    Protected Data nLenPrefixo as numeric default 0
+    Protected Data nLenFamilia as numeric default 0
+    Protected Data nLenSequen as numeric default 0
+    Protected Data cSequen as character default ""
+
+    Protected Data cCampo as character default ""
+    Protected Data cPrefixo as character default ""
+    Protected Data cFamilia as character default ""
+    Protected Data lReboot as logical default .T.
+
+    // Construtor
+    Public Method New() Constructor
+
+    // Métodos públicos da classe
+    Public Method GetSequence() as character
+
+    // Métodos privados da classe
+    Private Method StartSequence() as logical
+    Private Method IncrementSequence(lInclui) as character
+    Private Method GetMaxSequenceFromDataBase( cCampo, cPrefixo, nTamCampo ) as character
+    Private Method GetFieldLength() as numeric
+    Private Method CommitSequence()
+
+EndClass
+
+/*/{Protheus.doc} GWSequence::New
+Cria instância da classe.
+@type method
+@version 12.1.2310
+@author Gworks - Giovani
+@since 6/20/2024
+@param _cArgCampo, character, Nome do Campo conforme dicionário SX3 para geração do nro. sequêncial (obrigatório).
+@param _cPrefixo, character, Prefixo a ser anexado ao código sequêncial.
+@param _cFamilia, character, Se informado, permite diversas sequências para um mesmo campo.
+@param _lReboot, logical,
+@return variant, Instância do objeto.
+/*/
+Method New( _cCampo as character, _cPrefixo as character, _cFamilia as character, _lReboot as logical ) Class GWSequence
+
+    Default _cCampo   := ""
+    Default _cPrefixo := Space(nLenPrefixo)
+    Default _cFamilia := Space(nLenFamilia) // nome da familia do campo
+    Default _lReboot  := .T. // atualiza o controle sequêncial com base no banco de dados
+
+    Self:nLenCampo   := TamSx3( "ZGS_CAMPO"  )[1]
+    Self:nLenPrefixo := TamSx3( "ZGS_PREFIX" )[1]
+    Self:nLenFamilia := TamSx3( "ZGS_FAMI"   )[1]
+    Self:nLenSequen  := TamSx3( "ZGS_SEQUEN" )[1]
+    Self:cSequen     := ""
+
+    Self:cCampo      := _cCampo
+    Self:cPrefixo    := _cPrefixo
+    Self:cFamilia    := _cFamilia
+    Self:lReboot     := _lReboot
+
+    if Empty(Self:cCampo)
+        Return Self
+    endif
+
+    Self:cCampo   := PadR( Self:cCampo  , nLenCampo  , " " )
+    Self:cPrefixo := PadR( Self:cPrefixo, nLenPrefixo, " " )
+    Self:cFamilia := PadR( Self:cFamilia, nLenFamilia, " " )
+    Self:cSequen  := PadR( Self:cSequen , nLenSequen , " " )
+
+Return Self
+
+/*/{Protheus.doc} GWSequence::GetSequence
+Obtem a sequência correspondente aos parâmetros de construção do objeto.
+@type method
+@version 12.1.2310
+@author Gworks - Giovani
+@since 6/20/2024
+@return character, Numeração sequêncial.
+/*/
+Method GetSequence() Class GWSequence as character
+
+    Local lFound := .F. as logical
+
+    Self:aArea := GetArea()
+
+    DbSelectArea("ZGS")
+    ZGS->(DbSetOrder(1)) // ZGS_FILIAL+ZGS_FAMI+ZGS_CAMPO+ZGS_PREFIX
+    ZGS->(DbGoTop())
+    if ZGS->(MsSeek(xFilial("ZGS")+Self:cFamilia+Self:cCampo+Self:cPrefixo))
+        lFound := .T.
+    endif
+
+    BEGIN TRANSACTION
+
+        do case
+
+            case lFound
+
+                Self:cSequen := Self:IncrementSequence(.F.)
+
+            case !lFound .And. Self:StartSequence()
+
+                Self:cSequen := Self:IncrementSequence(.T.)
+
+            otherwise
+                UserException("GWSequence:GetSequence - falha ao gerar sequêncial para o campo " + Self:cCampo)
+
+        endcase
+
+    END TRANSACTION
+
+    RestArea(Self:aArea)
+
+Return Self:cSequen
+
+/*/{Protheus.doc} GWSequence::StartSequence
+Método interno para inicializar uma numeração se a mesma não existir.
+@type method
+@version 12.1.2310
+@author Gworks - Giovani
+@since 6/20/2024
+@return logical, Retorna 'true' para indicar sucesso e 'false' caso contrário.
+/*/
+Method StartSequence() Class GWSequence as logical
+
+    Local nTamCampo := 0   as numeric
+    Local cPrefixo  := ""  as character
+
+    nTamCampo := Self:GetFieldLength()
+
+    if nTamCampo <= 0
+        Return .F.
+    endif
+
+    RecLock("ZGS",.T.)
+
+        ZGS->ZGS_FILIAL := xFilial("ZGS")
+        ZGS->ZGS_FAMI := Self:cFamilia
+        ZGS->ZGS_CAMPO := Self:cCampo
+        ZGS->ZGS_PREFIX := Self:cPrefixo
+        cPrefixo := AllTrim(Self:cPrefixo)
+
+        if Self:lReboot
+            ZGS->ZGS_SEQUEN := GetMaxSequenceFromDataBase(Self:cCampo, Self:cPrefixo, nTamCampo)
+        else
+            ZGS->ZGS_SEQUEN := cPrefixo+StrZero(1,nTamCampo-Len(cPrefixo))
+        endif
+
+    ZGS->(MsUnLock())
+
+Return .T.
+
+/*/{Protheus.doc} GWSequence::IncrementSequence
+Incrementa sequêncial.
+@type method
+@version 12.1.2310
+@author Gworks - Giovani
+@since 6/20/2024
+@param lInclui, logical, Se 'true' indica que o sequêncial recém gerado/incluído, será utilizado sem a necessidade de incremento com o Soma1().
+@return character, Squencial resultante.
+/*/
+Method IncrementSequence( lInclui ) Class GWSequence as character
+    Default lInclui := .F.
+    Local cResult := "" as character
+    Local cPrefixo := "" as character
+    Local cSequence := "" as character
+    Local lLock := .F. as logical
+    while !lLock
+        cPrefixo  := AllTrim(ZGS->ZGS_PREFIX)
+        cSequence := AllTrim(Replace(ZGS->ZGS_SEQUEN,cPrefixo,""))
+        do case
+            case !lInclui ; cResult := cPrefixo + Soma1(cSequence)
+            case  lInclui ; cResult := cPrefixo + cSequence
+        endcase
+        if LockByName(cResult,.T.,.T.)
+            ::CommitSequence(cResult)
+            UnLockByname(cResult,.T.,.T.)
+            lLock := .T.
+        else
+            sleep(100)
+        endif
+    enddo
+Return cResult
+
+/*/{Protheus.doc} GWSequence::GetMaxSequenceFromDataBase
+Métodfo interno para obter o último número utilizado no Banco de Dados.
+@type method
+@version 12.1.2310
+@author Gweorks - Giovani
+@since 6/20/2024
+@param cCampo, character, Nome do campo desejado.
+@param cPrefixo, character, Prefixo.
+@param nTamCampo, numeric, Tamanho do campo.
+@return character, Numeração conforme Banco de Dados.
+/*/
+Method GetMaxSequenceFromDataBase( cCampo, cPrefixo, nTamCampo ) Class GWSequence as character // nao considera a familia
+
+    Local cAlias := "" as character
+    Local cTable := "" as character
+    Local cFilSQL := "" as character
+    Local cPrxFil := "" as character
+    Local cFieldSQL := "" as character
+    Local cTableSQL := "" as character
+    Local cWhereSQL := "" as character
+    Local cResult := "" as character
+
+    Default cCampo := ""
+    Default cPrefixo := ""
+
+    if Empty(cCampo) .Or. Empty(nTamCampo) //.Or. Empty(Self:cPrefixo)
+        Return ""
+    endif
+
+    cCampo   := AllTrim(cCampo)
+    cPrefixo := AllTrim(cPrefixo)
+
+    u_fOpenSX("SX3","SX3DIC")
+    DbSelectArea("SX3DIC")
+    SX3DIC->(DbSetOrder(2))
+    SX3DIC->(DbGoTop())
+    if !SX3DIC->(MsSeek(Upper(cCampo)))
+        Return ""
+    endif
+
+    cTable := SX3DIC->X3_ARQUIVO
+    cPrxFil := Upper(cTable)
+    cPrxFil := if(SubStr(cPrxFil,1,1) == "S", SubStr(cPrxFil,2,2), cPrxFil)
+    cFilSQL := cPrxFil + "_FILIAL"
+
+    cFieldSQL := "%MAX(" + cCampo + ") %"
+    cTableSQL := "%"+RetSqlName(cTable)+"%"
+    cWhereSQL += "%TBL." + cFilSQL + " = '" + xFilial(cTable) + "' AND "
+    cWhereSQL += if(!Empty(cPrefixo), "TBL." + cCampo + " LIKE '" + Upper(cPrefixo) + "%' AND ", "")
+    cWhereSQL += "TBL.D_E_L_E_T_ = ' ' %"
+    cAlias := GetNextAlias()
+    BeginSQL Alias cAlias
+        SELECT %exp:cFieldSQL% as MAXSEQ
+        FROM %exp:cTableSQL% TBL
+        WHERE %exp:cWhereSQL%
+    EndSQL
+
+    DbSelectArea(cAlias)
+
+    if !(cAlias)->(EOF()) .And. !Empty((cAlias)->MAXSEQ)
+        cResult := Replace( (cAlias)->MAXSEQ, cPrefixo )
+        cResult := Soma1(cResult)
+        cResult := cPrefixo+cResult
+    else
+        cResult := cPrefixo+StrZero(1,nTamCampo-Len(cPrefixo))
+    endif
+
+    (cAlias)->(DbCloseArea())
+
+Return cResult
+
+/*/{Protheus.doc} GWSequence::GetFieldLength
+Método interno para obter o tamanho do campo informado para geração sequêncial.
+@type method
+@version 12.1.2310
+@author Gweorks - Giovani
+@since 6/20/2024
+@return numeric, Tamanho do campo.
+/*/
+Method GetFieldLength() Class GWSequence as numeric
+    Local nRet := 0
+    nRet := TamSx3(Self:cCampo)[1]
+Return nRet
+
+/*/{Protheus.doc} GWSequence::CommitSequence
+Método interno para salvar/confirmar a numeração sequêncial.
+@type method
+@version 12.1.2310
+@author giovani
+@since 6/20/2024
+/*/
+Method CommitSequence() Class GWSequence
+    RecLock("ZGS",.F.)
+        ZGS->ZGS_SEQUEN := AllTrim(Self:cSequen)
+    ZGS->(MsUnLock())
+Return
