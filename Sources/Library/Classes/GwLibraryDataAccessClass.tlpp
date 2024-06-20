@@ -472,7 +472,7 @@ Return
 Retorna a ordem do índice do alias corrente.
 @type method
 @version 12.1.2210
-@author Gworks - Givoani
+@author Gworks - Giovani
 @since 05/03/2024
 @return numeric, retorna ordem do índice conforme dicionário SIX.
 /*/
@@ -493,7 +493,7 @@ Return nOrder
 Posiciona no primeiro registro do alias corrente.
 @type method
 @version 12.1.2210
-@author Gworks - Givoani
+@author Gworks - Giovani
 @since 05/03/2024
 /*/
 Method GoTop() as variant Class GwDataAccess
@@ -510,7 +510,7 @@ Return
 Posiciona no último registro do alias corrente.
 @type method
 @version 12.1.2210
-@author Gworks - Givoani
+@author Gworks - Giovani
 @since 05/03/2024
 /*/
 Method GoBottom() as variant Class GwDataAccess
@@ -1015,7 +1015,7 @@ Return
 Cria um novo relacionamento para a tabela principal na classe conforme definido por cAlias.
 @type method
 @version 12.1.33
-@author gworks.giovani
+@author Gworks - Giovani
 @since 09/03/2023
 @return logical, .T. sucesso e .F. falha.
 @example
@@ -1090,7 +1090,7 @@ Return lResult
 Reposiciona o relacionamento conforme alias principal.
 @type method
 @version 12.1.33
-@author Gworks
+@author Gworks - Giovani
 @since 3/23/2023
 /*/
 Method RefreshRelation() as logical Class GwDataAccess
@@ -1116,7 +1116,7 @@ Considerando que podem haver vários relacionamentos com a entidade principal, se
 o relecionamento desejado conforme definido por cAliasJoin e cIndexJoin.
 @type method
 @version 12.1.33
-@author Gworks
+@author Gworks - Giovani
 @since 10/03/2023
 @param cAliasJoin, character, Alias do relacionamento desejado. Ex.: "SC6"
 @param cIndexJoin, character, Índice do relacionamento desejado (opcional). Ex.: "C6_FILIAL+C6_NUM"
@@ -1155,7 +1155,7 @@ Return lResult
 Apenas retorna o conteúdo de um campo conforme tabela relacionada sem alterar seu posicionamento.
 @type method
 @version 12.1.33
-@author Gworks
+@author Gworks - Giovani
 @since 10/03/2023
 @return variant, conteúdo do campo.
 /*/
