@@ -19,10 +19,10 @@ sequêncial por prefixos.
 @return character, variável que será retornado o sequêncial gerado, ex.: "CHAPA0000000001"
 @obs o parâmetro cSequen deve ser passado por referência "@"
 @example
-    - U_GWGetSeq("B1_COD", "CHAPA", "ROCHAS", .T.) // "CHAPA0000000001"
-    - U_GWGetSeq("B1_COD", "BLOCO", "ROCHAS", .T.) // "BLOCO0000000001"
-    - U_GWGetSeq("B1_COD", "", "ESCRIT", .T.) // "000000000000001"
-    - U_GWGetSeq("ZX_DOCPRD", "P2103", "", .T.) // "P21030001"
+    - GwGetSequence("B1_COD", "CHAPA", "ROCHAS", .T.) // "CHAPA0000000001"
+    - GwGetSequence("B1_COD", "BLOCO", "ROCHAS", .T.) // "BLOCO0000000001"
+    - GwGetSequence("B1_COD", "", "ESCRIT", .T.) // "000000000000001"
+    - GwGetSequence("ZX_DOCPRD", "P2103", "", .T.) // "P21030001"
 /*/
 User Function GwGetSequence( cCampo as character, cPrefixo as character, cFamilia as character, lReboot as logical )
 
