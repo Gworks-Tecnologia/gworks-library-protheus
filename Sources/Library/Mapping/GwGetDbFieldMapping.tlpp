@@ -15,9 +15,14 @@ Retorna a descrição de tabelas conforme dicionário de dados.
 @param aTabelas, array, Array de tabelas conforme SX3.
 @param cLang, character, Idioma desejado.
 @param cDtFields, character, Retorna as colunas que são do tipo data.
+@param lInvert, logical,
+    Define se a orderm do array retornado será invertida (.T.) em relação à posição original (.F.).
+    Onde:
+        - Original ...: Campo/Descrição (.F.);
+        - Invertido ..: Descrição/Campo (.T.);
 @return object, Objeto do da classe GwKeyValue() contendo o mapeamento.
 /*/
-User Function GwGetDbFieldMapping( aTabelas as array, cLang as character, cDtFields as character ) as object
+User Function GwGetDbFieldMapping( aTabelas as array, cLang as character, cDtFields as character, lInvert as logical ) as object
 
     Local aArea         := {}                 as array
     Local cTabela       := ""                 as character
@@ -28,6 +33,7 @@ User Function GwGetDbFieldMapping( aTabelas as array, cLang as character, cDtFie
     default aTabelas  := {}
     default cLang     := ""
     Default cDtFields := ""
+    Default lInvert   := .F.
 
     if(Empty(aTabelas) .Or. Empty(cLang))
         UserException("GwGetDbFieldMapping - Parametros não informados ou inválidos.")
@@ -70,7 +76,11 @@ User Function GwGetDbFieldMapping( aTabelas as array, cLang as character, cDtFie
 
             endif
 
-            oGwKeyValue:Add( AllTrim( SX3DIC->X3_CAMPO ), cDescricao )
+            if !lInvert
+                oGwKeyValue:Add( AllTrim( SX3DIC->X3_CAMPO ), cDescricao )
+            else
+                oGwKeyValue:Add( cDescricao, AllTrim( SX3DIC->X3_CAMPO ) )
+            endif
 
             if SX3DIC->X3_TIPO == "D"
                 cDtFields += AllTrim(SX3DIC->X3_CAMPO) + ";"

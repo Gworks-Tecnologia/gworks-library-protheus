@@ -14,9 +14,14 @@ Retorna a descrição de campos conforme dicionário de dados.
 @since 21/05/2024
 @param aTabelas, array, Array de tabelas conforme SX2.
 @param cLang, character, Idioma desejado.
+@param lInvert, logical,
+    Define se a orderm do array retornado será invertida (.T.) em relação à posição original (.F.).
+    Onde:
+        - Original ...: Campo/Descrição (.F.);
+        - Invertido ..: Descrição/Campo (.T.);
 @return object, Objeto do da classe GwKeyValue() contendo o mapeamento.
 /*/
-User Function GwGetDbTableMapping(aTabelas as array, cLang as character) as object
+User Function GwGetDbTableMapping(aTabelas as array, cLang as character, lInvert as logical) as object
 
     Local aArea         := {}                 as array
     Local cTabela       := ""                 as character
@@ -26,9 +31,10 @@ User Function GwGetDbTableMapping(aTabelas as array, cLang as character) as obje
 
     default aTabelas  := {}
     default cLang     := ""
+    default lInvert   := .F.
 
     if(Empty(aTabelas) .Or. Empty(cLang))
-        UserException("GetSx2MappingByTitle - Parametros não informados ou inválidos.")
+        UserException("GwGetDbTableMapping - Parametros não informados ou inválidos.")
     endIf
 
     aArea := GetArea()
@@ -63,7 +69,11 @@ User Function GwGetDbTableMapping(aTabelas as array, cLang as character) as obje
 
             endif
 
-            oGwKeyValue:Add( AllTrim( SX2DIC->X2_CHAVE ), cDescricao )
+            if !lInvert
+                oGwKeyValue:Add( AllTrim( SX2DIC->X2_CHAVE ), cDescricao )
+            else
+                oGwKeyValue:Add( cDescricao, AllTrim( SX2DIC->X2_CHAVE ) )
+            endif
 
             SX2DIC->(DbSkip())
 
