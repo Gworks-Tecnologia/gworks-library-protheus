@@ -1,0 +1,25 @@
+#include "tlpp-core.th"
+
+using namespace Gworks.Library.Classes
+
+namespace Global.Projects.ImportacaoBI.Enum
+
+/*/{Protheus.doc} CreateEnum
+Definição de enumeradores pertinentes ao projeto.
+@type function
+@version 12.1.2310
+@author Gworks-Giovani
+@since 6/20/2024
+/*/
+User Function CreateEnum()
+
+    Public oOSEnum___ as object
+    oOSEnum___ := GwEnum():New()
+    oOSEnum___:SetEnum( "UNIX" , "Unix OS"    )
+    oOSEnum___:SetEnum( "WIN"  , "Windows OS" )
+
+    Public oPostEnum___ as object
+    oPostEnum___ := GwEnum():New()
+    oPostEnum___:SetEnum("BuiderEndpointNew", "Build a new endpoint", 1)
+
+Return

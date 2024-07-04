@@ -1,0 +1,63 @@
+#include 'tlpp-core.th'
+#include 'tlpp-rest.th'
+
+using namespace Gworks.Library.Utils
+using namespace Gworks.library.Functions
+
+namespace Gworks.Solutions.ApiBuilder.Classes
+
+Class GwApiBuilder
+
+    Public Data oError as object default nil
+    Public Data lInit as logical default .F.
+
+    Private Method Init()
+
+    Public Method New() Constructor
+    Public Method GetErrorObject()
+
+    @Post("/builder/endpoint/new")
+    Public Method BuiderEndpointNew()
+
+    Private Method PostRequest()
+
+EndClass
+
+Method Init() Class GwApiBuilder
+
+    Self:oError := GwError():New()
+
+    ::lInit := .T.
+
+Return
+
+Method New() Class GwApiBuilder
+
+    if !::lInit
+        ::Init()
+    endif
+
+Return Self
+
+Method GetErrorObject() as variant Class GwApiBuilder
+Return ::oError
+
+
+Method BuiderEndpointNew() Class GwApiBuilder
+
+    Local nOpc := oPostEnum___:GetEnum('BuiderEndpointNew') as numeric
+
+    ::PostRequest( nOpc )
+
+Return
+
+
+
+Method PostRequest( _nOpc as numeric ) Class WsRestSalesOrderApi
+
+    Default nOpc := 0
+
+
+
+
+Return lResult
