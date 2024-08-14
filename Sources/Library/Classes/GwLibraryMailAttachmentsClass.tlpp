@@ -5,7 +5,7 @@ using namespace Gworks.Library.Functions
 namespace Gworks.Library.Classes
 
 
-Class GWMailAttachments
+Class GwMailAttachments
 
     Public Data cDirectory as character default ""
     Public Data lReserved  as logical default .F.
@@ -20,7 +20,7 @@ Class GWMailAttachments
 EndClass
 
 
-Method New() Class MailAttachments
+Method New() Class GwMailAttachments
 
     Self:cDirectory := ""
     Self:lReserved  := .F.
@@ -28,7 +28,7 @@ Method New() Class MailAttachments
 Return Self
 
 
-Method ReserveAttachDir( cAttachDirectory as character, lEraseFiles as logical ) Class MailAttachments
+Method ReserveAttachDir( cAttachDirectory as character, lEraseFiles as logical ) Class GwMailAttachments
 
     Local nInterval      := 5000 as numeric // intervalo entre tentativas
     Local nAttempt       := 0    as numeric // nro. tentativas atual
@@ -86,7 +86,7 @@ Method ReserveAttachDir( cAttachDirectory as character, lEraseFiles as logical )
 Return lRet
 
 
-Method ReleaseAttachDir( lEraseFiles as logical ) Class MailAttachments
+Method ReleaseAttachDir( lEraseFiles as logical ) Class GwMailAttachments
 
     Default lEraseFiles := .T.
 
@@ -106,12 +106,12 @@ Method ReleaseAttachDir( lEraseFiles as logical ) Class MailAttachments
 Return
 
 
-Method GetNameAttachDir() Class MailAttachments
+Method GetNameAttachDir() Class GwMailAttachments
 
 Return ::cDirectory
 
 
-Method AttachFiles( cLocalDir as character, lEraseLocal as logical ) Class MailAttachments
+Method AttachFiles( cLocalDir as character, lEraseLocal as logical ) Class GwMailAttachments
 
     Local nI        := 0   as numeric
     Local aFiles    := {}  as array
@@ -128,7 +128,7 @@ Method AttachFiles( cLocalDir as character, lEraseLocal as logical ) Class MailA
     endif
 
     if Empty(cLocalDir)
-        UserException("MailAttachments:AttachFiles - Argumentos inválidos ou não informados!")
+        UserException("GwMailAttachments:AttachFiles - Argumentos inválidos ou não informados!")
     endif
 
     if Right(cLocalDir,1) != "\"
@@ -149,7 +149,7 @@ Method AttachFiles( cLocalDir as character, lEraseLocal as logical ) Class MailA
             endif
 
         else
-            UserException("MailAttachments:AttachFiles - Falha ao copiar o arquivo " + cFile + " para o diretório " + ::cDirectory +;
+            UserException("GwMailAttachments:AttachFiles - Falha ao copiar o arquivo " + cFile + " para o diretório " + ::cDirectory +;
                 ". Ferifique se o arquivo está em uso e ente novamente.")
         endif
 
@@ -164,7 +164,7 @@ Method SendMail( cEmailTO  as character,;
                  cSubject  as character,;
                  cBody     as character,;
                  cFileType as character,;
-                 lSlipMail ) Class MailAttachments
+                 lSlipMail ) Class GwMailAttachments
 
     Local aDirFiles   := {}  as array
     Local aFileType   := {}  as array
@@ -186,7 +186,7 @@ Method SendMail( cEmailTO  as character,;
         Empty(cSubject) .Or.;
         Empty(cBody)
 
-        UserException("MailAttachments:SendMail - Argumentos inválidos ou não informados!")
+        UserException("GwMailAttachments:SendMail - Argumentos inválidos ou não informados!")
 
     endif
 
