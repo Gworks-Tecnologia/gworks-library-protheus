@@ -11,17 +11,18 @@ Função para verificar a versão do Sistema Operacional (SO) em uso pelo Protheus.
 @param nOpc, numeric, 1 para avaliação via LIB e 2 avaliação tradicional.
 @return character, SO em uso.
 @obs Tipos de Retorno:
-    - JOB
+    - JOB/API
     - WINDOWS
     - LINUX
     - MAC
     - UNIX
 /*/
-User Function GWRemoteType(nOpc as numeric)
+User Function GwRemoteType(nOpc as numeric)
 
-    Local cLib    := ""   as character
-    Local nType   := -99  as numeric
-    Local cResult := ""   as character
+    Local nType    as numeric
+    Local lSrvUnix as logical
+    Local cLib     as character
+    Local cResult  as character
 
     // Se não especificado, realiza avaliação do SO pela LIB do Protheus
     // por ser possível diferenciar sistemas os sistemas Unix entre Linux e MacOs.
@@ -29,13 +30,24 @@ User Function GWRemoteType(nOpc as numeric)
 
     nType := GetRemoteType(@cLib)
 
+    if nType == -1 // execução cega via job/api
+
+        lSrvUnix := IsSrvUnix()
+
+        do case
+            case  ( lSrvUnix ) ; cLib := "LINUX"
+            case !( lSrvUnix ) ; cLib := "WINDOWS"
+        endcase
+
+    endif
+
     // Avaliação do SO feita pela lib
     if nOpc == 1
 
         do case
-            case "WIN"   $ Upper(cLib) ; cResult := "WINDOWS"
-            case "LINUX" $ Upper(cLib) ; cResult := "LINUX"
-            case "MAC"   $ Upper(cLib) ; cResult := "MAC"
+            case ( "WIN"   $ Upper(cLib) ) ; cResult := "WINDOWS"
+            case ( "LINUX" $ Upper(cLib) ) ; cResult := "LINUX"
+            case ( "MAC"   $ Upper(cLib) ) ; cResult := "MAC"
             otherwise
                 USerException( "GetRemoteType: não foi possível determinar o Sistema Operacional (SO) em execução." )
         endcase
@@ -44,9 +56,9 @@ User Function GWRemoteType(nOpc as numeric)
     elseif nOpc == 2
 
         do case
-            case nType == -1; cResult := "JOB" // Job, Web ou Working Thread (sem interface)
-            case nType ==  1; cResult := "WINDOWS"
-            case nType ==  2; cResult := "UNIX" // Não distingue entre Linux e Mac (ambos são sistemas Unix)
+            case ( nType == -1 ) ; cResult := "JOB" // Job, Web ou Working Thread (sem interface)
+            case ( nType ==  1 ) ; cResult := "WINDOWS"
+            case ( nType ==  2 ) ; cResult := "UNIX" // Não distingue entre Linux e Mac (ambos são sistemas Unix)
             otherwise
                 USerException( "GetRemoteType: não foi possível determinar o Sistema Operacional (SO) em execução." )
         endcase
