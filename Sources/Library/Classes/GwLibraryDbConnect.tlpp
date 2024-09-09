@@ -79,7 +79,7 @@ Define a conexão a ser realizada.
 @param _cDbServer, character, IP ou Hostname do servidor DBAccess.
 @param _nDbPort, numeric, Número correspondente à porta de conexão com o DBAccess.
 /*/
-Method SetConn( _cDbType as character, _cDbAlias as character, _cDbServer, _nDbPort as numeric ) Class GwDBConnect
+Method SetConn( _cDbType as character, _cDbAlias as character, _cDbServer as character, _nDbPort as numeric ) Class GwDBConnect
 
     ::cDbType := _cDbType
     ::cDbAlias := _cDbAlias
