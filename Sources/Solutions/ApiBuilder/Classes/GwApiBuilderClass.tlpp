@@ -6,6 +6,13 @@ using namespace Gworks.library.Functions
 
 namespace Gworks.Solutions.ApiBuilder.Classes
 
+/*/{Protheus.doc} GwApiBuilder
+description
+@type class
+@version 12.1.2310
+@author Gworks - Giovani
+@since 9/8/2024
+/*/
 Class GwApiBuilder
 
     Public Data oError as object default nil
@@ -19,7 +26,7 @@ Class GwApiBuilder
     @Post("/builder/endpoint/new")
     Public Method BuiderEndpointNew()
 
-    Private Method PostRequest()
+    Private Method CreateEndPoint()
 
 EndClass
 
@@ -47,16 +54,14 @@ Method BuiderEndpointNew() Class GwApiBuilder
 
     Local nOpc := oPostEnum___:GetEnum('BuiderEndpointNew') as numeric
 
-    ::PostRequest( nOpc )
+    ::CreateEndPoint( nOpc )
 
 Return
 
 
-
-Method PostRequest( _nOpc as numeric ) Class WsRestSalesOrderApi
+Method CreateEndPoint( _nOpc as numeric ) Class WsRestSalesOrderApi
 
     Default nOpc := 0
-
 
 
 

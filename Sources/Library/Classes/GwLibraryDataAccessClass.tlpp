@@ -117,6 +117,28 @@ Class GwDataAccess
 
 EndClass
 
+/*/{Protheus.doc} GwDataAccess::ValidDataSource( cDataSource as character ) as logical
+Valida se a fonte de dados informada via argumento cDataSource condiz com o DataSource real do objeto da classe.
+@type method
+@version 12.1.2210
+@author Gworks - Giovani
+@since 05/03/2024
+@return logical, sempre retorna 'true'.
+@obs Este método é usado para determinar se outro método pode ou não ser executado, a dependnter da sua origem de dados.
+     Por exemplo, uma query, não pode manipular dados com CommitData().
+     Portanto, quando houver incompatibilidade entre o método executado e a origem de dados, a execução
+     será interrompida via UserException().
+/*/
+Method ValidDataSource( cDataSource as character ) as logical Class GwDataAccess
+
+    Default cDataSource := ""
+
+    if !( ::cDataSource $ cDataSource )
+        UserException("GwDataAccess:ValidDataSource - Acesso a método inválido para o DataSource " +'"'+ ::cDataSource +'"!')
+    endif
+
+Return .T.
+
 /*/{Protheus.doc} GwDataAccess::New
 Construtor da classe.
 @type method
@@ -1222,24 +1244,13 @@ Method FieldExists( cFieldName as character ) as logical Class GwDataAccess
 
 Return lResult
 
-/*/{Protheus.doc} GwDataAccess::ValidDataSource( cDataSource as character ) as logical
-Valida a fonte de dados informada via argumento cDataSource, condiz com o DataSource real do objeto da classe.
-@type method
-@version 12.1.2210
-@author Gworks - Giovani
-@since 05/03/2024
-@return logical, sempre retorna 'true'.
-@obs Este método é usado para determinar se outro método pode ou não ser executado, a dependnter da sua origem de dados.
-     Por exemplo, uma query, não pode manipular dados com CommitData().
-     Portanto, quando houver incompatibilidade entre o método executado e a origem de dados, a execução
-     será interrompida via UserException().
-/*/
-Method ValidDataSource( cDataSource as character ) as logical Class GwDataAccess
+Method dasdad() as varian Class GwDataAccess()
 
-    Default cDataSource := ""
+    Local oDbConn := GwDBConnect():New() as object
 
-    if !( ::cDataSource $ cDataSource )
-        UserException("GwDataAccess:ValidDataSource - Acesso a método inválido para o DataSource " +'"'+ ::cDataSource +'"!')
-    endif
+    oDbConn:SetConn( "POSTGRES",  )
 
-Return .T.
+
+
+
+Return
