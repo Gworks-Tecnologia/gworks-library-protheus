@@ -21,12 +21,11 @@ Class GwDBConnect
     Public Data nDbPort as numeric
     Public Data lConnected as logical
 
-    Public Data nTcLinkResult as numeric
+    Public Data nHandle as numeric
 
     Public Method New() Constructor
-    Public Method SetConn(cDbType, cDbAlias, cDbServer, nDbPort)
-    Public Method ClearConn()
-    Public Method Connect() as logical
+    Public Method SetConnection(cDbType, cDbAlias, cDbServer, nDbPort)
+    Public Method OpenConnect() as logical
     Public Method Disconnect() as logical
 
     Private Method Init()
@@ -61,10 +60,11 @@ Method Init() Class GwDBConnect
     ::cDbServer := "Localhost"
     ::nDbPort := 7890
     ::lConnected := .F.
+    ::nHandle := 0
 
 Return
 
-/*/{Protheus.doc} GwDBConnect::SetConn
+/*/{Protheus.doc} GwDBConnect::SetConnection
 Define a conexão a ser realizada.
 @type method
 @version 12.1.2310
@@ -79,7 +79,7 @@ Define a conexão a ser realizada.
 @param _cDbServer, character, IP ou Hostname do servidor DBAccess.
 @param _nDbPort, numeric, Número correspondente à porta de conexão com o DBAccess.
 /*/
-Method SetConn( _cDbType as character, _cDbAlias as character, _cDbServer as character, _nDbPort as numeric ) Class GwDBConnect
+Method SetConnection( _cDbType as character, _cDbAlias as character, _cDbServer as character, _nDbPort as numeric ) Class GwDBConnect
 
     ::cDbType := _cDbType
     ::cDbAlias := _cDbAlias
@@ -88,48 +88,38 @@ Method SetConn( _cDbType as character, _cDbAlias as character, _cDbServer as cha
 
 Return
 
-/*/{Protheus.doc} GwDBConnect::ClearConn
-Remove configuração de conexão realizada previamente.
-@type method
-@version 12.1.2310
-@author Gworks-Giovani
-@since 5/13/2024
-/*/
-Method ClearConn() Class GwDBConnect
-
-    if !::lConnected
-        ::Disconnect()
-    endif
-
-    ::Init()
-
-Return
-
-/*/{Protheus.doc} GwDBConnect::Connect() as logical
-Conecta com o banco de dados configurado conforme método ::SetConn().
+/*/{Protheus.doc} GwDBConnect::OpenConnect() as logical
+Conecta com o banco de dados configurado conforme método ::SetConnection().
 @type method
 @version 12.1.2310
 @author Gworks-Giovani
 @since 5/13/2024
 @return logical, Retorna 'true' para sucesso e 'false' para falha na conexão.
 /*/
-Method Connect() as logical Class GwDBConnect
+Method OpenConnect() as logical Class GwDBConnect
 
     Local cStrConn as character
 
     Local lResult := .F. as logical
 
+    ::Disconnect()
+
     if !empty(::cDbType) .And. !empty(::cDbAlias) .And. !empty(::cDbServer) .And. !empty(::nDbPort)
 
         cStrConn := ::cDbType +'/'+ ::cDbAlias
 
-        ::nTcLinkResult := TCLink(cStrConn, ::cDbServer, ::nDbPort)
+        ::nHandle := TCLink(cStrConn, ::cDbServer, ::nDbPort)
 
-        if ::nTcLinkResult < 0
-            TcUnLink()
+        if ::nHandle < 0
+
+            ::Disconnect()
+
         else
+
             ::lConnected := .T.
+
             lResult := .T.
+
         endif
 
     endif
@@ -137,18 +127,27 @@ Method Connect() as logical Class GwDBConnect
 Return lResult
 
 /*/{Protheus.doc} GwDBConnect::Disconnect() as logical
-Desconecta com o Banco de Dados previamente conectado.
+Desconecta do Banco de Dados atualmente conectado.
 @type method
 @version 12.1.2310
 @author Gworks-Giovani
 @since 5/13/2024
 @return logical, Retorna 'true' para sucesso e 'false' para falha na conexão.
 /*/
-Method Disconnect() as logical Class GwDBConnect
+Method Disconnect( nHandle as variant, lVerbose as logical ) as logical Class GwDBConnect
+
+    // Indica o número da conexão que será finalizada,
+    // se não for informado, a conexão ativa/atual será encerrada.
+    Default nHandle := nil
+
+    // Se .T., mostra mensagens de advertência do log de console,
+    // como por exemplo fechamento automático de alias da conexão.
+    Default lVerbose := .F.
 
     if ::lConnected
-        TcUnLink()
+
+        TcUnLink(nHandle, lVerbose)
+
     endif
 
 Return
-
