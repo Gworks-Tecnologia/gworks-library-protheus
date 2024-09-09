@@ -5,7 +5,7 @@ using namespace Global.Projects.ImportacaoBI.Enum
 
 namespace Global.Projects.ImportacaoBI.Controllers
 
-/*/{Protheus.doc} DBConnection
+/*/{Protheus.doc} GwDBConnect
 Classe para conexão com banco de dados.
 @type class
 @version 12.1.2310
@@ -13,16 +13,18 @@ Classe para conexão com banco de dados.
 @since 5/13/2024
 @obs Os respectivos bancos de dados precisam estar devidamente configurados no TOTVS DBAccess.
 /*/
-Class DBConnection
+Class GwDBConnect
 
     Public Data cDbType as character
     Public Data cDbAlias as character
+    Public Data cDbServer as character
     Public Data nDbPort as numeric
+    Public Data lConnected as logical
 
     Public Data nTcLinkResult as numeric
 
     Public Method New() Constructor
-    Public Method SetConn(cDbType, cDbAlias, nDbPort)
+    Public Method SetConn(cDbType, cDbAlias, cDbServer, nDbPort)
     Public Method ClearConn()
     Public Method Connect() as logical
     Public Method Disconnect() as logical
@@ -31,7 +33,7 @@ Class DBConnection
 
 EndClass
 
-/*/{Protheus.doc} DBConnection::New
+/*/{Protheus.doc} GwDBConnect::New
 Método construtor da classe.
 @type method
 @version 12.1.2310
@@ -39,29 +41,30 @@ Método construtor da classe.
 @since 5/13/2024
 @return object, instância do objeto.
 /*/
-Method New() Class DBConnection
+Method New() Class GwDBConnect
 
     ::Init()
 
 Return Self
 
-/*/{Protheus.doc} DBConnection::Init
+/*/{Protheus.doc} GwDBConnect::Init
 Inicializa atributos da classe.
 @type method
 @version 12.1.2310
 @author Gworks-Giovani
 @since 5/13/2024
 /*/
-Method Init() Class DBConnection
+Method Init() Class GwDBConnect
 
     ::cDbType := ""
     ::cDbAlias := ""
-    ::nDbPort := 0
+    ::cDbServer := "Localhost"
+    ::nDbPort := 7890
     ::lConnected := .F.
 
 Return
 
-/*/{Protheus.doc} DBConnection::SetConn
+/*/{Protheus.doc} GwDBConnect::SetConn
 Define a conexão a ser realizada.
 @type method
 @version 12.1.2310
@@ -73,24 +76,26 @@ Define a conexão a ser realizada.
         - POSTGRES
         - MSSQL
 @param _cDbAlias, character, Nome da conexão, conforme definido no DBAccess.
+@param _cDbServer, character, IP ou Hostname do servidor DBAccess.
 @param _nDbPort, numeric, Número correspondente à porta de conexão com o DBAccess.
 /*/
-Method SetConn( _cDbType as character, _cDbAlias as character, _nDbPort as numeric ) Class DBConnection
+Method SetConn( _cDbType as character, _cDbAlias as character, _cDbServer, _nDbPort as numeric ) Class GwDBConnect
 
     ::cDbType := _cDbType
     ::cDbAlias := _cDbAlias
-    ::nDbPort := _nDbPort
+    ::cDbServer := iif(!empty(_cDbServer), _cDbServer, ::cDbServer)
+    ::nDbPort := iif(!empty(_nDbPort), _nDbPort, ::nDbPort)
 
 Return
 
-/*/{Protheus.doc} DBConnection::ClearConn
+/*/{Protheus.doc} GwDBConnect::ClearConn
 Remove configuração de conexão realizada previamente.
 @type method
 @version 12.1.2310
 @author Gworks-Giovani
 @since 5/13/2024
 /*/
-Method ClearConn() Class DBConnection
+Method ClearConn() Class GwDBConnect
 
     if !::lConnected
         ::Disconnect()
@@ -100,7 +105,7 @@ Method ClearConn() Class DBConnection
 
 Return
 
-/*/{Protheus.doc} DBConnection::Connect() as logical
+/*/{Protheus.doc} GwDBConnect::Connect() as logical
 Conecta com o banco de dados configurado conforme método ::SetConn().
 @type method
 @version 12.1.2310
@@ -108,13 +113,17 @@ Conecta com o banco de dados configurado conforme método ::SetConn().
 @since 5/13/2024
 @return logical, Retorna 'true' para sucesso e 'false' para falha na conexão.
 /*/
-Method Connect() as logical Class DBConnection
+Method Connect() as logical Class GwDBConnect
+
+    Local cStrConn as character
 
     Local lResult := .F. as logical
 
-    if !empty(::cDbType) .And. !empty(::cDbAlias) .And. !empty(::nDbPort)
+    if !empty(::cDbType) .And. !empty(::cDbAlias) .And. !empty(::cDbServer) .And. !empty(::nDbPort)
 
-        ::nTcLinkResult := TCLink('MSSQL/_BI', 'FS-SRV-09', 7890)
+        cStrConn := ::cDbType +'/'+ ::cDbAlias
+
+        ::nTcLinkResult := TCLink(cStrConn, ::cDbServer, ::nDbPort)
 
         if ::nTcLinkResult < 0
             TcUnLink()
@@ -127,7 +136,7 @@ Method Connect() as logical Class DBConnection
 
 Return lResult
 
-/*/{Protheus.doc} DBConnection::Disconnect() as logical
+/*/{Protheus.doc} GwDBConnect::Disconnect() as logical
 Desconecta com o Banco de Dados previamente conectado.
 @type method
 @version 12.1.2310
@@ -135,7 +144,7 @@ Desconecta com o Banco de Dados previamente conectado.
 @since 5/13/2024
 @return logical, Retorna 'true' para sucesso e 'false' para falha na conexão.
 /*/
-Method Disconnect() as logical Class DBConnection
+Method Disconnect() as logical Class GwDBConnect
 
     if ::lConnected
         TcUnLink()
