@@ -1244,11 +1244,11 @@ Method FieldExists( cFieldName as character ) as logical Class GwDataAccess
 
 Return lResult
 
-Method dasdad() as varian Class GwDataAccess()
+Method SetConnection() as varian Class GwDataAccess()
 
     Local oDbConn := GwDBConnect():New() as object
 
-    oDbConn:SetConn( "POSTGRES",  )
+    oDbConn:SetConnection( "POSTGRES", "" )
 
 
 
