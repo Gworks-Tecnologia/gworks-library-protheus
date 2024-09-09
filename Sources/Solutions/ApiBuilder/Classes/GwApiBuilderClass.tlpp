@@ -7,7 +7,7 @@ using namespace Gworks.library.Functions
 namespace Gworks.Solutions.ApiBuilder.Classes
 
 /*/{Protheus.doc} GwApiBuilder
-description
+Conecta
 @type class
 @version 12.1.2310
 @author Gworks - Giovani
