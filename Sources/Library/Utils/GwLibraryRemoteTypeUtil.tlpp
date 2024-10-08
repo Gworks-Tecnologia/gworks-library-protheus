@@ -9,9 +9,8 @@ Função para verificar a versão do Sistema Operacional (SO) em uso pelo Protheus.
 @author Gworks - Giovani Soares
 @since 10/25/2023
 @param nOpc, numeric, 1 para avaliação via LIB e 2 avaliação tradicional.
-@return character, SO em uso.
-@obs Tipos de Retorno:
-    - JOB/API
+@return character, Retorna uma string com o nome do Sistema operacional, onde:
+    - JOB
     - WINDOWS
     - LINUX
     - MAC
