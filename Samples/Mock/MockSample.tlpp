@@ -1,0 +1,58 @@
+#include 'tlpp-core.th'
+
+/*/{Protheus.doc} ExemploMockComArray
+Exemplo de função com mock em array.
+@type function
+@version 12.1.2310
+@author Gworks - Giovani
+@since 10/7/2024
+@param aDados, array, Array de dados.
+/*/
+User Function ExemploMockComArray( aDados as array )
+
+    // Define o mock
+    Default aDados := { { 'Giovani', 'Soares', 'Jardim Limoeiro', 37 },;
+                        { 'Augusto', 'Oliveira', 'Bicanga', 54 } }
+
+    Local nI as numeric
+
+    For nI:=1 to Len(aDados)
+
+        ConAut('Nome ' + aDados[nI,1])
+        ConAut('SobreNome ' + aDados[nI,2])
+        ConAut('Bairro ' + aDados[nI,3])
+        ConAut('Idade ' + cValToChar(aDados[nI,4]))
+
+    Next
+
+Return
+
+/*/{Protheus.doc} ExemploMockJson
+Exemplo de função com mock em json
+@type function
+@version 12.1.2310
+@author Gworks - Giovani
+@since 10/7/2024
+@param aDados, array, Objeto json de dados.
+/*/
+User Function ExemploMockJson( jDados as json )
+
+    Default jDados := JsonObject():New()
+
+    // Define o Mock
+    jDados['Pessoas'] := {}
+    aAdd( jDados['Pessoas'], { 'Nome':'Giovani', 'SobreNome': 'Soares', 'Bairro':'Jardim Limoeiro', 'idade': 37 } )
+    aAdd( jDados['Pessoas'], { 'Nome':'Augusto', 'SobreNome': 'Oliveira', 'Bairro':'Bicanga', 'idade': 54 } )
+
+    Local nI as numeric
+
+    For nI:=1 to Len(aDados)
+
+        ConAut('Nome ' + jDados[nI,'Nome'])
+        ConAut('SobreNome ' + jDados[nI,'SobreNome'])
+        ConAut('Bairro ' + jDados[nI,'Bairro'])
+        ConAut('Idade ' + cValToChar(jDados[nI,'Idade']))
+
+    Next
+
+Return
