@@ -195,7 +195,7 @@ Return Self
 Obtem o objeto de erro da classe.
 @type method
 @version 12.1.2210.
-@author giovani
+@author Gworks - Giovani
 @since 05/03/2024
 @return object, Objeto de erro.
 /*/
@@ -215,12 +215,23 @@ Method SetDataSource( cDataSource as character ) as variant Class GwDataAccess
     Default cDataSource := ""
 
     if Empty(cDataSource)
+
         do case
-            case Len(::cAlias) == 3 ; cDataSource := "SX2"
-            case Len(::cAlias) == 6 .And. ( "DIC" $ ::cAlias ) ; cDataSource := "DIC"
+
+            // Tabela pertencente ao dicionário de dados SX2 de uso interno do ERP.
+            case Len(::cAlias) == 3
+                cDataSource := "SX2"
+
+            // Tabela de dicionário de dados por exemplo, SX3, SIX, etc.
+            case Len(::cAlias) == 6 .And. ( "DIC" $ ::cAlias )
+                cDataSource := "DIC"
+
+            // Demais tabelas, não pertencentes ao dicinário de dados do ERP.
             otherwise
                 cDataSource := "SQL"
+
         endcase
+
     endif
 
     if !(cDataSource $ "SX2;DIC;SQL")
@@ -1243,14 +1254,3 @@ Method FieldExists( cFieldName as character ) as logical Class GwDataAccess
     endif
 
 Return lResult
-
-Method SetConnection() as varian Class GwDataAccess()
-
-    Local oDbConn := GwDBConnect():New() as object
-
-    oDbConn:SetConnection( "POSTGRES", "" )
-
-
-
-
-Return
