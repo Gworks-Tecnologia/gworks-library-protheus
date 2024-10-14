@@ -2,7 +2,7 @@
 
 using namespace Gworks.Library.Classes
 
-namespace Global.Projects.ImportacaoBI.Enum
+namespace Gworks.Solutions.ApiBuilder.Classes
 
 /*/{Protheus.doc} CreateEnum
 Definição de enumeradores pertinentes ao projeto.

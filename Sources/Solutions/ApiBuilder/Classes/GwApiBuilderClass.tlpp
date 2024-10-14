@@ -18,14 +18,13 @@ Class GwApiBuilder
     Public Data oError as object default nil
     Public Data lInit as logical default .F.
 
-    Private Method Init()
-
     Public Method New() Constructor
     Public Method GetErrorObject()
 
-    @Post("/builder/endpoint/new")
-    Public Method BuiderEndpointNew()
+    @Post("/builder/endpoint")
+    Public Method BuiderEndpoint()
 
+    Private Method Init()
     Private Method CreateEndPoint()
 
 EndClass
@@ -59,10 +58,11 @@ Method BuiderEndpointNew() Class GwApiBuilder
 Return
 
 
-Method CreateEndPoint( _nOpc as numeric ) Class WsRestSalesOrderApi
+Method CreateEndPoint( _nOpc as numeric ) Class GwApiBuilder
 
     Default nOpc := 0
 
 
 
 Return lResult
+

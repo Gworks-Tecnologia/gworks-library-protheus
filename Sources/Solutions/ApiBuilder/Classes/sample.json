@@ -1,0 +1,27 @@
+{
+    "routes": [
+        {
+            "method": "get",
+            "route": "/clientes/%codCliente%",
+            "cors": "*",
+            "company": "*",
+            "query": "SELECT A1_COD, A1_LOJA A1_NOME FROM %table:SA1% WHERE A1_COD+A1_LOJA = %codCliente%",
+            "json": {
+                "cliente": "query:A1_COD+A1_LOJA",
+                "nome": "A1_NOME"
+            }
+        },
+        {
+            "method": "get",
+            "route": "/pedidos/%dtEmissao%",
+            "cors": "*",
+            "query": " SELECT * FROM %table:SC5% SC5 WITH (NOLOCK) JOIN %table:SC6% SC6 WITH (NOLOCK) ON ( SC6.C6_FILIAL = SC5.C5_FILIAL AND SC6.C6_NUM = SC5.C5_NUM AND SC6.D_E_L_E_T_ = ' ' ) WHERE SC5.C5_EMISSAO = %dtEmissao% AND SC5.D_E_L_E_T_ =  ' ' ",
+            "json": [
+                {
+                "pedido" : "!query:C5_NUM!",
+                "produto" : ["query:C6_PRODUTO"]
+                }
+            ]
+        }
+    ]
+}
