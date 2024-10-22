@@ -16,6 +16,7 @@ sequêncial por prefixos.
 @param cPrefixo, character, prefixo a ser considerado para o controle (opcional), ex.: "CHAPA"
 @param cFamilia, character, nome da família do sequêncial (opcional), ex.: "ROCHAS"
 @param lReboot, logical, indica se deve reiniciar o controle sequêncial com base no banco de dados, padrão .T.
+@param lEmpCode, logical, indica se deve concaternar o código da Empresa na Família.
 @return character, variável que será retornado o sequêncial gerado, ex.: "CHAPA0000000001"
 @obs o parâmetro cSequen deve ser passado por referência "@"
 @example
@@ -24,16 +25,21 @@ sequêncial por prefixos.
     - GwGetSequence("B1_COD", "", "ESCRIT", .T.) // "000000000000001"
     - GwGetSequence("ZX_DOCPRD", "P2103", "", .T.) // "P21030001"
 /*/
-User Function GwGetSequence( cCampo as character, cPrefixo as character, cFamilia as character, lReboot as logical )
-
-    Local xRet as variant
+User Function GwGetSequence( cCampo as character, cPrefixo as character, cFamilia as character, lReboot as logical, lEmpCode as logical )
 
     Default cCampo := ""
     Default cPrefixo := ""
     Default cFamilia := ""
     Default lReboot := .T.
+    Default lEmpCode := .T.
 
-    oSequence__ := GwSequence():New( cCampo, cPrefixo, cEmpAnt+AllTrim(cFamilia), lReboot )
+    Local xRet as variant
+
+    if lEmpCode
+        cFamilia := cEmpAnt+AllTrim(cFamilia)
+    endif
+
+    oSequence__ := GwSequence():New( cCampo, cPrefixo, cFamilia, lReboot )
 
     xRet := oSequence__:GetSequence()
 
