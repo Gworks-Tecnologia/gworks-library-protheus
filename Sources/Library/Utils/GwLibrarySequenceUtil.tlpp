@@ -33,7 +33,7 @@ User Function GwGetSequence( cCampo as character, cPrefixo as character, cFamili
     Default cFamilia := ""
     Default lReboot := .T.
 
-    oSequence__ := GWSequence():New( cCampo, cPrefixo, cEmpAnt+AllTrim(cFamilia), lReboot )
+    oSequence__ := GwSequence():New( cCampo, cPrefixo, cEmpAnt+AllTrim(cFamilia), lReboot )
 
     xRet := oSequence__:GetSequence()
 
