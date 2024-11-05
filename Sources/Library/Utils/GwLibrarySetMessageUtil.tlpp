@@ -26,7 +26,7 @@ Função auxiliar para definir o output da mensagem entre error, log ou ambos.
     - error: define a mensagem como erro
     - log: define a mensagem como log
 /*/
-Static Function GwSetMessage(;
+User Function GwSetMessage(;
                     oError as object,;
                     oLog as object,;
                     jParam as json,;
