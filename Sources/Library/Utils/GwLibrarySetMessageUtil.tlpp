@@ -1,0 +1,72 @@
+#include "tlpp-core.th"
+
+namespace Gworks.Library.Utils
+
+/*/{Protheus.doc} GwSetMessage
+Função auxiliar para definir o output da mensagem entre error, log ou ambos.
+@type function
+@version  12.1.2310
+@author Gworks - Giovani
+@since 29/10/2024
+@param oError, object, Objeto GwError().
+@param oLog, object, Object GwConsoleLog().
+@param jParam, json, Mensagens no formato:
+        {
+            "cState" : 'string'
+            "cError" : 'string'
+            "cSuggestion" : 'string'
+            "cTitle" : 'string'
+            "lError" : 'logical'
+            "cDetails" : 'string'
+        }
+@param cOpc, character, Modo de operação, entre:
+    - auto:
+        - define a mensagem como erro se for execução com interface
+        - define a mensagem como log se for execução sem interface
+    - error: define a mensagem como erro
+    - log: define a mensagem como log
+/*/
+Static Function GwSetMessage(;
+                    oError as object,;
+                    oLog as object,;
+                    jParam as json,;
+                    cOpc as character )
+
+    Default cOpc := "auto"
+
+    cOpc := lower(cOpc)
+
+    if cOpc == "auto"
+
+        if !lBlind_
+            cOpc := "error"
+        else
+            cOpc := "log"
+        endif
+
+    endif
+
+    do case
+
+        case "error" $ cOpc
+
+            oError:SetError( ;
+                jParam['cError'],;
+                jParam['cSuggestion'],;
+                jparam['cTitle'],;
+                jParam['lError'] )
+
+            if !empty(jParam['cDetails'])
+                oError:SetAutoGRLog( jParam['cDetails'] )
+            endif
+
+            oError:ShowError()
+
+        case "log" $ cOpc
+
+            oLog:SetState(upper(jParam['cState']))
+            oLog:SetMessage(upper(jParam['cError']))
+
+    endcase
+
+Return
