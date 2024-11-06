@@ -1,6 +1,10 @@
 #include "tlpp-core.th"
 
+using namespace Gworks.Library.Classes
+
 namespace Gworks.Library.Utils
+
+Static lBlind__ := ( isBlind() .or. type("CFILANT") == 'U' ) as logical
 
 /*/{Protheus.doc} GwSetMessage
 Função auxiliar para definir o output da mensagem entre error, log ou ambos.
@@ -29,44 +33,35 @@ Função auxiliar para definir o output da mensagem entre error, log ou ambos.
 User Function GwSetMessage(;
                     oError as object,;
                     oLog as object,;
-                    jParam as json,;
-                    cOpc as character )
+                    jParam as json )
 
-    Default cOpc := "auto"
-
-    cOpc := lower(cOpc)
-
-    if cOpc == "auto"
-
-        if !lBlind_
-            cOpc := "error"
-        else
-            cOpc := "log"
-        endif
-
+    if valType(oError) != 'O'
+        oError := GwError():New()
     endif
 
-    do case
+    if valType(oLog) != 'O'
+        oLog := GwConsoleLog():New()
+    endif
 
-        case "error" $ cOpc
-
-            oError:SetError( ;
+    oError:SetError( ;
                 jParam['cError'],;
                 jParam['cSuggestion'],;
                 jparam['cTitle'],;
                 jParam['lError'] )
 
-            if !empty(jParam['cDetails'])
-                oError:SetAutoGRLog( jParam['cDetails'] )
-            endif
+    oLog:SetState(upper(jParam['cState']))
+    oLog:SetMessage(upper(fwNoAccent(jParam['cError'])), .T., .F.)
 
-            oError:ShowError()
+    if !empty(jParam['cDetails'])
 
-        case "log" $ cOpc
+        oError:SetAutoGRLog( jParam['cDetails'] )
 
-            oLog:SetState(upper(jParam['cState']))
-            oLog:SetMessage(upper(jParam['cError']))
+        oLog:SetMessage(jParam['cDetails'], .T., .F. )
 
-    endcase
+    endif
+
+    if !lBlind__
+        oError:ShowError()
+    endif
 
 Return
