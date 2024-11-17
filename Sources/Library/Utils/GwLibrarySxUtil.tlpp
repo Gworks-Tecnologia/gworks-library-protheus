@@ -8,7 +8,7 @@ namespace Gworks.Library.Utils
 Retorna o Alias de uma tabela com base no nome de um determinado campo.
 @type function
 @version 12.1.22.10
-@author Gworks-Giovani
+@author Gworks - Giovani Soares
 @since 5/22/2023
 @param cField, character, Nome do campo, conforme dicionário SX3.
 @return character, Alias da tabela conforme parâmetros de entrada.
@@ -33,7 +33,7 @@ Return cResult
 Retorna o prefixo dos campos do dicionário SX3 conforme sua respectiva tabela.
 @type function
 @version 12.1.22.10
-@author Gworks-Giovani
+@author Gworks - Giovani Soares
 @since 5/22/2023
 @param cAlias, character, Alias da tabela desejada.
 @return character, Prefixo conforme parâmetros de entrada.
@@ -66,7 +66,7 @@ Return cResult
 Retorna o nome do campo "_FILIAL" de uma determinada tabela.
 @type function
 @version 12.1.22.10
-@author Gworks-Giovani
+@author Gworks - Giovani Soares
 @since 5/22/2023
 @param cAlias, character, Alias da tabela desejada.
 @return character, Nome do campo.

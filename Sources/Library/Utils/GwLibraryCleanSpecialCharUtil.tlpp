@@ -6,7 +6,7 @@ namespace Gworks.Library.Utils
 Remove caracteres especiais de uma string.
 @type function
 @version 12.22010
-@author Gworks-Giovani
+@author Gworks - Giovani Soares
 @since 5/4/2023
 @param cString, character, String desejada.
 @param lSpaces, logical, Se .T., indica que espaços devem ser removidos.

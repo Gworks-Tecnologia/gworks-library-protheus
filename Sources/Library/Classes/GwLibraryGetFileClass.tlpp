@@ -52,7 +52,7 @@ EndClass
 Método construtor de classe GwGetFile.
 @type method
 @version 12.1.33
-@author Gworks-Giovani
+@author Gworks - Giovani Soares
 @since 3/26/2023
 @return object, Instância da classe.
 /*/
@@ -69,7 +69,7 @@ Define o diretório de inicialização que deve ser considerado para todas as opera
 de manipulação de arquivo/diretório.
 @type method
 @version 12.1.33
-@author Gworks-Giovani
+@author Gworks - Giovani Soares
 @since 3/26/2023
 @param cDirectory, character, Diretório desejado.
 @param lCreateDir, logical, Se Verdadeiro tenta criar o diretório informado em cDirectory. Padrão: .T.
@@ -125,7 +125,7 @@ Return lResult
 Inicializa a classe para seleção de arquivos por meio de uma janela gráfica da biblioteca do sistema operacional.
 @type method
 @version 12.1.33
-@author Gworks-Giovani
+@author Gworks - Giovani Soares
 @since 3/26/2023
 @return logical, .T. sucesso e .F. falha.
 @obs Retorna .F. somente se identificada operação cega por meio da função isBlind().
@@ -157,7 +157,7 @@ Return .T.
 Define o tipo de arquivo que deverá ser considerado na janela de seleção.
 @type method
 @version 12.1.33
-@author Gworks-Giovani
+@author Gworks - Giovani Soares
 @since 3/26/2023
 @param cDialogFileMask, character, Tipos de arquivo. Ex.: "Arquivos de texto|*.txt|Bitmaps|*.bmp"
 /*/
@@ -169,7 +169,7 @@ Return
 Define que será um dialog para selecionar arquivos/diretórios.
 @type method
 @version 12.1.33
-@author Gworks-Giovani
+@author Gworks - Giovani Soares
 @since 3/26/2023
 /*/
 Method SetDialodOpening()  Class GwGetFile
@@ -179,7 +179,7 @@ Return
 /*/{Protheus.doc} GwGetFile::SetDialodSave
 Define que será um dialog para salvar arquivos.
 @type method
-@author Gworks-Giovani
+@author Gworks - Giovani Soares
 @since 3/26/2023
 /*/
 Method SetDialodSave()  Class GwGetFile
@@ -190,7 +190,7 @@ Return
 Permite selecionar vários arquivos na janela de seleção aberta pelo método ::OpenDialog.
 @type method
 @version 12.1.33
-@author Gworks-Giovani
+@author Gworks - Giovani Soares
 @since 3/26/2023
 @param lOption, logical, .T. habilita e .F. desabilita o referido comportamento.
 @obs Se lOption for .F., considerará o comportamento padrão que é permitir selecionar um único arquivo.
@@ -212,7 +212,7 @@ Return
 Permite selecionar um diretório na janela de seleção aberta pelo método ::OpenDialog.
 @type method
 @version 12.1.33
-@author Gworks-Giovani
+@author Gworks - Giovani Soares
 @since 3/26/2023
 @param lOption, logical, .T. habilita e .F. desabilita o referido comportamento.
 @obs Se lOption for .F., considerará o comportamento padrão que é permitir selecionar um único arquivo.
@@ -234,7 +234,7 @@ Return
 Abre o dialog (janela) para seleção ou salvamento de arquivos/diretórios.
 @type method
 @version 12.1.33
-@author Gworks-Giovani
+@author Gworks - Giovani Soares
 @since 3/26/2023
 @return logical, Retorna .T. para indicar que a seleção de arquivos/diretório foi confirmada ou .F. cancelada.
 /*/

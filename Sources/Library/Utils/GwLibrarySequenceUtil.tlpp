@@ -10,7 +10,7 @@ Static oSequence__ := nil as object
 Função para criar números sequênciais com possibilidade de fazer o controle
 sequêncial por prefixos.
 @type function
-@author Giovani Soares
+@author Giovani
 @since 17/03/2021
 @param cCampo, character, campo chave para o controle financeiro, ex.: "B1_COD"
 @param cPrefixo, character, prefixo a ser considerado para o controle (opcional), ex.: "CHAPA"

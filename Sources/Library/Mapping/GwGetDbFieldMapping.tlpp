@@ -10,7 +10,7 @@ namespace Gworks.Library.Mapping
 Retorna a descrição de tabelas conforme dicionário de dados.
 @type function
 @version 12.1.2210
-@author Gworks-Giovani
+@author Gworks - Giovani Soares
 @since 21/05/2024
 @param aTabelas, array, Array de tabelas conforme SX3.
 @param cLang, character, Idioma desejado.

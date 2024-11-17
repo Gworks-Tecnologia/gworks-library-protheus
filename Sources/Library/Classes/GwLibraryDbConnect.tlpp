@@ -9,7 +9,7 @@ namespace Global.Projects.ImportacaoBI.Controllers
 Classe para conexão com banco de dados.
 @type class
 @version 12.1.2310
-@author Gworks-Giovani
+@author Gworks - Giovani Soares
 @since 5/13/2024
 @obs Os respectivos bancos de dados precisam estar devidamente configurados no TOTVS DBAccess.
 /*/
@@ -36,7 +36,7 @@ EndClass
 Método construtor da classe.
 @type method
 @version 12.1.2310
-@author Gworks-Giovani
+@author Gworks - Giovani Soares
 @since 5/13/2024
 @return object, instância do objeto.
 /*/
@@ -50,7 +50,7 @@ Return Self
 Inicializa atributos da classe.
 @type method
 @version 12.1.2310
-@author Gworks-Giovani
+@author Gworks - Giovani Soares
 @since 5/13/2024
 /*/
 Method Init() Class GwDBConnect
@@ -68,7 +68,7 @@ Return
 Define a conexão a ser realizada.
 @type method
 @version 12.1.2310
-@author Gworks-Giovani
+@author Gworks - Giovani Soares
 @since 5/13/2024
 @param _cDbType, character,
     Tipo do Banco de Dados, entre:
@@ -92,7 +92,7 @@ Return
 Conecta com o banco de dados configurado conforme método ::SetConnection().
 @type method
 @version 12.1.2310
-@author Gworks-Giovani
+@author Gworks - Giovani Soares
 @since 5/13/2024
 @return logical, Retorna 'true' para sucesso e 'false' para falha na conexão.
 /*/
@@ -130,7 +130,7 @@ Return lResult
 Desconecta do Banco de Dados atualmente conectado.
 @type method
 @version 12.1.2310
-@author Gworks-Giovani
+@author Gworks - Giovani Soares
 @since 5/13/2024
 @return logical, Retorna 'true' para sucesso e 'false' para falha na conexão.
 /*/

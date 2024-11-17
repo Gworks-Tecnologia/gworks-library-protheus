@@ -6,7 +6,7 @@ namespace Gworks.Library.Functions
 Rotina de integração entre Protheus X JasperServer para execução de relatórios.
 @type function
 @version 12.1.25
-@author GWorks - Giovani Soares
+@author Gworks - Giovani Soares
 @since 01/10/2020
 @param cReport, character, Nome do Relatório a ser executado
 @param cGetParms, character, Parâmetros a serem enviados para o relatório

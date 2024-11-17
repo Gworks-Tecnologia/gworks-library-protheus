@@ -47,7 +47,7 @@ EndClass
 Instânciação com argumentos da classe.
 @type method
 @version 12.1.33
-@author Gworks-Giovani
+@author Gworks - Giovani Soares
 @since 3/21/2023
 @param cError, character, Mensagem de errro.
 @param cSuggestion, character, Mensagem de sugestão para solução.
@@ -81,7 +81,7 @@ Return Self
 Método de uso interno para exibir a mensagem de Help().
 @type method
 @version 12.1.33
-@author Gworks-Giovani
+@author Gworks - Giovani Soares
 @since 3/21/2023
 @param cTitle, character, Título do help.
 @param cErro, character, Mensagem de erro.
@@ -114,7 +114,7 @@ Return
 Recicla o objeto limpando todos seus atributos.
 @type method
 @version 12.1.33
-@author Gworks-Giovani
+@author Gworks - Giovani Soares
 @since 3/21/2023
 /*/
 Method Clear( lSavedErrors as logical ) as variant Class Gwerror
@@ -143,7 +143,7 @@ Return
 Define uma mensagem de erro para a instância da classe.
 @type method
 @version 12.1.33
-@author Gworks-Giovani
+@author Gworks - Giovani Soares
 @since 3/21/2023
 @param cError, character, Mensagem de errro.
 @param cSuggestion, character, Mensagem de sugestão para solução.
@@ -173,7 +173,7 @@ Return
 Retorna a mensagem de erro conforme label.
 @type method
 @version 12.1.33
-@author Gworks-Giovani
+@author Gworks - Giovani Soares
 @since 3/21/2023
 @param cLabel, character, Nome da label entre: Error, Suggestion ou TitleError.
 @return character, Mensagem conforme label.
@@ -196,7 +196,7 @@ Return cRet
 Define o estado de erro da classe.
 @type method
 @version 12.1.33
-@author Gworks-Giovani
+@author Gworks - Giovani Soares
 @since 3/21/2023
 @param lError, logical, Atributo para indicar o estado da instância, podendo ser: .T. "com erro" e .F. "sem erro".
 /*/
@@ -212,7 +212,7 @@ Return
 Retorna o estado de erro da instância da classe.
 @type method
 @version 12.1.33
-@author Gworks-Giovani
+@author Gworks - Giovani Soares
 @since 3/21/2023
 @return variant, Se .T. está com erro e .F. sem erro.
 /*/
@@ -224,7 +224,7 @@ Return Self:lError
 Exibe a mensagem de erro conforme opção definida em cStyle.
 @type method
 @version 12.1.33
-@author Gworks-Giovani
+@author Gworks - Giovani Soares
 @since 3/21/2023
 @param cStyle, character, Estilo de exibição da mensagem de erro, podendo ser: Alert, Info, Warning ou Help.
 @param cTitle, character, Título da mensagem de erro.
@@ -282,7 +282,7 @@ Return
 Define a mensagem de erro proveniente de execuções automáticas, como ExecAuto().
 @type method
 @version 12.1.33
-@author Gworks-Giovani
+@author Gworks - Giovani Soares
 @since 3/21/2023
 @param cAutoGRLog, character, Mensagem de erro, aviso ou log desejada.
 /*/
@@ -295,7 +295,7 @@ Possui o mesmo propósito que o método SetAutoGRLog(), porém, obtem os dados
 a partir de um array no formato de execuções oriundas do Framework MVC.
 @type method
 @version 12.1.33
-@author Gworks-Giovani
+@author Gworks - Giovani Soares
 @since 3/21/2023
 @param oModel, object, Modelo de dados correspondente.
 /*/
@@ -343,7 +343,7 @@ Possui o mesmo propósito que o método SetAutoGRLog(), porém, obtem os dados
 resultantes da execução de um ExecAuto().
 @type method
 @version 12.1.33
-@author Gworks-Giovani
+@author Gworks - Giovani Soares
 @since 3/27/2023
 @param cExecAutoName, character, Nome da rotina referente ao execauto.
 /*/
@@ -379,7 +379,7 @@ Return
 Exibe a mensagem de erro, aviso ou log, conforme defindo por ::cAutoGRLog.
 @type method
 @version 12.1.33
-@author Gworks-Giovani
+@author Gworks - Giovani Soares
 @since 3/21/2023
 /*/
 Method ShowAutoGRLog() as variant Class GwError
@@ -391,7 +391,7 @@ Return
 Lança exceção de erro.
 @type method
 @version 12.1.33
-@author Gworks-Giovani
+@author Gworks - Giovani Soares
 @since 3/21/2023
 @obs O estado da instância deve estar em "com erro".
 /*/
@@ -434,7 +434,7 @@ Return
 Salva todo os atributos da instância pertencente ao objeto.
 @type method
 @version 12.1.33
-@author Gworks-Giovani
+@author Gworks - Giovani Soares
 @since 4/16/2023
 /*/
 Method SaveError( cName as character ) Class GwError

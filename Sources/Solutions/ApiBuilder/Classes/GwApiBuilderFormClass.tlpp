@@ -11,7 +11,7 @@ namespace Gworks.Solutions.ApiBuilder.Classes
 Classe construtora de API's.
 @type class
 @version 12.1.2310
-@author Gworks - Giovani
+@author Gworks - Giovani Soares
 @since 9/8/2024
 /*/
 Class GwApiBuilderFormClass

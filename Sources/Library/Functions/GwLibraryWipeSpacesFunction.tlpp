@@ -6,7 +6,7 @@ namespace Gworks.Library.Functions
 Remove espaços duplicados de uma string.
 @type function
 @version 22010
-@author Gworks-Giovani
+@author Gworks - Giovani Soares
 @since 5/9/2023
 @param cString, character, String a normatizar.
 @return character, String normatizada.

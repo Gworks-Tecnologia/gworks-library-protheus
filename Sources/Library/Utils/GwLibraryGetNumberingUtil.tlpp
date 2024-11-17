@@ -6,7 +6,7 @@ namespace Gworks.Library.Utils
 Confirma a numeração obtida.
 @type function
 @version 12.1.33
-@author Gworks-Giovani
+@author Gworks - Giovani Soares
 @since 4/26/2023
 /*/
 User Function GwConfirmNumbering()
@@ -19,7 +19,7 @@ Return
 Obtem uma nova sequência do controle de numeração padrão do sistema.
 @type function
 @version 12.1.33
-@author Gworks-Giovani
+@author Gworks - Giovani Soares
 @since 4/26/2023
 @param cAlias, character, Alias da tabela.
 @param cField, character, Campo da tabela.
@@ -66,7 +66,7 @@ Return cResult
 Função auxiliar para execução e compatibilização com a função StartJob().
 @type function
 @version 12.1.33
-@author Gworks-Giovani
+@author Gworks - Giovani Soares
 @since 4/26/2023
 @param cAlias, character, Alias da tabela.
 @param cField, character, Campo da tabela.

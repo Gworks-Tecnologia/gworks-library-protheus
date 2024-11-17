@@ -46,7 +46,7 @@ EndClass
 Cria instância da classe.
 @type method
 @version 12.1.33
-@author Gworks-Giovani
+@author Gworks - Giovani Soares
 @since 3/21/2023
 @return object, instância da classe criada.
 /*/
@@ -60,7 +60,7 @@ Return Self
 Inicializa os atributos principais da classe.
 @type method
 @version 12.1.33
-@author Gworks-Giovani
+@author Gworks - Giovani Soares
 @since 3/21/2023
 /*/
 Method Init() Class GwConsoleLog
@@ -80,7 +80,7 @@ Return
 Recicla o objeto limpando todos seus atributos.
 @type method
 @version 12.1.33
-@author Gworks-Giovani
+@author Gworks - Giovani Soares
 @since 3/21/2023
 /*/
 Method Clear() as variant Class GwConsoleLog
@@ -91,7 +91,7 @@ Return
 Define se deve (.T.) ou não (.F.) imprimir no console usando a função FwLogMsg.
 @type method
 @version 12.1.33
-@author Gworks-Giovani
+@author Gworks - Giovani Soares
 @since 20/09/2022
 /*/
 Method UseFwLogMsgClass( lArg as logical ) as variant Class GwConsoleLog
@@ -104,7 +104,7 @@ Define se deve (.T.) ou não (.F.) concatenar à mensagem de log com o prefixo no 
  - Ex.......: "01|010002|FSJB037|23/09/2022|11:48:58|INICIO DO PROCESSAMENTO".
 @type method
 @version 12.1.33
-@author Gworks-Giovani
+@author Gworks - Giovani Soares
 @since 20/09/2022
 /*/
 Method EnablePrefix( lArg as logical ) as variant Class GwConsoleLog
@@ -115,7 +115,7 @@ Return
 Define se deve (.T.) ou não (.F.) habilitar a gravação do log em arquivo de texto.
 @type method
 @version 12.1.33
-@author Gworks-Giovani
+@author Gworks - Giovani Soares
 @since 20/09/2022
 /*/
 Method EnableLogFile( lArg as logical ) as variant Class GwConsoleLog
@@ -137,7 +137,7 @@ Return
 Define se deve (.T.) ou não (.F.) habilitar a impressão da mensagem em console.
 @type method
 @version 12.1.33
-@author Gworks-Giovani
+@author Gworks - Giovani Soares
 @since 20/09/2022
 /*/
 Method EnableConsolePrint( lArg as logical ) as variant Class GwConsoleLog
@@ -148,7 +148,7 @@ Return
 Define o estado que o log representa, por exemplo: SUCESSO, FALHA, INFO, etc...
 @type method
 @version 12.1.33
-@author Gworks-Giovani
+@author Gworks - Giovani Soares
 @since 3/21/2023
 /*/
 Method SetState( cState as character ) as variant Class GwConsoleLog
@@ -159,7 +159,7 @@ Return
 Define um identificador para o registro ao gerar o log.
 @type method
 @version 12.1.33
-@author Gworks-Giovani
+@author Gworks - Giovani Soares
 @since 3/21/2023
 /*/
 Method SetLogId( cLogId as character ) as variant Class GwConsoleLog
@@ -170,7 +170,7 @@ Return
 Define uma String descritiva auxiliar para composição do log
 @type method
 @version 12.1.33
-@author Gworks-Giovani
+@author Gworks - Giovani Soares
 @since 3/21/2023
 /*/
 Method SetLogDescription( cLogDescription as character ) as variant Class GwConsoleLog
@@ -181,7 +181,7 @@ Return
 Define a mensagem do log.
 @type method
 @version 12.1.33
-@author Gworks-Giovani
+@author Gworks - Giovani Soares
 @since 20/09/2022
 /*/
 Method SetMessage( cMessage as character, lConsolePrint as logical, lBreakLine as logical ) as variant Class GwConsoleLog
@@ -303,7 +303,7 @@ Return
 Retorna a última mensagem do log.
 @type method
 @version 12.1.33
-@author Gworks-Giovani
+@author Gworks - Giovani Soares
 @since 3/20/2023
 @return variant, Última mensagem de log.
 /*/
@@ -315,7 +315,7 @@ Return ::cLastMessage
 Retorna o caminho de onde o arquivo de log foi salvo/gerado.
 @type method
 @version 12.1.33
-@author Gworks-Giovani
+@author Gworks - Giovani Soares
 @since 3/20/2023
 @return character, Path do arquivo de log.
 /*/

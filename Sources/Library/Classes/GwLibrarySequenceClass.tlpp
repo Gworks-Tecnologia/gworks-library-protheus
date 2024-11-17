@@ -10,7 +10,7 @@ namespace Gworks.Library.Classes
 Classe para numeração sequêncial.
 @type class
 @version 12.1.2310
-@author Gworks - Giovani
+@author Gworks - Giovani Soares
 @since 6/20/2024
 /*/
 Class GwSequence
@@ -54,7 +54,7 @@ EndClass
 Cria instância da classe.
 @type method
 @version 12.1.2310
-@author Gworks - Giovani
+@author Gworks - Giovani Soares
 @since 6/20/2024
 @param _cArgCampo, character, Nome do Campo conforme dicionário SX3 para geração do nro. sequêncial (obrigatório).
 @param _cPrefixo, character, Prefixo a ser anexado ao código sequêncial.
@@ -101,7 +101,7 @@ Return Self
 Obtem a sequência correspondente aos parâmetros de construção do objeto.
 @type method
 @version 12.1.2310
-@author Gworks - Giovani
+@author Gworks - Giovani Soares
 @since 6/20/2024
 @return character, Numeração sequêncial.
 /*/
@@ -151,7 +151,7 @@ Return xResult
 Método interno para inicializar uma numeração se a mesma não existir.
 @type method
 @version 12.1.2310
-@author Gworks - Giovani
+@author Gworks - Giovani Soares
 @since 6/20/2024
 @return logical, Retorna 'true' para indicar sucesso e 'false' caso contrário.
 /*/
@@ -186,7 +186,7 @@ Return .T.
 Incrementa sequêncial.
 @type method
 @version 12.1.2310
-@author Gworks - Giovani
+@author Gworks - Giovani Soares
 @since 6/20/2024
 @param _lInclui, logical, Se 'true' indica que o sequêncial recém gerado/incluído, será utilizado sem a necessidade de incremento com o Soma1().
 @return character, Squencial resultante.

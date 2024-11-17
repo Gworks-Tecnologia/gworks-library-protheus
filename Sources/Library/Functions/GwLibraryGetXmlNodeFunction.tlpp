@@ -6,7 +6,7 @@ namespace Gworks.Library.Functions
 Retorna o tamanho de um array em um determinado nó passado por parâmetro.
 @type method
 @version 12.1.33
-@author Gworks-Giovani
+@author Gworks - Giovani Soares
 @since 3/15/2023
 @param oObj, object, Objeto XML deserializado.
 @param cNode, character, Nome do nó.
@@ -40,7 +40,7 @@ Return nLen
 Retorna nós de objetos XML deserializados normatizando o retorno entre objeto e array de objetos.
 @type method
 @version 12.1.33
-@author Gworks-Giovani
+@author Gworks - Giovani Soares
 @since 3/15/2023
 @param cNode, character, Nó do objeto XML que deve ser avaliado.
 @param nPos, numeric, Posição do objeto para nós que podem ser array.

@@ -10,7 +10,7 @@ namespace Gworks.Library.Classes
 Classe para definição de enumeradores.
 @type class
 @version 12.1.2210
-@author Gworks - Giovani
+@author Gworks - Giovani Soares
 @since 11/03/2024
 @example Código de exemplo:
 
@@ -56,7 +56,7 @@ EndClass
 Cria instância do objeto.
 @type method
 @version 12.1.2210
-@author Gworks - Giovani
+@author Gworks - Giovani Soares
 @since 11/03/2024
 @return variant, Objeto instanciado da classe.
 @example Código de exemplo:
@@ -73,7 +73,7 @@ Return Self
 Define um enumerador.
 @type method
 @version 12.1.2210
-@author Gworks - Giovani
+@author Gworks - Giovani Soares
 @since 11/03/2024
 @param cName, character, Nome do Enumerador.
 @param cDescription, character, Descrição do Enumarador.
@@ -111,7 +111,7 @@ Return
 Retorna conteúdo do Enumarador conforme argumentos de entrada.
 @type method
 @version 12.1.2210
-@author Gworks - Giovani
+@author Gworks - Giovani Soares
 @since 11/03/2024
 @param xSearch, variant, Conteúdo para busca do Enumerador.
 @param cProperty, character, Propriedade que deseja-se retornar do Enumerador.
@@ -171,7 +171,7 @@ Return xResult
 Obtem a descrição de um enumerador.
 @type method
 @version 12.1.2210
-@author Gworks - Giovani
+@author Gworks - Giovani Soares
 @since 11/03/2024
 @return character, Descrição do enumerador
 @example Código de exemplo:

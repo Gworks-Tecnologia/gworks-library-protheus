@@ -6,7 +6,7 @@ namespace Gworks.Library.Functions
 Define estrutura de colunas a serem exibidas por um browser do tipo FwMBrowse.
 @type function
 @version 12.1.2210
-@author Gworks - Giovani
+@author Gworks - Giovani Soares
 @since 26/02/2024
 @param oStruct, object, Objeto do tipo KeyValue contendo a estrutura de dicionário de dados do referido campo.
 @param cField, character, Nome do campo no alias correspondente ao FWMBrowse().

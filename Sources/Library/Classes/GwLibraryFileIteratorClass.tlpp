@@ -38,7 +38,7 @@ EndClass
 Método construtor de classe GwGetFile().
 @type method
 @version 12.1.33
-@author Gworks-Giovani
+@author Gworks - Giovani Soares
 @since 3/26/2023
 @return object, Instância da classe.
 /*/
@@ -57,7 +57,7 @@ Return Self
 Inicializa os atributos da instância do objeto.
 @type method
 @version 12.1.33
-@author Gworks-Giovani
+@author Gworks - Giovani Soares
 @since 4/3/2023
 /*/
 Method Init() Class GwFileIterator
@@ -83,7 +83,7 @@ Return
 Destroi o objeto.
 @type method
 @version 12.1.33
-@author Gworks-Giovani
+@author Gworks - Giovani Soares
 @since 4/3/2023
 /*/
 Method Destroy() Class GwFileIterator
@@ -129,7 +129,7 @@ Return
 Carrega o arquivo para o objeto.
 @type method
 @version 12.1.33
-@author Gworks-Giovani
+@author Gworks - Giovani Soares
 @since 4/3/2023
 @return logical, Retorna .T. para carregamento realizado com sucesso e .F. para falhas.
 /*/
@@ -185,7 +185,7 @@ Retorna o status da leitura e carregamento do arquivo para o objeto
 conforme resultado da execução do método ::LoadFile().
 @type method
 @version 12.1.33
-@author Gworks-Giovani
+@author Gworks - Giovani Soares
 @since 4/3/2023
 @return logical, Retorna .T. para sucesso e .F. para falha.
 /*/
@@ -196,7 +196,7 @@ Return ::lLoadStatus
 Para cada linha do arquivo avalia uma determinada estrutura de blocos de código (veja parâmetros).
 @type method
 @version 12.1.33
-@author Gworks-Giovani
+@author Gworks - Giovani Soares
 @since 4/3/2023
 @param bLoad, codeblock, Bloco de código para carga de dados.
 @param bValid, codeblock, Bloco de código de condição.

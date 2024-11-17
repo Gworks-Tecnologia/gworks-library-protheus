@@ -6,7 +6,7 @@ namespace Gworks.Library.Functions
 Substitui em uma determinada string todos os patrâmetros definidos em um objeto do tipo KeyValue.
 @type function
 @version 12.1.33
-@author Gworks-Giovani
+@author Gworks - Giovani Soares
 @since 3/21/2023
 @param cString, character, String a ser processada.
 @param oValues, object, Objeto do tipo KeyValue().

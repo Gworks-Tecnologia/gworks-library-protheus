@@ -9,7 +9,7 @@ namespace Gworks.Library.Functions
 Obtem a estrutura do dicionário de dados de um ou mais campos conforme argumento.
 @type function
 @version 12.1.2210
-@author Gworks - Giovani
+@author Gworks - Giovani Soares
 @since 26/02/2024
 @param cField, character, Campo(s) a obter a estrutura de dicionário.
 @return array, Estrutura do(s) campos(s) conforme dicionário SX3.

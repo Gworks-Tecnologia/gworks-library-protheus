@@ -2,13 +2,13 @@
 #include "TLPP-Core.th"
 
 /*/{Protheus.doc} GwDeploy
-Função para comparar um diretório de arquivos fontes disponível no SO (Sistema Operacional)
-com os seus correspondentes compilados no RPO (Repositório de Objetos).
+Funï¿½ï¿½o para comparar um diretï¿½rio de arquivos fontes disponï¿½vel no SO (Sistema Operacional)
+com os seus correspondentes compilados no RPO (Repositï¿½rio de Objetos).
 @type function
 @version 12.1.2210
-@author Gworks - Giovani
+@author Gworks - Giovani Soares
 @since 16/02/2024
-@param cArgs, character, parâmetros:
+@param cArgs, character, parï¿½metros:
                             --src-dir Lista de arquivos a serem compilados;
                             --out
 
@@ -37,7 +37,7 @@ User Function GwDeploy( cArgs as character )
 
     Default cArgs := ""
 
-    // Inicializa variáveis
+    // Inicializa variï¿½veis
     nRpo := 3 // somente rpo custom
     cSrc := "*" // todos arquivos
     aSrc := {}

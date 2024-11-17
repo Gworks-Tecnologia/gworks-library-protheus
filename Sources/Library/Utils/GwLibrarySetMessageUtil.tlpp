@@ -10,7 +10,7 @@ Static lBlind__ := ( isBlind() .or. type("CFILANT") == 'U' ) as logical
 Função auxiliar para definir o output da mensagem entre error, log ou ambos.
 @type function
 @version  12.1.2310
-@author Gworks - Giovani
+@author Gworks - Giovani Soares
 @since 29/10/2024
 @param oError, object, Objeto GwError().
 @param oLog, object, Object GwConsoleLog().

@@ -8,7 +8,7 @@ namespace Gworks.Library.Utils
 Retorna o nome de um arquivo com base em um diretório absoluto.
 @type function
 @version 12.1.33
-@author Gworks-Giovani
+@author Gworks - Giovani Soares
 @since 4/15/2023
 @param cFullPath, character, Arquivo com o caminho completo, ex.: "C:\Temp\file.txt"
 @param cToken, character, Separador de subdiretórios, em Windwos "\" e Linux "/"

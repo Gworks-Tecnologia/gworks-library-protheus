@@ -9,7 +9,7 @@ namespace Gworks.Samples
 Exemplo de uso da classe GwEnum() para definição de enumeradores.
 @type function
 @version 12.1.2210
-@author Gworks - Giovani
+@author Gworks - Giovani Soares
 @since 26/03/2024
 @param nOpc, numeric,
 /*/

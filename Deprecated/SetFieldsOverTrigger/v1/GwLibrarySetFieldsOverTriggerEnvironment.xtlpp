@@ -20,13 +20,13 @@ Static nFieldPos__ := 0 as numeric
 Gatilho para atualizar dados a partir do cadastro de cliente
 @type function
 @version 12.1.2210
-@author Gworks - Giovani
+@author Gworks - Giovani Soares
 @since 08/01/2024
 @sample
     Gworks.Environment.U_('SA1',1,'A1_YXPTO')
 /*/
 
-// TODO: repensar código, não precisa retornar múltiplos campos e deve ler a chave diretamente do índice
+// TODO: repensar cï¿½digo, nï¿½o precisa retornar mï¿½ltiplos campos e deve ler a chave diretamente do ï¿½ndice
 User Function GwSet( cAlias as character,;
                                     cKey as character,;
                                     nOrder as numeric,;
@@ -90,7 +90,7 @@ Return xReturn
 Inicializa alias.
 @type function
 @version 12.1.2210
-@author Gworks - Giovani
+@author Gworks - Giovani Soares
 @since 08/01/2024
 /*/
 Static Function fInitAlias()
@@ -130,7 +130,7 @@ Static Function fSetValue( cField as character, xValue as variant )
             GdFieldPut( cField, xValue, nFieldPos__ )
 
         otherwise
-            UserException('SetFieldsOverTrigger:fSetValue - Operação não suportada!')
+            UserException('SetFieldsOverTrigger:fSetValue - Operaï¿½ï¿½o nï¿½o suportada!')
 
     endcase
 

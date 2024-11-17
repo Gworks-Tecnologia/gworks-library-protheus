@@ -8,7 +8,7 @@ namespace Gworks.Solutions.ApiBuilder.Classes
 Definição de enumeradores pertinentes ao projeto.
 @type function
 @version 12.1.2310
-@author Gworks-Giovani
+@author Gworks - Giovani Soares
 @since 6/20/2024
 /*/
 User Function CreateEnum()

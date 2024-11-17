@@ -121,7 +121,7 @@ EndClass
 Valida se a fonte de dados informada via argumento cDataSource condiz com o DataSource real do objeto da classe.
 @type method
 @version 12.1.2210
-@author Gworks - Giovani
+@author Gworks - Giovani Soares
 @since 05/03/2024
 @return logical, sempre retorna 'true'.
 @obs Este método é usado para determinar se outro método pode ou não ser executado, a dependnter da sua origem de dados.
@@ -143,7 +143,7 @@ Return .T.
 Construtor da classe.
 @type method
 @version 12.2210.
-@author Gworks - Giovani
+@author Gworks - Giovani Soares
 @since 05/03/2024
 @param cAlias, character, Alias principal.
 @return object, retorna instância da classe.
@@ -195,7 +195,7 @@ Return Self
 Obtem o objeto de erro da classe.
 @type method
 @version 12.1.2210.
-@author Gworks - Giovani
+@author Gworks - Giovani Soares
 @since 05/03/2024
 @return object, Objeto de erro.
 /*/
@@ -206,7 +206,7 @@ Return ::oError
 Define a Origem de Dados (DataSource) do alias princial do objeto.
 @type method
 @version 12.1.2210
-@author Gworks - Giovani
+@author Gworks - Giovani Soares
 @since 05/03/2024
 @obs Pode-se forçar uma determinada fonte de dados ao informar o argumento cDataSource.
 /*/
@@ -250,7 +250,7 @@ Return
 Abre o alias do objeto e o define como alias corrente.
 @type method
 @version 12.1.2210
-@author Gworks - Giovani
+@author Gworks - Giovani Soares
 @since 05/03/2024
 /*/
 Method SelectArea() as variant Class GwDataAccess
@@ -261,7 +261,7 @@ Return
 Salva área do alias corrente.
 @type method
 @version 12.1.2210
-@author Gworks - Giovani
+@author Gworks - Giovani Soares
 @since 05/03/2024
 /*/
 Method SaveArea() as variant Class GwDataAccess
@@ -284,7 +284,7 @@ Return
 Salva todas as áreas informadas no argumento cNames.
 @type method
 @version 12.1.2210
-@author Gworks - Giovani
+@author Gworks - Giovani Soares
 @since 05/03/2024
 @obs O argumento cNames deve ser separado pelo token ";" em caso de múltiplas áreas.
 /*/
@@ -323,7 +323,7 @@ Return
 Restaura a área do alias atual conforme prévia execução do método SaveArea().
 @type method
 @version 12.1.2210
-@author Gworks - Giovani
+@author Gworks - Giovani Soares
 @since 05/03/2024
 /*/
 Method RestoreArea() as variant Class GwDataAccess
@@ -346,7 +346,7 @@ Return
 Restaura todas as áreas contidas no argumento cNames.
 @type method
 @version 12.1.2210
-@author Gworks - Giovani
+@author Gworks - Giovani Soares
 @since 05/03/2024
 @obs O argumento cNames deve ser separado pelo token ";" em caso de múltiplas áreas.
 /*/
@@ -398,7 +398,7 @@ Return
 Apaga a área contida na propridade aAliasArea.
 @type method
 @version 12.1.2210
-@author Gworks - Giovani
+@author Gworks - Giovani Soares
 @since 05/03/2024
 /*/
 Method EraseArea() as variant Class GwDataAccess
@@ -410,7 +410,7 @@ Return
 Apaga todas as áreas contidas na propridade aOtherAreas.
 @type method
 @version 12.1.2210
-@author Gworks - Giovani
+@author Gworks - Giovani Soares
 @since 05/03/2024
 /*/
 Method EraseOtherAreas() as variant Class GwDataAccess
@@ -422,7 +422,7 @@ Return
 Encerra a área corrente.
 @type method
 @version 12.1.2210
-@author Gworks - Giovani
+@author Gworks - Giovani Soares
 @since 05/03/2024
 /*/
 Method CloseArea() as variant Class GwDataAccess
@@ -441,7 +441,7 @@ Método para restaurar ou fechar a área mediante atributo lOpened, onde:
     - lOpened igual à 'false', fecha a área.
 @type method
 @version 12.1.2210
-@author Gworks - Giovani
+@author Gworks - Giovani Soares
 @since 05/03/2024
 @obs O atributo lOpened sinaliza se a área corrente estava aberta ou não
      no ato da instânciação do objeto.
@@ -465,7 +465,7 @@ Return
 Define/redefine ordenação (índice) no alias corrente conforme argumento xOrder.
 @type method
 @version 12.1.2210
-@author Gworks - Giovani
+@author Gworks - Giovani Soares
 @since 05/03/2024
 @obs xOrder pode ser informado
      conforme:
@@ -505,7 +505,7 @@ Return
 Retorna a ordem do índice do alias corrente.
 @type method
 @version 12.1.2210
-@author Gworks - Giovani
+@author Gworks - Giovani Soares
 @since 05/03/2024
 @return numeric, retorna ordem do índice conforme dicionário SIX.
 /*/
@@ -526,7 +526,7 @@ Return nOrder
 Posiciona no primeiro registro do alias corrente.
 @type method
 @version 12.1.2210
-@author Gworks - Giovani
+@author Gworks - Giovani Soares
 @since 05/03/2024
 /*/
 Method GoTop() as variant Class GwDataAccess
@@ -543,7 +543,7 @@ Return
 Posiciona no último registro do alias corrente.
 @type method
 @version 12.1.2210
-@author Gworks - Giovani
+@author Gworks - Giovani Soares
 @since 05/03/2024
 /*/
 Method GoBottom() as variant Class GwDataAccess
@@ -562,7 +562,7 @@ Return
 Posiciona no ID (campo R_E_C_N_O_) do alias corrente, conforme argumento nRecno informado.
 @type method
 @version 12.1.2210
-@author Gworks - Giovani
+@author Gworks - Giovani Soares
 @since 05/03/2024
 @return logical, retorna 'true' para registro posicionado com sucesso e 'false' para falha na operação.
 /*/
@@ -593,7 +593,7 @@ Return lResult
 Posiciona no próximo registro do alias corrente.
 @type method
 @version 12.1.2210
-@author Gworks - Giovani
+@author Gworks - Giovani Soares
 @since 05/03/2024
 /*/
 Method SkipLine() as variant Class GwDataAccess
@@ -610,7 +610,7 @@ Return
 Habilita a inserção automática da filial na busca de registros realizada pelo método Seek().
 @type method
 @version 12.1.2210
-@author Gworks - Giovani
+@author Gworks - Giovani Soares
 @since 05/03/2024
 /*/
 Method EnableAutoFilial() as variant Class GwDataAccess
@@ -621,7 +621,7 @@ Return
 Desabilita a inserção automática da filial na busca de registros realizada pelo método Seek().
 @type method
 @version 12.1.2210
-@author Gworks - Giovani
+@author Gworks - Giovani Soares
 @since 05/03/2024
 /*/
 Method DisableAutoFilial() as variant Class GwDataAccess
@@ -632,7 +632,7 @@ Return
 Avalia se o argumento cKey corresponde ao registro posicionado.
 @type method
 @version 12.1.2210
-@author Gworks - Giovani
+@author Gworks - Giovani Soares
 @since 05/03/2024
 @return logical, retorna 'true' para chave correspondente e 'false' para chave não correspondente.
 /*/
@@ -669,7 +669,7 @@ Return lResult
 Realiza uma busca no alias corrente conforme conteúdo de cKey.
 @type method
 @version 12.1.2210
-@author Gworks - Giovani
+@author Gworks - Giovani Soares
 @since 05/03/2024
 @return logical, retorna 'true' para busca encontrada e 'false' para busca não encontrada.
 @obs Necessita de um índice definido pelo método SetOrder().
@@ -726,7 +726,7 @@ Return lResult
 Executa uma expressão contida em bExec, avaliando a condição em bCondition para cada linha do alias corrente.
 @type method
 @version 12.1.2210
-@author Gworks - Giovani
+@author Gworks - Giovani Soares
 @since 05/03/2024
 /*/
 Method EvalByCondition( bExec as codeblock, bCondition as codeblock ) as variant Class GwDataAccess
@@ -752,7 +752,7 @@ Return
 Avalia o estado de End Of File (EOF) do alias corrente.
 @type method
 @version 12.1.2210
-@author Gworks - Giovani
+@author Gworks - Giovani Soares
 @since 05/03/2024
 @return logical, retorna 'true' para indicar que está em EOF e 'false' para indicar que não está em EOF.
 /*/
@@ -763,7 +763,7 @@ Return (Self:cAlias)->(EOF())
 Avalia o estado de End Of File (EOF) do alias corrente.
 @type method
 @version 12.1.2210
-@author Gworks - Giovani
+@author Gworks - Giovani Soares
 @since 05/03/2024
 @return logical, retorna 'true' para indicar que não está em EOF e 'false' para indicar que está em EOF.
 /*/
@@ -774,7 +774,7 @@ Return !(Self:cAlias)->(EOF())
 Obtem o total de linhas de área corrente.
 @type method
 @version 12.1.2210
-@author Gworks - Giovani
+@author Gworks - Giovani Soares
 @since 05/03/2024
 @return numeric, nTotal
 /*/
@@ -794,7 +794,7 @@ Return nTotal
 Aplica a expressão de filtro contida em cFilter ao alias corrente.
 @type method
 @version 12.1.2210
-@author Gworks - Giovani
+@author Gworks - Giovani Soares
 @since 05/03/2024
 @return logical, retorna 'true' para sucesso e 'false' para falha na operação de filtragem.
 /*/
@@ -835,7 +835,7 @@ Return lResult
 Remove filtros aplicados ao alias corrente.
 @type method
 @version 12.1.2210
-@author Gworks - Giovani
+@author Gworks - Giovani Soares
 @since 05/03/2024
 /*/
 Method ClearFilter() Class GwDataAccess
@@ -850,7 +850,7 @@ Return
 Retorna o ID de um registro conforme álias corrente no objeto.
 @type method
 @version 12.1.2210
-@author Gworks - Giovani
+@author Gworks - Giovani Soares
 @since 05/03/2024
 @return numeric, ID (campo R_E_C_N_O_) do registro.
 /*/
@@ -868,7 +868,7 @@ Return (cAlias)->(Recno())
 Obtem o conteúdo do campo definido em cFieldName conforme o alias corrente do objeto.
 @type method
 @version 12.1.2210
-@author Gworks - Giovani
+@author Gworks - Giovani Soares
 @since 05/03/2024
 @return variant, retorna o conteúdo do campo.
 @obs Suporta a passagem de vários campos em cFieldName, separados por um token (padrão ";").
@@ -924,7 +924,7 @@ Return xResult
 Define o modo de operação para manipulação de dados por meio dos métodos SetValue() e CommitData().
 @type method
 @version 12.1.2210
-@author Gworks - Giovani
+@author Gworks - Giovani Soares
 @since 05/03/2024
 @return logical, retorna 'true' para modo de operação válido e 'false' para modo de operação inválido.
 @obs Os modos de operação disponíveis para uso,
@@ -953,7 +953,7 @@ Return .T.
 Define o valor de um campo a ser persistido na base de dados.
 @type method
 @version 12.1.2210
-@author Gworks - Giovani
+@author Gworks - Giovani Soares
 @since 05/03/2024
 @obs Depende da execução do método CommitData() para efetivar a persistência na base de dados.
 /*/
@@ -988,7 +988,7 @@ Return
 Persiste os dados no Banco de Dados conforme operação realizada via método SetValue().
 @type method
 @version 12.1.2210
-@author Gworks - Giovani
+@author Gworks - Giovani Soares
 @since 05/03/2024
 /*/
 Method CommitData() Class GwDataAccess
@@ -1048,7 +1048,7 @@ Return
 Cria um novo relacionamento para a tabela principal na classe conforme definido por cAlias.
 @type method
 @version 12.1.33
-@author Gworks - Giovani
+@author Gworks - Giovani Soares
 @since 09/03/2023
 @return logical, .T. sucesso e .F. falha.
 @example
@@ -1123,7 +1123,7 @@ Return lResult
 Reposiciona o relacionamento conforme alias principal.
 @type method
 @version 12.1.33
-@author Gworks - Giovani
+@author Gworks - Giovani Soares
 @since 3/23/2023
 /*/
 Method RefreshRelation() as logical Class GwDataAccess
@@ -1149,7 +1149,7 @@ Considerando que podem haver vários relacionamentos com a entidade principal, se
 o relecionamento desejado conforme definido por cAliasJoin e cIndexJoin.
 @type method
 @version 12.1.33
-@author Gworks - Giovani
+@author Gworks - Giovani Soares
 @since 10/03/2023
 @param cAliasJoin, character, Alias do relacionamento desejado. Ex.: "SC6"
 @param cIndexJoin, character, Índice do relacionamento desejado (opcional). Ex.: "C6_FILIAL+C6_NUM"
@@ -1188,7 +1188,7 @@ Return lResult
 Apenas retorna o conteúdo de um campo conforme tabela relacionada sem alterar seu posicionamento.
 @type method
 @version 12.1.33
-@author Gworks - Giovani
+@author Gworks - Giovani Soares
 @since 10/03/2023
 @return variant, conteúdo do campo.
 /*/
@@ -1208,7 +1208,7 @@ correspondente ao objeto da classe, estava ou não aberta no momento
 da sua instânciação.
 @type method
 @version 12.1.2210
-@author Gworks - Giovani
+@author Gworks - Giovani Soares
 @since 05/03/2024
 @return logical, Retorna 'true' para área aberta previamente e 'false' para área fechada previamente.
 /*/
@@ -1219,7 +1219,7 @@ Return ::lOpened
 Retorna a posição de um determinado campo informado via parâmetro conforme dicionário de dados SX3.
 @type method
 @version 12.1.2210
-@author Gworks - Giovani
+@author Gworks - Giovani Soares
 @since 05/03/2024
 @return numeric, Posição correspondente do campo no dicionário.
 /*/
@@ -1239,7 +1239,7 @@ Return nResult
 Verifica se um campo correspondente ao alías do objeto, existe no dicnário de dados SX3.
 @type method
 @version 12.1.2210
-@author Gworks - Giovani
+@author Gworks - Giovani Soares
 @since 05/03/2024
 @return logical, retorna 'true' para campo existente e 'false' para inexistente.
 /*/

@@ -4,7 +4,7 @@
 Exemplo de função com mock em array.
 @type function
 @version 12.1.2310
-@author Gworks - Giovani
+@author Gworks - Giovani Soares
 @since 10/7/2024
 @param aDados, array, Array de dados.
 /*/
@@ -31,7 +31,7 @@ Return
 Exemplo de função com mock em json
 @type function
 @version 12.1.2310
-@author Gworks - Giovani
+@author Gworks - Giovani Soares
 @since 10/7/2024
 @param aDados, array, Objeto json de dados.
 /*/

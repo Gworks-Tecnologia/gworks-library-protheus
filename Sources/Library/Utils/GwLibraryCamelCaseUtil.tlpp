@@ -6,7 +6,7 @@ namespace Gworks.Library.Utils
 Converte uma string para o patrão CamelCase.
 @type function
 @version 12.22010
-@author Gworks-Giovani
+@author Gworks - Giovani Soares
 @since 5/5/2023
 @param cString, character, String desejada.
 @return character, String formatada.

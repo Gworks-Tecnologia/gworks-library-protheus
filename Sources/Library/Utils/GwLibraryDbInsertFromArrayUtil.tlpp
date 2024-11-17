@@ -14,7 +14,7 @@ namespace Gworks.Library.Utils
 Insere registros em uma tabela do banco de dados
 @type function
 @version 12.1.33
-@author Gworks / Brasoft - Giovani Soares
+@author Gworks / Brasoft - Giovani
 @since 02/05/2022
 @param cAlias, character, nome do alias, exemplo: CT1
 @param aData, array, array de elementos no formato {{"NOME_COLUNA","CONTEUDO"}}, ex.: {{"CT1_FILIAL","0101"},{"CT1_CONTA","1321548112"}}
