@@ -266,7 +266,7 @@ Return
 Salva o arquivo de log em disco.
 @type function
 @version 12.1.33
-@author Brasoft | Gworks - Giovani Soares
+@author Gworks - Giovani Soares
 @since 23/09/2022
 @param cFileName, character, nome do arquivo de log.
 /*/
