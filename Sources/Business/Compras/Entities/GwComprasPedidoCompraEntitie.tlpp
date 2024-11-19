@@ -43,7 +43,7 @@ Method New() Class GwPedidoCompra
     ::cSourceView  := ""
     ::cSourceMenu  := ""
 
-    _Super:New("SC2")
+    _Super:New("SC7")
 
     ::oError:cFunName := "GwPedidoCompra"
 
