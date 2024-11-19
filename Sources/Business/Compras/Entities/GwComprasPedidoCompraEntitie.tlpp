@@ -7,7 +7,7 @@
 using namespace Gworks.Library.Utils
 using namespace Gworks.Library.Classes
 
-namespace Gworks.Business.Producao.Entities
+namespace Gworks.Business.Compras.Entities
 
 Class GwPedidoCompra From GwDataAccess
 
