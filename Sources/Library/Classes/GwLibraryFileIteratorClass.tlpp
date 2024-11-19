@@ -221,7 +221,7 @@ Method EvalByCondition( bLoad as codeblock, bValid as codeblock, bExec as codebl
             Loop // ignora linhas vazias
         endif
 
-        xLoad  := Eval( bLoad, cLine, nI, ::cFile )
+        xLoad := Eval( bLoad, cLine, nI, ::cFile )
 
         lValid := Eval( bValid, xLoad, cLine, nI, ::cFile )
         if ::lStop
