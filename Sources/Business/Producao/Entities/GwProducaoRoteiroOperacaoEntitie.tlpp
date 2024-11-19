@@ -18,7 +18,7 @@ EndClass
 Construtor da classe.
 @type method
 @version 12.1.33
-@author Giovani-Gworks
+@author Gworks - Giovani
 @since 3/27/2023
 @return object, Instância do objeto.
 /*/
@@ -46,7 +46,7 @@ Return Self
 Posiciona a entidade GwRoteiroOperacao conforme identificador (campos G2_PRODUTO+G2_CODIGO).
 @type method
 @version 12.1.33
-@author Giovani-Gworks
+@author Gworks - Giovani
 @since 3/29/2023
 @return logical, Retorna .T. para posicionamento realizado com sucesso e .F. falha.
 /*/

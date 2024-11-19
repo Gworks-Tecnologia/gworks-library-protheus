@@ -19,7 +19,7 @@ EndClass
 Construtor da classe.
 @type method
 @version 12.1.33
-@author Giovani-Gworks
+@author Gworks - Giovani
 @since 3/27/2023
 @return object, Instância do objeto.
 /*/
@@ -47,7 +47,7 @@ Return Self
 Executa a rotina MATA105 por meio de ExecAuto().
 @type method
 @version 12.1.33
-@author Giovani-Gworks
+@author Gworks - Giovani
 @since 3/27/2023
 @param aDados, array, Array de itens no formato KeyValue para inclusão.
 @return logical, .T. sucesso e .F. falha.

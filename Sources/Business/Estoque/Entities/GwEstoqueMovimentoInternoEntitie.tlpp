@@ -17,7 +17,7 @@ EndClass
 Construtor da classe.
 @type method
 @version 12.1.33
-@author Giovani-Gworks
+@author Gworks - Giovani
 @since 3/27/2023
 @return object, Instância do objeto.
 /*/

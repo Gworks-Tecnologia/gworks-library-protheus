@@ -24,7 +24,7 @@ EndClass
 Construtor da classe.
 @type method
 @version 12.1.33
-@author Giovani-Gworks
+@author Gworks - Giovani
 @since 3/27/2023
 @return object, Instância do objeto.
 /*/
@@ -54,7 +54,7 @@ Return Self
 Relaciona a entidade GwSolicitacaoTransferencia (tabela NNS) com a entidade Solicitação de TransferenciaItem (tabela NNT).
 @type method
 @version 12.1.33
-@author Giovani-Gworks
+@author Gworks - Giovani
 @since 3/29/2023
 @return logical, Retorna .T. para relacionamento feito com sucesso e .F. para falhas.
 /*/
@@ -95,7 +95,7 @@ Return lResult
 Executa a rotina MATA105 por meio de ExecAuto().
 @type method
 @version 12.1.33
-@author Giovani-Gworks
+@author Gworks - Giovani
 @since 3/27/2023
 @param aCabec, array, Dados do cabeçalho.
 @param aItens, array, Dados dos itens.

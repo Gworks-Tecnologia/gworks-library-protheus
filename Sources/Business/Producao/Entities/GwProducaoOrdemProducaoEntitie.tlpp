@@ -24,7 +24,7 @@ EndClass
 Construtor da classe.
 @type method
 @version 12.1.33
-@author Giovani-Gworks
+@author Gworks - Giovani
 @since 3/27/2023
 @return object, Instância do objeto.
 /*/
@@ -52,7 +52,7 @@ Return Self
 Obtem novo código conforme campo C2_NUM.
 @type method
 @version 12.1.33
-@author Giovani-Gworks
+@author Gworks - Giovani
 @since 4/26/2023
 @return variant, Retorna o código novo.
 /*/
@@ -68,7 +68,7 @@ Return Soma1(cOrdemProducaoId)
 Confirma a numeração obtida conforme método ObterNovoOrdemProducaoId().
 @type method
 @version 12.1.33
-@author Giovani-Gworks
+@author Gworks - Giovani
 @since 4/26/2023
 /*/
 Method ConfirmarOrdemProducaoId() Class GwOrdemProducao
@@ -81,7 +81,7 @@ Return
 Executa a rotina MATA650 por meio de ExecAuto().
 @type method
 @version 12.1.33
-@author Giovani-Gworks
+@author Gworks - Giovani
 @since 3/27/2023
 @param aKeyValue, array, Array de objetos do tipo KeyValue.
 @param lRunAsJob, logical, Se .T. irá executar o ExecAuto() por meio da função StartJob().
