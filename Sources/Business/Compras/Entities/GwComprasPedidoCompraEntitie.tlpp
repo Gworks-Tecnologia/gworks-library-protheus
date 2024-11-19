@@ -1,0 +1,218 @@
+#include "TOTVS.ch"
+#include "FWMVCDEF.ch"
+#include "MsObject.ch"
+#include "TLPP-Core.th"
+#include "TLPP-Object.th"
+
+using namespace Gworks.Library.Utils
+using namespace Gworks.Library.Classes
+
+namespace Gworks.Business.Producao.Entities
+
+Class GwPedidoCompra From GwDataAccess
+
+    Public Data cResultId as character default ""
+
+    Public Method New()
+    Public Method ObterNovoPedidoCompraId() as character
+    Public Method IncluirPedidoCompra() as logical
+    Public Method ConfirmarPedidoCompraId()
+    Public Method ConverterJsonEmKeyValue() as array
+
+EndClass
+
+/*/{Protheus.doc} GwPedidoCompra::New
+Construtor da classe.
+@type method
+@version 12.1.33
+@author Gworks - Giovani
+@since 3/27/2023
+@return object, Inst‚ncia do objeto.
+/*/
+Method New() Class GwPedidoCompra
+
+    // Inicializa atributos da classe herdada GwDataAccess
+    // Obs.: Sem ao menos referenciar um atributo da classe herdada,
+    //       pode ser que o interpretador gere erro em heranÁa da heranaÁa,
+    //       ou seja, quando uma classe for herdada mais de uma vez.
+    ::cAlias := ""
+
+    // Atributos extendidos a classes herdadas
+    ::cDescription := "Pedido de Compra"
+    ::cSourceModel := ""
+    ::cSourceView  := ""
+    ::cSourceMenu  := ""
+
+    _Super:New("SC2")
+
+    ::oError:cFunName := "GwPedidoCompra"
+
+Return Self
+
+/*/{Protheus.doc} GwPedidoCompra::ObterNovoPedidoCompraId() as character
+Obtem novo cÛdigo conforme campo C2_NUM.
+@type method
+@version 12.1.33
+@author Gworks - Giovani
+@since 4/26/2023
+@return variant, Retorna o cÛdigo novo.
+/*/
+Method ObterNovoPedidoCompraId() as character Class GwPedidoCompra
+
+    Local cPedidoCompraId := "" as character
+
+    cPedidoCompraId := U_GwGetNumbering("SC7", "C7_NUM")
+
+Return Soma1(cPedidoCompraId)
+
+/*/{Protheus.doc} GwPedidoCompra::ConfirmarPedidoCompraId
+Confirma a numeraÁ„o obtida conforme mÈtodo ObterNovoPedidoCompraId().
+@type method
+@version 12.1.33
+@author Gworks - Giovani
+@since 4/26/2023
+/*/
+Method ConfirmarPedidoCompraId() Class GwPedidoCompra
+
+    U_GwConfirmNumbering()
+
+Return
+
+/*/{Protheus.doc} GwPedidoCompra::IncluirPedidoCompra( aKeyValue as array ) as logical
+Executa a rotina MATA650 por meio de ExecAuto().
+@type method
+@version 12.1.33
+@author Gworks - Giovani
+@since 3/27/2023
+@param aKeyValue, array, Array de objetos do tipo KeyValue.
+@param lRunAsJob, logical, Se .T. ir· executar o ExecAuto() por meio da funÁ„o StartJob().
+@param cJobEmpresa, character, Empresa para execuÁ„o via job.
+@param cJobFilial, character, Filial para execuÁ„o via job.
+@return logical, .T. sucesso e .F. falha.
+/*/
+Method IncluirPedidoCompra( aKeyValue as array,;
+                            lRunAsJob as logical,;
+                            cJobEmpresa as character,;
+                            cJobFilial as character ) as logical Class GwPedidoCompra
+
+    Local oExecAuto as object
+
+    Local lResult := .F. as logical
+
+    Private lMsErroAuto := .F. as logical
+
+    Default aKeyValue   := {}
+    Default lRunAsJob   := .F.
+    Default cJobEmpresa := ""
+    Default cJobFilial  := ""
+
+    ::oError:cMethod := "IncluirPedidoCompra"
+
+    if Empty(aKeyValue)
+        ::oError:cError := "Par‚metro aKeyValue n„o informado ou inv·lido!"
+        ::oError:ThrowException()
+    endif
+
+    oExecAuto := GwExecAuto():New("MATA120")
+
+    oExecAuto:SetSuccessExpression( 'SC7->(C7_FILIAL+C7_NUM)' )
+
+    if lRunAsJob
+        oExecAuto:SetStartJob( ;
+            cJobEmpresa, cJobFilial, 'COM', FunName(), {'SB1', 'SBM', 'SC7'} )
+    endif
+
+    oExecAuto:RunExecAuto( MODEL_OPERATION_INSERT, aKeyValue )
+
+    ::oError:lError     := oExecAuto:oError:lError
+    ::oError:cAutoGRLog := oExecAuto:oError:cAutoGRLog
+
+    if !::oError:lError
+        ::cResultId := oExecAuto:cSuccessExpressionResult
+        lResult := .T.
+    endif
+
+Return lResult
+
+/*/{Protheus.doc} GwPedidoCompra::ConverterJsonEmKeyValue
+Retorna array do tipo KeyValue formatado para inclus√£o de Pedidos de Venda via ExecAuto().
+@type method
+@version 12.1.2310
+@author Gworks - Giovani
+@since 07/10/2024
+@param jDados, json, Dados no formato:
+    {
+        "header": {
+            "C7_NUM": null,
+            "C7_EMISSAO": null,
+            "C7_FORNECE": null,
+            "C7_LOJA": null,
+            "C7_COND": null,
+            "C7_CONTATO": null,
+            "C7_FILENT": null
+        }
+        "items":[
+            {
+                "C7_PRODUTO":null,
+                "C7_QUANT":null,
+                "C7_PRECO":null,
+                "C7_TOTAL":null
+            }
+        ]
+    }
+@return array, Retorna dados do cabe√ßalho e itens do Pedido de Compra formatados em KeyValue.
+/*/
+Method ConverterJsonEmKeyValue( jDados as json ) as array Class GwPedidoCompra
+
+    Local jHeader as json
+    Local jItens as json
+
+    Local nI,nJ as numeric
+    Local aNames as array
+    Local cField as character
+
+    Local oHeader as object
+    Local oItem as object
+    Local oItems as object
+
+    Local aResult := {} as array
+
+    jHeader := jDados['header']
+    aItems := jDados['items']
+
+    // Monta o array KeyValue referente ao Header (cabe√ßalho)
+    oHeader := GwKeyValue():New()
+    aNames := jHeader:GetNames()
+    for nI:=1 to Len(aNames)
+
+        cField := aNames[nI]
+
+        oHeader:add( cField, jHeader[cField] )
+
+    next
+    FwFreeArray(aNames)
+
+    // Monta o array KeyValue referente aos Items (itens) do Pedido de Compra
+    oItems := GwKeyValue():New()
+    for nI:=1 to Len(aItems)
+
+        jItens := aItems[nI]
+        aNames := jItens:GetNames()
+        oItem := GwKeyValue():New()
+        for nJ:=1 to len(aNames)
+
+            cField := aNames[nJ]
+
+            oItem:aAdd( cField, jItens[cField] )
+
+        next
+
+        oItems:aAdd( "Item" + cValToChar(nI), oItem )
+
+    next
+    FwFreeArray(aNames)
+
+    aAdd( aResult, oHeader )
+    aAdd( aResult, oItems  )
+
+Return aResult
