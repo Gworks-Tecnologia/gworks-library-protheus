@@ -86,7 +86,7 @@ Method HasChildren( nPos as numeric ) as logical Class GwKeyValue
     Default nPos := 1 // vlr. padrão = 1 (mantido por compatibilidade)
 
     if  ValType(::aKeyValue[nPos,2]) == "O" .And. ;
-        AllTrim(Upper(GetClassName(::aKeyValue[1,2]))) == "GWORKS.LIBRARY.CLASSES.GWKEYVALUE"
+        AllTrim(Upper(GetClassName(::aKeyValue[nPos,2]))) == "GWORKS.LIBRARY.CLASSES.GWKEYVALUE"
 
         lResult := .T.
 
