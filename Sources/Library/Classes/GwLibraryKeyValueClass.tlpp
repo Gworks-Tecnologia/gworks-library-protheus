@@ -107,7 +107,7 @@ Method GetChildren( nPos as numeric ) as object Class GwKeyValue
 
     Default nPos := 1 // vlr. padrão = 1 (mantido por compatibilidade)
 
-    if ::HasChildren()
+    if ::HasChildren(nPos)
         oResult := ::aKeyValue[nPos,2]
     endif
 
