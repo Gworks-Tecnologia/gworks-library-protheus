@@ -37,12 +37,19 @@ Class GwKeyValue
 EndClass
 
 
-Method New() Class GwKeyValue
+Method New( cKey as character, xValue as variant ) Class GwKeyValue
+
+    Default cKey := ""
+    Default xValue := nil
 
     Self:aKeyValue := {}
     Self:cLastMatch := ""
     Self:cLastMatchType := ""
     Self:nLastMatchPos := 0
+
+    if !empty(cKey) .And. !empty(xValue)
+        ::Add(cKey, xValue)
+    endif
 
 Return Self
 

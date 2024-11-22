@@ -383,6 +383,12 @@ Exibe a mensagem de erro, aviso ou log, conforme defindo por ::cAutoGRLog.
 @since 3/21/2023
 /*/
 Method ShowAutoGRLog() as variant Class GwError
+    if type('lAutoErrNoFile') == 'U'
+        Private lAutoErrNoFile := .F.
+    endif
+    if lAutoErrNoFile
+        lAutoErrNoFile := .F.
+    endif
     AutoGRLog(::cAutoGRLog)
     MostraErro()
 Return

@@ -160,7 +160,8 @@ Method RunExecAuto( nOperation as numeric, aKeyValue as array ) as logical Class
 
     Local nI            := 0    as numeric
     Local nY            := 0    as numeric
-
+    Local nChildTot     := 0    as numeric
+    Local nChildCnt     := 0    as numeric
     Local aData         := {}   as array
     Local aChildren     := {}   as array
     Local lChildren     := .F.  as logical
@@ -179,34 +180,58 @@ Method RunExecAuto( nOperation as numeric, aKeyValue as array ) as logical Class
 
     for nI:=1 to Len(aKeyValue)
 
-        aChildren := {}
         lChildren := .F.
 
         aAdd( aData, {} )
 
         oKeyValue := aKeyValue[nI]
 
-        // Verifica se o objeto possui elementos filhos (itens)
-        while oKeyValue:HasChildren()
-            oKeyValue := oKeyValue:GetChildren()
-            lChildren := .T.
-        enddo
-
-        // Processa os elementos do objeto
-        for nY:=1 to oKeyValue:Length()
-            cField := oKeyValue:GetNameByPosition(nY)
-            xValue := oKeyValue:GetValueByPosition(nY)
-            if !lChildren
-                aAdd( aData[nI], { cField, xValue, nil } )
-            else
-                aAdd( aChildren, { cField, xValue, nil } )
-            endif
-        next
-
-        // Adicionar os elementos filhos
-        if lChildren
-            aAdd( aData[nI], aChildren )
+        // Verifica se o objeto é do tipo estático
+        if oKeyValue:KeyExists("static")
+            aData[nI] := oKeyValue:GetValueByKey("static")
+            loop
         endif
+
+        // Verifica se o objeto possui elementos filhos (itens)
+        if oKeyValue:HasChildren()
+            nChildCnt := 1
+            nChildTot := oKeyValue:Length()
+            lChildren := .T.
+        endif
+
+        while .T.
+
+            if lChildren
+                aChildren := {}
+                oKeyValue := aKeyValue[nI]
+                oKeyValue := oKeyValue:GetChildren(nChildCnt)
+            endif
+
+            // Processa os elementos do objeto
+            for nY:=1 to oKeyValue:Length()
+                cField := oKeyValue:GetNameByPosition(nY)
+                xValue := oKeyValue:GetValueByPosition(nY)
+                if !lChildren
+                    aAdd( aData[nI], { cField, xValue, nil } )
+                else
+                    aAdd( aChildren, { cField, xValue, nil } )
+                endif
+            next
+
+            if !lChildren
+                exit
+            else
+                aAdd( aData[nI], aClone(aChildren) )
+                do case
+                    case nChildCnt < nChildTot
+                        nChildCnt++
+                        loop
+                    case nChildCnt == nChildTot
+                        exit
+                endcase
+            endif
+
+        enddo
 
     next
 

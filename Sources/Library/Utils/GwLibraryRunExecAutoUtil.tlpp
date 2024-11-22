@@ -53,9 +53,9 @@ User Function GwRunExecAuto( aData as array,;
     Default cJobName    := ""
     Default aJobTables  := {}
 
-    Private lMSHelpAuto    := .T. as logical
-    Private lAutoErrNoFile := .T. as logical
-    Private lMsErroAuto    := .F. as logical
+    Private lMSHelpAuto    := .T. as logical // Habilita a captura das mensagens de erro
+    Private lAutoErrNoFile := .T. as logical // Desabilita a geração do arquivo de log padrão do sistema
+    Private lMsErroAuto    := .F. as logical // Indica de se houve erro não fatal durante a execução
 
     // Determina se é execução com sem interface gráfica
     lBlind := IsBlind()
@@ -76,10 +76,10 @@ User Function GwRunExecAuto( aData as array,;
     oError := GwError():New()
 
     // Monta o bloco de código que será executado
-    cParamActual := "q"
+    cParamActual := "a"
     cParamResult := ""
     for nI:=1 to Len(aData)+1 // adiciona mais 1 devido à operação (inclusão, alteração, etc...)
-        cParamResult += if( !empty(cParamResult),", ","" ) + cParamActual // "q, r, s" etc...
+        cParamResult += if( !empty(cParamResult),", ","" ) + cParamActual // "a, b, c" etc...
         cParamActual := soma1(cParamActual)
     next
     cBlock := "{ | "+cParamResult+" | "+cExecAuto+"( "+cParamResult+" ) }"
@@ -90,7 +90,7 @@ User Function GwRunExecAuto( aData as array,;
 
     // Executa o ExecAuto dinamicamente conforme quantidade de parâmetros
     // Exemplo:
-    //  - MsExecAuto( { | q, r, s | Mata105( q, r, s ) }, aCabec, aItens, nOpc )
+    //  - MsExecAuto( { | a, b, c | Mata105( q, r, s ) }, aCabec, aItens, nOpc )
     do case
 
         case nLenParams == 01
