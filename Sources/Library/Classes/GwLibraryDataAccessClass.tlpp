@@ -28,6 +28,7 @@ Class GwDataAccess
     Public Data aQuery       as array     default {}
     Public Data aInsert      as array     default {}
     Public Data aUpdate      as array     default {}
+    Public Data aDelete      as array     default {}
     Public Data lOpened      as logical   default .F.
     Public Data nRecnoId     as numeric   default 0
     Public Data nOperation   as numeric   default 0
@@ -942,6 +943,7 @@ Method SetOperation( nOperation as numeric ) as logical Class GwDataAccess
         case nOperation == MODEL_OPERATION_VIEW  ; ::nOperation := nOperation
         case nOperation == MODEL_OPERATION_UPDATE; ::nOperation := nOperation
         case nOperation == MODEL_OPERATION_INSERT; ::nOperation := nOperation
+        case nOperation == MODEL_OPERATION_DELETE; ::nOperation := nOperation
         otherwise
             Return .F.
 
@@ -955,27 +957,47 @@ Define o valor de um campo a ser persistido na base de dados.
 @version 12.1.2210
 @author Gworks - Giovani Soares
 @since 05/03/2024
+@param xParam, variant, Comportamento variável conforme: (1) nome do campo p/ inserção/atualização e (2) recno do registro para deleção.
+@param xValue, variant, Assume o valor que deverá ser submetido para os modos de inserção e atualização, não usado no modo de deleção.
 @obs Depende da execução do método CommitData() para efetivar a persistência na base de dados.
 /*/
-Method SetValue( cFieldName as character, xValue as variant ) as variant Class GwDataAccess
+Method SetValue( xParam as variant, xValue as variant ) as variant Class GwDataAccess
+
+    Default xValue := nil
 
     Local cAlias := "" as character
+    Local cFieldName := "" as character
+    Local nRecno := 0 as numeric
 
     ::ValidDataSource(REQUIRE_DATASOURCE_DICTIONARY)
 
     cAlias := Self:cAlias
 
-    do case
-
-        case ::nOperation == MODEL_OPERATION_UPDATE
-
-            aAdd(::aUpdate, {cFieldName, xValue} ) // TODO: criar melhoria para atualizar o relacionamento quando houver...
-
+    do case // TODO: criar melhoria para atualizar o relacionamento quando houver...
 
         case ::nOperation == MODEL_OPERATION_INSERT
+            if valtype(xParam) != 'C'
+                UserException("GwDataAccess:SetValue - Argumento xParam não pode ser diferente de Character para a operação INSERT.")
+            endif
+            if valType(xValue) == 'U'
+                UserException("GwDataAccess:SetValue - Argumento xValue não pode ser nulo para a operação INSERT.")
+            endif
+            cFieldName := xParam
+            aAdd(::aInsert, { cFieldName, xValue } )
 
-            aAdd(::aInsert, {cFieldName, xValue} ) // TODO: criar melhoria para atualizar o relacionamento quando houver...
+        case ::nOperation == MODEL_OPERATION_UPDATE
+            if valtype(xParam) != 'C'
+                UserException("GwDataAccess:SetValue - Argumento xParam não pode ser diferente de Character para a operação UPDATE.")
+            endif
+            if valType(xValue) == 'U'
+                UserException("GwDataAccess:SetValue - Argumento xValue não pode ser nulo para a operação UPDATE.")
+            endif
+            cFieldName := xParam
+            aAdd(::aUpdate, { cFieldName, xValue } )
 
+        case ::nOperation == MODEL_OPERATION_DELETE
+            nRecno := iif( valType(xParam) == 'N', xParam, (cAlias)->(Recno()) ) // obtem o recno de xParam (se informado) ou do registro posicionado
+            aAdd(::aDelete, nRecno )
 
         otherwise
             UserException("GwDataAccess:SetValue - Modo de operação inválido para o método!")
@@ -997,6 +1019,7 @@ Method CommitData() Class GwDataAccess
     Local nI as numeric
     Local cFieldName as character
     Local cAlias as character
+    Local lDelete as logical
     Local xValue as variant
 
     ::ValidDataSource(REQUIRE_DATASOURCE_DICTIONARY)
@@ -1004,6 +1027,8 @@ Method CommitData() Class GwDataAccess
     cAlias := Self:cAlias
 
     aData := {}
+
+    lDelete := .F.
 
     BEGIN TRANSACTION
 
@@ -1017,7 +1042,6 @@ Method CommitData() Class GwDataAccess
 
             Self:aInsert := {}
 
-
         case ::nOperation == MODEL_OPERATION_UPDATE
 
             RecLock(cAlias, .F. )
@@ -1026,21 +1050,43 @@ Method CommitData() Class GwDataAccess
 
             Self:aUpdate := {}
 
+        case ::nOperation == MODEL_OPERATION_DELETE
+
+            aData := aClone(Self:aDelete)
+
+            Self:aUpdate := {}
+
+            lDelete := .T.
+
     endcase
 
     for nI:=1 to Len(aData)
 
-        cFieldName := aData[nI,1]
+        if!( lDelete )
 
-        xValue := aData[nI,2]
+            cFieldName := aData[nI,1]
 
-        (cAlias)->&(cFieldName) := xValue
+            xValue := aData[nI,2]
+
+            (cAlias)->&(cFieldName) := xValue
+
+        else
+
+            (cAlias)->(DbGoTo(aData[nI]))
+
+            (cAlias)->(DbDelete())
+
+        endif
 
     next
 
-    (cAlias)->(MsUnLock())
+    if!( lDelete )
+        (cAlias)->(MsUnLock())
+    endif
 
     END TRANSACTION
+
+    ::nOperation := 0
 
 Return
 
