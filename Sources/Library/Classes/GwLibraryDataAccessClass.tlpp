@@ -30,6 +30,7 @@ Class GwDataAccess
     Public Data aUpdate      as array     default {}
     Public Data aDelete      as array     default {}
     Public Data lOpened      as logical   default .F.
+    Public Data lFilter      as logical   default .F.
     Public Data nRecnoId     as numeric   default 0
     Public Data nOperation   as numeric   default 0
 
@@ -100,6 +101,7 @@ Class GwDataAccess
     Public Method GetValue( cFieldName as character, cToken as character ) as variant
     Public Method SetOperation( nOperation as numeric ) as logical
     Public Method SetValue( cFieldName as character, xValue as variant )
+    Public Method SetDelete( nRecno as numeric )
     Public Method CommitData()
 
     // Métodos de relacionamentos entre entidades
@@ -167,6 +169,7 @@ Method New( cAlias as character ) Class GwDataAccess
     Self:aAliasArea := (cAlias)->(GetArea())
     Self:aInsert := {}
     Self:aUpdate := {}
+    Self:aDelete := {}
     Self:aQuery := {}
     Self:aRelation := {}
     Self:aOtherAreas := {}
@@ -176,6 +179,7 @@ Method New( cAlias as character ) Class GwDataAccess
     Self:lFound := .F.
     Self:lRelation := .F.
     Self:lOpened := Select(cAlias) > 0
+    Self:lFilter := .F.
 
     Self:SelectArea()
     Self:SetDataSource()
@@ -447,13 +451,23 @@ Método para restaurar ou fechar a área mediante atributo lOpened, onde:
 @obs O atributo lOpened sinaliza se a área corrente estava aberta ou não
      no ato da instânciação do objeto.
 /*/
-Method ReleaseArea() as variant Class GwDataAccess
+Method ReleaseArea( lClearFilter as logical ) as variant Class GwDataAccess
+
+    Default lClearFilter := .F.
 
     Local cAlias := "" as character
 
     ::ValidDataSource(REQUIRE_DATASOURCE_DICTIONARY)
 
     cAlias := Self:cAlias
+
+    if( ::lFilter .And. lClearFilter )
+
+        ::ClearFilter()
+
+        ::lFilter := .F.
+
+    endif
 
     do case
         case  ::lOpened ; ::RestoreArea()
@@ -827,6 +841,7 @@ Method SetFilter( cFilter as character ) as logical Class GwDataAccess
     (::cAlias)->(DbGotop())
 
     if !(::cAlias)->(EOF())
+        ::lFilter := .T.
         lResult := .T.
     endif
 
@@ -952,57 +967,69 @@ Method SetOperation( nOperation as numeric ) as logical Class GwDataAccess
 Return .T.
 
 /*/{Protheus.doc} GwDataAccess::SetValue( cFieldName as character, xValue as variant ) as variant
-Define o valor de um campo a ser persistido na base de dados.
+Define valores para Inclusão/Alteração conforme tabela referênciada em Self:cAlias.
 @type method
 @version 12.1.2210
 @author Gworks - Giovani Soares
 @since 05/03/2024
-@param xParam, variant, Comportamento variável conforme: (1) nome do campo p/ inserção/atualização e (2) recno do registro para deleção.
-@param xValue, variant, Assume o valor que deverá ser submetido para os modos de inserção e atualização, não usado no modo de deleção.
+@param cFieldName, variant, Nome do campo para Inclusão/Alteração.
+@param xValue, variant, Conteúdo correspondente.
 @obs Depende da execução do método CommitData() para efetivar a persistência na base de dados.
 /*/
-Method SetValue( xParam as variant, xValue as variant ) as variant Class GwDataAccess
+Method SetValue( cFieldName as character, xValue as variant ) as variant Class GwDataAccess
 
+    Default cFieldName := nil
     Default xValue := nil
 
     Local cAlias := "" as character
-    Local cFieldName := "" as character
-    Local nRecno := 0 as numeric
 
     ::ValidDataSource(REQUIRE_DATASOURCE_DICTIONARY)
+
+    if valType(cFieldName) == 'U'
+        UserException("GwDataAccess:SetValue - Argumento cFieldName não pode ser nulo para a operação INSERT/UPDATE.")
+    endif
+
+    if valType(xValue) == 'U'
+        UserException("GwDataAccess:SetValue - Argumento xValue não pode ser nulo para a operação INSERT/UPDATE.")
+    endif
 
     cAlias := Self:cAlias
 
     do case // TODO: criar melhoria para atualizar o relacionamento quando houver...
 
         case ::nOperation == MODEL_OPERATION_INSERT
-            if valtype(xParam) != 'C'
-                UserException("GwDataAccess:SetValue - Argumento xParam não pode ser diferente de Character para a operação INSERT.")
-            endif
-            if valType(xValue) == 'U'
-                UserException("GwDataAccess:SetValue - Argumento xValue não pode ser nulo para a operação INSERT.")
-            endif
-            cFieldName := xParam
             aAdd(::aInsert, { cFieldName, xValue } )
 
         case ::nOperation == MODEL_OPERATION_UPDATE
-            if valtype(xParam) != 'C'
-                UserException("GwDataAccess:SetValue - Argumento xParam não pode ser diferente de Character para a operação UPDATE.")
-            endif
-            if valType(xValue) == 'U'
-                UserException("GwDataAccess:SetValue - Argumento xValue não pode ser nulo para a operação UPDATE.")
-            endif
-            cFieldName := xParam
             aAdd(::aUpdate, { cFieldName, xValue } )
-
-        case ::nOperation == MODEL_OPERATION_DELETE
-            nRecno := iif( valType(xParam) == 'N', xParam, (cAlias)->(Recno()) ) // obtem o recno de xParam (se informado) ou do registro posicionado
-            aAdd(::aDelete, nRecno )
 
         otherwise
             UserException("GwDataAccess:SetValue - Modo de operação inválido para o método!")
 
     endcase
+
+Return
+
+/*/{Protheus.doc} GwDataAccess::SetDelete
+Define id's (recno) para deleção conforme tabela referênciada em Self:cAlias.
+@type method
+@version 12.1.2310
+@author Gworks - Giovani
+@since 12/2/2024
+@param nRecno, numeric, Id correspondente para deleção.
+@obs Depende da execução do método CommitData() para efetivar a persistência na base de dados.
+/*/
+Method SetDelete( nRecno as numeric ) Class GwDataAccess
+
+    Local nRecDel as numeric
+
+    if!(::nOperation == MODEL_OPERATION_DELETE)
+        UserException("GwDataAccess:SetDelete - Modo de operação inválido para o método!")
+    endif
+
+    nRecDel := iif( valType(nRecno) == 'N', nRecno, (::cAlias)->(Recno()) )
+
+    aAdd(::aDelete, nRecDel)
 
 Return
 
@@ -1054,7 +1081,7 @@ Method CommitData() Class GwDataAccess
 
             aData := aClone(Self:aDelete)
 
-            Self:aUpdate := {}
+            Self:aDelete := {}
 
             lDelete := .T.
 
@@ -1074,14 +1101,18 @@ Method CommitData() Class GwDataAccess
 
             (cAlias)->(DbGoTo(aData[nI]))
 
+            RecLock(cAlias, .F. )
+
             (cAlias)->(DbDelete())
 
         endif
 
     next
 
-    if!( lDelete )
-        (cAlias)->(MsUnLock())
+    (cAlias)->(MsUnLock())
+
+    if lDelete
+        (cAlias)->(DbGoTop())
     endif
 
     END TRANSACTION
