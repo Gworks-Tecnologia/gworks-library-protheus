@@ -51,7 +51,7 @@ User Function SxUtilGetFieldPrefixByAlias( cAlias as character, lUnderline as lo
     endif
 
     if Left(cAlias,1) == "S"
-        cResult := Rigth(cAlias,2)
+        cResult := Right(cAlias,2)
     else
         cResult := cAlias
     endif
