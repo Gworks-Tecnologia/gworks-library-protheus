@@ -1,6 +1,6 @@
 #include "tlpp-core.th"
 
-namespace Gworks.Library.Functions
+namespace Gworks.Library.Utils
 
 /*/{Protheus.doc} GetMessage
 Inicializa a variável passada por parâmetro com a seguinte estrutura json:
