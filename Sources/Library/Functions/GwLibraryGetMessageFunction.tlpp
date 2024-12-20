@@ -1,0 +1,32 @@
+#include "tlpp-core.th"
+
+namespace Gworks.Library.Functions
+
+/*/{Protheus.doc} GetMessage
+Inicializa a variável passada por parâmetro com a seguinte estrutura json:
+{
+    "cState" : character
+    "cError" : character
+    "cSuggestion" : character
+    "cTitle" : character
+    "lError" : character
+    "cDetails" : character
+}
+@type function
+@version 12.1.2310
+@author Gworks - Giovani
+@since 20/12/2024
+@param jMessage, json, Variável a ser incializada.
+/*/
+User Function GetMessage( jMessage as json )
+
+    jMessage := JsonObject():New()
+
+    jMessage["cState"] := ""
+    jMessage["cError"] := ""
+    jMessage["cSuggestion"] := ""
+    jMessage["cTitle"] := ""
+    jMessage["lError"] := ""
+    jMessage["cDetails"] := ""
+
+Return
