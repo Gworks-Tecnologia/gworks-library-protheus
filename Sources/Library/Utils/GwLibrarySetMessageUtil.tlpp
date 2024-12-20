@@ -80,7 +80,7 @@ User Function GwSetMessage(;
 
     if !lBlind__
 
-        cStyle := iif( aScan( aNames, "cStyle" ), jMessage["cStyle"], "HELP" )
+        cStyle := iif( aScan( aNames, "cStyle" ) > 0, jMessage["cStyle"], "HELP" )
 
         oError:ShowError(cStyle)
 
