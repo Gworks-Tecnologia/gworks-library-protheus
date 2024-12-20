@@ -10,23 +10,29 @@ Monta uma variável de mensagens de maneira estruturada.
 @since 20/12/2024
 @return json, Variável jMessage no formato:
     {
-        "cState" : character
-        "cError" : character
-        "cSuggestion" : character
-        "cTitle" : character
-        "lError" : logical
-        "cDetails" : character
+        "cState" : 'string',
+        "cError" : 'string',
+        "cSuggestion" : 'string',
+        "cTitle" : 'string',
+        "cStyle" : 'string',
+        "lError" : 'boolean',
+        "cDetails" : 'string'
     }
 @obs
-    - cState: Usado pela classe GwConsoleLog(), representa o estado do log, entre:
+    cState: Usado pela classe GwConsoleLog(), representa o estado do log, entre:
         - FAULT
         - SUCCESS
         - INFO
-    - cError: Usado pelas classes GwConsoleLog() e GwError(), representa a mensagem de erro a ser considerdada;
-    - cSuggestion: Usado pela classe GwError(), representa a mensagem de sugestão/ação a ser considerada;
-    - cTitle: Usado pela classe GwError(), representa o Título da mensagem;
-    - lError: Usado pela classe GwError(), se .T. (true) indica que houve erro/falha no processamento e .F. (false) caso contrário;
-    - cDetails: Usado pelas classes GwConsoleLog() e GwError(), campo destinado a log/exibição de textos longos.
+    cError: Usado pelas classes GwConsoleLog() e GwError(), representa a mensagem de erro a ser considerdada;
+    cSuggestion: Usado pela classe GwError(), representa a mensagem de sugestão/ação a ser considerada;
+    cTitle: Usado pela classe GwError(), representa o Título da mensagem;
+    cStyle: Usado pela classe GwError() para determinar a estilo da mensagem a ser exibida, entre:
+        - INFO - FwAlertInfo()
+        - STOP - FwAlertStop()
+        - ALERT - FwAlertWarning()
+        - HELP - Help()
+    lError: Usado pela classe GwError(), se .T. (true) indica que houve erro/falha no processamento e .F. (false) caso contrário;
+    cDetails: Usado pelas classes GwConsoleLog() e GwError(), campo destinado a log/exibição de textos longos.
 /*/
 User Function GwGetMessage()
 
@@ -38,6 +44,7 @@ User Function GwGetMessage()
     jMessage["cError"] := ""
     jMessage["cSuggestion"] := ""
     jMessage["cTitle"] := ""
+    jMessage["cStyle"] := ""
     jMessage["lError"] := .F.
     jMessage["cDetails"] := ""
 

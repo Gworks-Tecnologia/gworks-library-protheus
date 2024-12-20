@@ -14,13 +14,14 @@ Função auxiliar para definir o output da mensagem entre error, log ou ambos.
 @since 29/10/2024
 @param oError, object, Objeto GwError().
 @param oLog, object, Object GwConsoleLog().
-@param jParam, json, Mensagens no formato:
+@param jMessage, json, Mensagens no formato:
         {
-            "cState" : 'string'
-            "cError" : 'string'
-            "cSuggestion" : 'string'
-            "cTitle" : 'string'
-            "lError" : 'logical'
+            "cState" : 'string',
+            "cError" : 'string',
+            "cSuggestion" : 'string',
+            "cTitle" : 'string',
+            "cStyle : 'string',
+            "lError" : 'logical',
             "cDetails" : 'string'
         }
 @param cOpc, character, Modo de operação, entre:
@@ -33,7 +34,24 @@ Função auxiliar para definir o output da mensagem entre error, log ou ambos.
 User Function GwSetMessage(;
                     oError as object,;
                     oLog as object,;
-                    jParam as json )
+                    jMessage as json )
+
+    Local cStyle as character
+    Local aNames := jMessage:GetNames() as array
+
+    if valType(jMessage) != 'J'
+        UserException("GwSetMessage - Parâmetro jMessage não é Json!")
+    endif
+
+    if( aSan(aNames, "cState" ) == 0 .or.;
+        aSan(aNames, "cError" ) == 0 .or.;
+        aSan(aNames, "cSuggestion" ) == 0 .or.;
+        aSan(aNames, "cTitle" ) == 0 .or.;
+        aSan(aNames, "lError" ) == 0 .or.;
+        aSan(aNames, "cDetails" ) == 0 )
+
+        UserException("GwSetMessage - Parâmetro jMessage inválido!")
+    endif
 
     if valType(oError) != 'O'
         oError := GwError():New()
@@ -44,24 +62,28 @@ User Function GwSetMessage(;
     endif
 
     oError:SetError( ;
-                jParam['cError'],;
-                jParam['cSuggestion'],;
-                jparam['cTitle'],;
-                jParam['lError'] )
+                jMessage['cError'],;
+                jMessage['cSuggestion'],;
+                jMessage['cTitle'],;
+                jMessage['lError'] )
 
-    oLog:SetState(upper(jParam['cState']))
-    oLog:SetMessage(upper(fwNoAccent(jParam['cError'])), .T., .F.)
+    oLog:SetState(upper(jMessage['cState']))
+    oLog:SetMessage(upper(fwNoAccent(jMessage['cError'])), .T., .F.)
 
-    if !empty(jParam['cDetails'])
+    if !empty(jMessage['cDetails'])
 
-        oError:SetAutoGRLog( jParam['cDetails'] )
+        oError:SetAutoGRLog( jMessage['cDetails'] )
 
-        oLog:SetMessage(jParam['cDetails'], .T., .F. )
+        oLog:SetMessage(jMessage['cDetails'], .T., .F. )
 
     endif
 
     if !lBlind__
-        oError:ShowError()
+
+        cStyle := iif( aScan( aNames, "cStyle" ), jMessage["cStyle"], "HELP" )
+
+        oError:ShowError(cStyle)
+
     endif
 
 Return
