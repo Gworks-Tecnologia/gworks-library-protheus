@@ -2,23 +2,35 @@
 
 namespace Gworks.Library.Utils
 
-/*/{Protheus.doc} GetMessage
-Inicializa a variável passada por parâmetro com a seguinte estrutura json:
-{
-    "cState" : character
-    "cError" : character
-    "cSuggestion" : character
-    "cTitle" : character
-    "lError" : character
-    "cDetails" : character
-}
+/*/{Protheus.doc} GwGetMessage
+Monta uma variável de mensagens de maneira estruturada.
 @type function
 @version 12.1.2310
 @author Gworks - Giovani
 @since 20/12/2024
-@param jMessage, json, Variável a ser incializada.
+@return json, Variável jMessage no formato:
+    {
+        "cState" : character
+        "cError" : character
+        "cSuggestion" : character
+        "cTitle" : character
+        "lError" : logical
+        "cDetails" : character
+    }
+@obs
+    - cState: Usado pela classe GwConsoleLog(), representa o estado do log, entre:
+        - FAULT
+        - SUCCESS
+        - INFO
+    - cError: Usado pelas classes GwConsoleLog() e GwError(), representa a mensagem de erro a ser considerdada;
+    - cSuggestion: Usado pela classe GwError(), representa a mensagem de sugestão/ação a ser considerada;
+    - cTitle: Usado pela classe GwError(), representa o Título da mensagem;
+    - lError: Usado pela classe GwError(), se .T. (true) indica que houve erro/falha no processamento e .F. (false) caso contrário;
+    - cDetails: Usado pelas classes GwConsoleLog() e GwError(), campo destinado a log/exibição de textos longos.
 /*/
-User Function GetMessage( jMessage as json )
+User Function GwGetMessage()
+
+    Local jMessage as json
 
     jMessage := JsonObject():New()
 
@@ -26,7 +38,7 @@ User Function GetMessage( jMessage as json )
     jMessage["cError"] := ""
     jMessage["cSuggestion"] := ""
     jMessage["cTitle"] := ""
-    jMessage["lError"] := ""
+    jMessage["lError"] := .F.
     jMessage["cDetails"] := ""
 
-Return
+Return jMessage
