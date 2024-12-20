@@ -43,12 +43,12 @@ User Function GwSetMessage(;
         UserException("GwSetMessage - Parâmetro jMessage não é Json!")
     endif
 
-    if( aSan(aNames, "cState" ) == 0 .or.;
-        aSan(aNames, "cError" ) == 0 .or.;
-        aSan(aNames, "cSuggestion" ) == 0 .or.;
-        aSan(aNames, "cTitle" ) == 0 .or.;
-        aSan(aNames, "lError" ) == 0 .or.;
-        aSan(aNames, "cDetails" ) == 0 )
+    if( aScan(aNames, "cState" ) == 0 .or.;
+        aScan(aNames, "cError" ) == 0 .or.;
+        aScan(aNames, "cSuggestion" ) == 0 .or.;
+        aScan(aNames, "cTitle" ) == 0 .or.;
+        aScan(aNames, "lError" ) == 0 .or.;
+        aScan(aNames, "cDetails" ) == 0 )
 
         UserException("GwSetMessage - Parâmetro jMessage inválido!")
     endif
