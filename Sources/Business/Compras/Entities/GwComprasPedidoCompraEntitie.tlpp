@@ -160,7 +160,7 @@ Retorna array do tipo KeyValue formatado para inclus√£o de Pedidos de Venda via 
             }
         ]
     }
-@return array, Retorna dados do cabe√ßalho e itens do Pedido de Compra formatados em KeyValue.
+@return array, Retorna dados do CabeÁalho e itens do Pedido de Compra formatados em KeyValue.
 /*/
 Method ConverterJsonEmKeyValue( jDados as json ) as array Class GwPedidoCompra
 
@@ -180,7 +180,7 @@ Method ConverterJsonEmKeyValue( jDados as json ) as array Class GwPedidoCompra
     jHeader := jDados['header']
     aItems := jDados['items']
 
-    // Monta o array KeyValue referente ao Header (cabe√ßalho)
+    // Monta o array KeyValue referente ao Header (CabeÁalho)
     oHeader := GwKeyValue():New()
     aNames := jHeader:GetNames()
     for nI:=1 to Len(aNames)
