@@ -162,7 +162,7 @@ Retorna array do tipo KeyValue formatado para Inclusão de Pedidos de Venda via E
     }
 @return array, Retorna dados do Cabeçalho e itens do Pedido de Compra formatados em KeyValue.
 /*/
-Method ConverterJsonEmKeyValue( jDados as json ) as array Class GwPedidoCompra
+Method ConverterJsonEmKeyValue( jDados as json ) as array Class GwPedidoCompra // TODO: avaliar possibilidade de remover trecho do código...
 
     Local jHeader as json
     Local jItens as json
