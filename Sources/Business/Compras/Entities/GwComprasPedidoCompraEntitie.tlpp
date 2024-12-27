@@ -135,7 +135,7 @@ Method IncluirPedidoCompra( aKeyValue as array,;
 Return lResult
 
 /*/{Protheus.doc} GwPedidoCompra::ConverterJsonEmKeyValue
-Retorna array do tipo KeyValue formatado para inclus√£o de Pedidos de Venda via ExecAuto().
+Retorna array do tipo KeyValue formatado para Inclus„o de Pedidos de Venda via ExecAuto().
 @type method
 @version 12.1.2310
 @author Gworks - Giovani
