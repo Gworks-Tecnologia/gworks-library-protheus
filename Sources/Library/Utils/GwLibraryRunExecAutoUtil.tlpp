@@ -8,7 +8,7 @@ namespace Gworks.Library.Utils
 Função utilitária para execução centralizada de ExecAuto().
 @type function
 @version 12.1.33
-@author Gwroks-Giovani
+@author Gworks - Giovani
 @since 4/25/2023
 @param aData, array, Dados a serem considerados na execução do ExecAuto().
 @param nOperation, numeric, Tipo de operação para o ExecAuto(). Ex.: 3, inlclusão.
@@ -90,29 +90,18 @@ User Function GwRunExecAuto( aData as array,;
 
     // Executa o ExecAuto dinamicamente conforme quantidade de parâmetros
     // Exemplo:
-    //  - MsExecAuto( { | a, b, c | Mata105( q, r, s ) }, aCabec, aItens, nOpc )
+    //  - MsExecAuto( { | a, b, c | Mata105( a, b, c ) }, aCabec, aItens, nOpc )
     do case
-
-        case nLenParams == 01
-            MsExecAuto( bBlock, aData[01], nOperation )
-        case nLenParams == 02
-            MsExecAuto( bBlock, aData[01], aData[02], nOperation )
-        case nLenParams == 03
-            MsExecAuto( bBlock, aData[01], aData[02], aData[03], nOperation )
-        case nLenParams == 04
-            MsExecAuto( bBlock, aData[01], aData[02], aData[03], aData[04], nOperation )
-        case nLenParams == 05
-            MsExecAuto( bBlock, aData[01], aData[02], aData[03], aData[04], aData[05], nOperation )
-        case nLenParams == 06
-            MsExecAuto( bBlock, aData[01], aData[02], aData[03], aData[04], aData[05], aData[06], nOperation )
-        case nLenParams == 07
-            MsExecAuto( bBlock, aData[01], aData[02], aData[03], aData[04], aData[05], aData[06], aData[07], nOperation )
-        case nLenParams == 08
-            MsExecAuto( bBlock, aData[01], aData[02], aData[03], aData[04], aData[05], aData[06], aData[07], aData[08], nOperation )
-        case nLenParams == 09
-            MsExecAuto( bBlock, aData[01], aData[02], aData[03], aData[04], aData[05], aData[06], aData[07], aData[08], aData[09], nOperation )
-        case nLenParams == 10
-            MsExecAuto( bBlock, aData[01], aData[02], aData[03], aData[04], aData[05], aData[06], aData[07], aData[08], aData[09], aData[10], nOperation )
+        case nLenParams == 01 ; MsExecAuto( bBlock, aData[01], nOperation )
+        case nLenParams == 02 ; MsExecAuto( bBlock, aData[01], aData[02], nOperation )
+        case nLenParams == 03 ; MsExecAuto( bBlock, aData[01], aData[02], aData[03], nOperation )
+        case nLenParams == 04 ; MsExecAuto( bBlock, aData[01], aData[02], aData[03], aData[04], nOperation )
+        case nLenParams == 05 ; MsExecAuto( bBlock, aData[01], aData[02], aData[03], aData[04], aData[05], nOperation )
+        case nLenParams == 06 ; MsExecAuto( bBlock, aData[01], aData[02], aData[03], aData[04], aData[05], aData[06], nOperation )
+        case nLenParams == 07 ; MsExecAuto( bBlock, aData[01], aData[02], aData[03], aData[04], aData[05], aData[06], aData[07], nOperation )
+        case nLenParams == 08 ; MsExecAuto( bBlock, aData[01], aData[02], aData[03], aData[04], aData[05], aData[06], aData[07], aData[08], nOperation )
+        case nLenParams == 09 ; MsExecAuto( bBlock, aData[01], aData[02], aData[03], aData[04], aData[05], aData[06], aData[07], aData[08], aData[09], nOperation )
+        case nLenParams == 10 ; MsExecAuto( bBlock, aData[01], aData[02], aData[03], aData[04], aData[05], aData[06], aData[07], aData[08], aData[09], aData[10], nOperation )
         otherwise
             ThrowException("GwRunExecAuto:Quantidade de parâmetros no execauto não suportada!")
 
