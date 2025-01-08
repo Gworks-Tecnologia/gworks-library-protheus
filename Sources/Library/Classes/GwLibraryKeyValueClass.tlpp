@@ -47,7 +47,7 @@ Method New( cKey as character, xValue as variant ) Class GwKeyValue
     Self:cLastMatchType := ""
     Self:nLastMatchPos := 0
 
-    if !empty(cKey) .And. !empty(xValue)
+    if !empty(cKey) .And. ( !empty(xValue) .Or. valType(xValue) == 'L' )
         ::Add(cKey, xValue)
     endif
 
