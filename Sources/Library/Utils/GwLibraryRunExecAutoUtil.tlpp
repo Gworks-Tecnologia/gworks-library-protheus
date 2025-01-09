@@ -11,7 +11,7 @@ Função utilitária para execução centralizada de ExecAuto().
 @author Gworks - Giovani
 @since 4/25/2023
 @param aData, array, Dados a serem considerados na execução do ExecAuto().
-@param nOperation, numeric, Tipo de operação para o ExecAuto(). Ex.: 3, inlclusão.
+@param nOperation, numeric, Modo de operação desejado, ex.: 3-Inclusão.
 @param cExecAuto, character, Nome do ExecAuto().
 @param cSuccessExpression, character, Expressão a ser retornada em caso de sucesso.
 @param lRunAsJob, logical, Se .T. irá executar o ExecAuto() por meio da função StartJob().
@@ -21,10 +21,11 @@ Função utilitária para execução centralizada de ExecAuto().
 @param cJobName, character, Nome a ser exibido pela FunName() quando executado via job.
 @param aJobTables, array, Lista de tabelas a ser aberta no ambiente para execução via job.
 @obs Observações:
-    Suporta execução via StartJob().
+    1. Suporta execução via StartJob().
+    2. Se nOperation não for informado, considera que a operação já está inserida em aData.
 /*/
 User Function GwRunExecAuto( aData as array,;
-                             nOperation as numeric,;
+                             nOperation as variant,;
                              cExecAuto as character,;
                              cSuccessExpression as character,;
                              lRunAsJob as logical,;
@@ -34,17 +35,6 @@ User Function GwRunExecAuto( aData as array,;
                              cJobName as character,;
                              aJobTables as array )
 
-    Local oError as object
-
-    Local nI           := 0   as numeric
-    Local cParamActual := ""  as character
-    Local cParamResult := ""  as character
-    Local cBlock       := ""  as character
-    Local bBlock       :={||} as codeblock
-    Local nLenParams   := 0   as numeric
-
-    Local lBlind       := .F. as logical
-
     Default aData       := {}
     Default lRunAsJob   := .F.
     Default cJobEmpresa := ""
@@ -53,11 +43,24 @@ User Function GwRunExecAuto( aData as array,;
     Default cJobName    := ""
     Default aJobTables  := {}
 
+    Local oError as object
+
+    Local nI            := 0    as numeric
+    Local nCount        := 0    as numeric
+    Local nMaxParams    := 10   as numeric
+    Local nLenParams    := 0    as numeric
+    Local cParamActual  := ""   as character
+    Local cParamResult  := ""   as character
+    Local cBlock        := ""   as character
+    Local cResult       := ""   as character
+    Local bBlock        := {||} as codeblock
+    Local lBlind        := .F.  as logical
+
     Private lMSHelpAuto    := .T. as logical // Habilita a captura das mensagens de erro
     Private lAutoErrNoFile := .T. as logical // Desabilita a geração do arquivo de log padrão do sistema
     Private lMsErroAuto    := .F. as logical // Indica de se houve erro não fatal durante a execução
 
-    // Determina se é execução com sem interface gráfica
+    // Determina se é execução sem interface gráfica
     lBlind := IsBlind()
 
     // Prepara o ambiente se for execução via StartJob()
@@ -75,37 +78,38 @@ User Function GwRunExecAuto( aData as array,;
 
     oError := GwError():New()
 
+    // Obtem o tamanho de parâmetros a ser passado para o job
+    if( nLenParams := Len(aData) ) > nMaxParams
+        oError:ThrowException("GwRunExecAuto - Quantidade de parâmetros não suportada!")
+    endif
+
+    // Preenche o array aData com posições vazias
+    if nLenParams < nMaxParams
+        nCount := nLenParams
+        while( nCount < nMaxParams )
+            aAdd(aData, nil)
+            nCount++
+        enddo
+    endif
+
+    if !empty(nOperation)
+        aData[nLenParams+1] := nOperation
+    endif
+
     // Monta o bloco de código que será executado
     cParamActual := "a"
     cParamResult := ""
-    for nI:=1 to Len(aData)+1 // adiciona mais 1 devido à operação (inclusão, alteração, etc...)
+    for nI:=1 to Len(aData)
         cParamResult += if( !empty(cParamResult),", ","" ) + cParamActual // "a, b, c" etc...
         cParamActual := soma1(cParamActual)
     next
     cBlock := "{ | "+cParamResult+" | "+cExecAuto+"( "+cParamResult+" ) }"
     bBlock := &(cBlock)
 
-    // Obtem o tamanho de parâmetros a ser passado para o job
-    nLenParams := Len(aData)
-
     // Executa o ExecAuto dinamicamente conforme quantidade de parâmetros
     // Exemplo:
-    //  - MsExecAuto( { | a, b, c | Mata105( a, b, c ) }, aCabec, aItens, nOpc )
-    do case
-        case nLenParams == 01 ; MsExecAuto( bBlock, aData[01], nOperation )
-        case nLenParams == 02 ; MsExecAuto( bBlock, aData[01], aData[02], nOperation )
-        case nLenParams == 03 ; MsExecAuto( bBlock, aData[01], aData[02], aData[03], nOperation )
-        case nLenParams == 04 ; MsExecAuto( bBlock, aData[01], aData[02], aData[03], aData[04], nOperation )
-        case nLenParams == 05 ; MsExecAuto( bBlock, aData[01], aData[02], aData[03], aData[04], aData[05], nOperation )
-        case nLenParams == 06 ; MsExecAuto( bBlock, aData[01], aData[02], aData[03], aData[04], aData[05], aData[06], nOperation )
-        case nLenParams == 07 ; MsExecAuto( bBlock, aData[01], aData[02], aData[03], aData[04], aData[05], aData[06], aData[07], nOperation )
-        case nLenParams == 08 ; MsExecAuto( bBlock, aData[01], aData[02], aData[03], aData[04], aData[05], aData[06], aData[07], aData[08], nOperation )
-        case nLenParams == 09 ; MsExecAuto( bBlock, aData[01], aData[02], aData[03], aData[04], aData[05], aData[06], aData[07], aData[08], aData[09], nOperation )
-        case nLenParams == 10 ; MsExecAuto( bBlock, aData[01], aData[02], aData[03], aData[04], aData[05], aData[06], aData[07], aData[08], aData[09], aData[10], nOperation )
-        otherwise
-            ThrowException("GwRunExecAuto:Quantidade de parâmetros no execauto não suportada!")
-
-    endcase
+    //  - MsExecAuto( { | a, b, c, d, e, f, g, h, i, j | Mata105( a, b, c, d, e, f, g, h, i, j ) }, aCabec, aItens, nOpc )
+    MsExecAuto( bBlock, aData[01], aData[02], aData[03], aData[04], aData[05], aData[06], aData[07], aData[08], aData[09], aData[10] )
 
     if lMsErroAuto
 
