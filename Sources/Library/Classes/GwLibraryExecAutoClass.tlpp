@@ -11,7 +11,7 @@ namespace Gworks.Library.Classes
 /*/{Protheus.doc} GwExecAuto
 Classe para execução dinâmica de ExecAutos e com tratamento automático de erro.
 @type class
-@author Gwroks-Giovani
+@author Gworks - Giovani
 @since 4/3/2023
 @since 4/3/2023
 /*/
@@ -50,7 +50,7 @@ EndClass
 Método construtor da classe.
 @type method
 @version 12.1.33
-@author Gwroks-Giovani
+@author Gworks - Giovani
 @since 4/3/2023
 @param cExecAuto, character, Nome do execauto desejado.
 @return object, Retorna instância do object criado.
@@ -83,7 +83,7 @@ Return Self
 Define a expressão que será executada para retorno em caso de sucesso.
 @type method
 @version 12.1.33
-@author Gwroks-Giovani
+@author Gworks - Giovani
 @since 4/26/2023
 @param cSuccessExpression, character, Expresão (sintaxe advpl).
 /*/
@@ -97,7 +97,7 @@ Return
 Retorna a expressão definida em Self:cSuccessExpression.
 @type method
 @version 12.1.33
-@author Gwroks-Giovani
+@author Gworks - Giovani
 @since 4/26/2023
 @Retun character, Conteúdo da expressão.
 /*/
@@ -109,7 +109,7 @@ Return ::cSuccessExpressionResult
 Método para iniciarlizar os atributos de execução por meio da função StartJob().
 @type method
 @version 12.1.33
-@author Gwroks-Giovani
+@author Gworks - Giovani
 @since 4/25/2023
 @param cJobEmpresa, character, Empresa.
 @param cJobFilial, character, Filial.
@@ -148,15 +148,19 @@ Method SetStartJob( cJobEmpresa as character, cJobFilial as character, cJobModul
 
 Return
 
-/*/{Protheus.doc} GwExecAuto::RunExecAuto( nOperation as numeric, aKeyValue as array ) as logical
-Método para executar ExecAutos de maneira dinâmica.
+/*/{Protheus.doc} GwExecAuto::RunExecAuto
+Método para execução de ExecAutos dinamicamente.
 @type method
 @version 12.1.33
-@author Gwroks-Giovani
-@since 4/3/2023
+@author Gworks - Giovani
+@since 08/01/2025
+@param nOperation, numeric, Modo de operação desejado, ex.: 3-Inclusão.
+@param aKeyValue, array,
 @return logical, Retorna .T. para sucesso e .F. para falhas na execução.
+@obs Observações:
+    1. Se nOperation não for informado, considera que a operação já está inserida em aKeyValue como uma chave "static".
 /*/
-Method RunExecAuto( nOperation as numeric, aKeyValue as array ) as logical Class GwExecAuto
+Method RunExecAuto( nOperation as variant, aKeyValue as array ) as logical Class GwExecAuto
 
     Local nI            := 0    as numeric
     Local nY            := 0    as numeric
@@ -165,16 +169,14 @@ Method RunExecAuto( nOperation as numeric, aKeyValue as array ) as logical Class
     Local aData         := {}   as array
     Local aChildren     := {}   as array
     Local lChildren     := .F.  as logical
+    Local lWait         := .F.  as logical
     Local cField        := ""   as character
     Local xValue        := nil  as variant
 
-    Default cExecAuto   := ""
-    Default nOperation  := 0
-
     ::oError:cMethod := "RunExecAuto"
 
-    if Empty(nOperation) .Or. Empty(aKeyValue)
-        ::oError:cError := "Parâmetros não informados ou inválidos!"
+    if valType(aKeyValue) != 'A'
+        ::oError:cError := "Parâmetro aKeyValue não informado ou inválido!"
         ::oError:ThrowException()
     endif
 
@@ -186,7 +188,7 @@ Method RunExecAuto( nOperation as numeric, aKeyValue as array ) as logical Class
 
         oKeyValue := aKeyValue[nI]
 
-        // Verifica se o objeto é do tipo estático
+        // Verifica se é uma chave estática
         if oKeyValue:KeyExists("static")
             aData[nI] := oKeyValue:GetValueByKey("static")
             loop
@@ -241,8 +243,21 @@ Method RunExecAuto( nOperation as numeric, aKeyValue as array ) as logical Class
     endif
 
     if ::lRunAsJob
-        cResult := StartJob( "Gworks.Library.Utils.U_GwRunExecAuto", ;
-            GetEnvServer(), .T., aData, nOperation, ::cExecAuto, ::cSuccessExpression, ::lRunAsJob, ::cJobEmpresa, ::cJobFilial, ::cJobModule, ::cJobName, ::aJobTables )
+        lWait := .T. // aguarda término da execução, ou seja, execução síncrona
+        cResult := StartJob(;
+                            "Gworks.Library.Utils.U_GwRunExecAuto", ;
+                            GetEnvServer(),;
+                            lWait,;
+                            aData,;
+                            nOperation,;
+                            ::cExecAuto,;
+                            ::cSuccessExpression,;
+                            ::lRunAsJob,;
+                            ::cJobEmpresa,;
+                            ::cJobFilial,;
+                            ::cJobModule,;
+                            ::cJobName,;
+                            ::aJobTables )
     else
         cResult := Gworks.Library.Utils.U_GwRunExecAuto( aData, nOperation, ::cExecAuto, ::cSuccessExpression )
     endif
