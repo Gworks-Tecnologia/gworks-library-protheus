@@ -4,7 +4,7 @@
 
 namespace Gworks.Library.Functions
 
-/*/{Protheus.doc} GetDbConnection
+/*/{Protheus.doc} GwGetDbConnection
 Obtem os dados de conexão com o Banco de Dados a partir do arquivo de configuração do serviço em execução (appserver.ini).
 @type function
 @version 12.1.2310
@@ -20,7 +20,7 @@ Obtem os dados de conexão com o Banco de Dados a partir do arquivo de configuraç
     }
 @return logical, Retorna .T. (true) para indicar sucesso e .F. (false) caso contrário.
 /*/
-User Function GetDbConnection( jConnection as json ) as logical
+User Function GwGetDbConnection( jConnection as json ) as logical
 
     default jConnection := nil
 
