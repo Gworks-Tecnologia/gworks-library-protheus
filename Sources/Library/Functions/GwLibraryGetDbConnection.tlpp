@@ -1,0 +1,81 @@
+
+
+#include "tlpp-core.th"
+
+namespace Gworks.Library.Functions
+
+/*/{Protheus.doc} GetDbConnection
+Obtem os dados de conexão com o Banco de Dados a partir do arquivo de configuração do serviço em execução (appserver.ini).
+@type function
+@version 12.1.2310
+@author Gworks - Giovani
+@since 1/12/2025
+@param jConnection, json, Retorna dados de conexão no seguinte formato:
+    {
+        "db_tipo":"string",
+        "db_name":"string",
+        "db_string":"string",
+        "db_server":"string",
+        "db_port" :"string"
+    }
+@return logical, Retorna .T. (true) para indicar sucesso e .F. (false) caso contrário.
+/*/
+User Function GetDbConnection( jConnection as json ) as logical
+
+    default jConnection := nil
+
+    Local cEnvServer := '' as character
+    Local cDbTipo := '' as character
+    Local cDbName := '' as character
+    Local cDbPort := '' as character
+    Local cServer := '' as character
+    Local cDBString := '' as character
+    Local lResult := .F. as logical
+
+    if valType(jConnection) == 'U'
+        UserException("GetDbConnection - Parameter jConnection not provided!")
+    endif
+
+    jConnection := JsonObject():New()
+
+    cEnvServer := GetEnvServer()
+
+    // Obtem, prioritariamente, a configuração de conexão
+    // Definida na sessão Environment (ambiente).
+    // Obs.: Considera o prefixo "DB" na chave de busca.
+    cDbTipo := iif( empty(cDbTipo), GetPvProfString( cEnvServer, "DbDataBase" , cDbTipo, GetAdv97() ), cDbTipo )
+    cDbName := iif( empty(cDbName), GetPvProfString( cEnvServer, "DbAlias"    , cDbName, GetAdv97() ), cDbName )
+    cDbPort := iif( empty(cDbPort), GetPvProfString( cEnvServer, "DbPort"     , cDbPort, GetAdv97() ), cDbPort )
+    cServer := iif( empty(cServer), GetPvProfString( cEnvServer, "DbServer"   , cServer, GetAdv97() ), cServer )
+
+    // Obtem, prioritariamente, a configuração de conexão
+    // Definida na sessão Environment (ambiente).
+    // Obs.: Considera o prefixo "TOP" na chave de busca.
+    cDbTipo := iif( empty(cDbTipo), GetPvProfString( cEnvServer, "TopDataBase", cDbTipo, GetAdv97() ), cDbTipo )
+    cDbName := iif( empty(cDbName), GetPvProfString( cEnvServer, "TopAlias"   , cDbName, GetAdv97() ), cDbName )
+    cDbPort := iif( empty(cDbPort), GetPvProfString( cEnvServer, "TopPort"    , cDbPort, GetAdv97() ), cDbPort )
+    cServer := iif( empty(cServer), GetPvProfString( cEnvServer, "TopServer"  , cServer, GetAdv97() ), cServer )
+
+    // Caso ainda não tenha conseguido obter os dados de conexão
+    // Retorna as chaves definidas diretamente na sessão "DbAccess".
+    cDbTipo := iif( empty(cDbTipo), GetPvProfString( "DbAccess", "DataBase"   , cDbTipo, GetAdv97() ), cDbTipo )
+    cDbName := iif( empty(cDbName), GetPvProfString( "DbAccess", "Alias"      , cDbName, GetAdv97() ), cDbName )
+    cDbPort := iif( empty(cDbPort), GetPvProfString( "DbAccess", "Port"       , cDbPort, GetAdv97() ), cDbPort )
+    cServer := iif( empty(cServer), GetPvProfString( "DbAccess", "Server"     , cServer, GetAdv97() ), cServer )
+
+    // Monta string de conexão
+    cDBString := cDbTipo+"/"+cDbName
+
+    if !empty(cDbTipo) .and. !empty(cDbName) .and. !empty(cDbPort) .and. !empty(cServer)
+
+        jConnection["db_tipo"] := cDbTipo
+        jConnection["db_name"] := cDbName
+        jConnection["db_string"] := cDBString
+        jConnection["db_server"] := cServer
+        jConnection["db_port"] := cDbPort
+
+        lResult := .T.
+
+    endif
+
+Return lResult
