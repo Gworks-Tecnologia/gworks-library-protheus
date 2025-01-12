@@ -1,9 +1,10 @@
 #include "tlpp-core.th"
 
 using namespace Gworks.Library.Classes
-using namespace Global.Projects.ImportacaoBI.Enum
+using namespace Gworks.Library.Functions
 
-namespace Global.Projects.ImportacaoBI.Controllers
+static cDefaultServer__ := 'localhost' as character
+static nDefaultPort__ := 7890 as numeric
 
 /*/{Protheus.doc} GwDBConnect
 Classe para conexão com banco de dados.
@@ -15,20 +16,26 @@ Classe para conexão com banco de dados.
 /*/
 Class GwDBConnect
 
-    Public Data cDbType as character
-    Public Data cDbAlias as character
-    Public Data cDbServer as character
-    Public Data nDbPort as numeric
-    Public Data lConnected as logical
-
-    Public Data nHandle as numeric
+    Private Data jConnection as json
+    Private Data cEnvironment as character
+    Private Data cDbType as character
+    Private Data cDbAlias as character
+    Private Data cDbString as character
+    Private Data cDbServer as character
+    Private Data nDbPort as numeric
+    Private Data nHandle as numeric
+    Private Data lEnvFromServer as logical
+    Private Data lCanConnect as logical
+    Private Data lConnected as logical
 
     Public Method New() Constructor
     Public Method SetConnection(cDbType, cDbAlias, cDbServer, nDbPort)
+    Public Method GetConnection()
     Public Method OpenConnect() as logical
     Public Method Disconnect() as logical
 
     Private Method Init()
+    Private Method Clear()
 
 EndClass
 
@@ -40,7 +47,13 @@ Método construtor da classe.
 @since 5/13/2024
 @return object, instância do objeto.
 /*/
-Method New() Class GwDBConnect
+Method New( _lEnvFromServer as logical, _cEnvironment as character ) Class GwDBConnect
+
+    default _lEnvFromServer := .F.
+    default _cEnvironment := ''
+
+    ::cEnvironment := _cEnvironment
+    ::lEnvFromServer := _lEnvFromServer
 
     ::Init()
 
@@ -55,12 +68,55 @@ Inicializa atributos da classe.
 /*/
 Method Init() Class GwDBConnect
 
-    ::cDbType := ""
-    ::cDbAlias := ""
-    ::cDbServer := "Localhost"
-    ::nDbPort := 7890
+    Local jConn as json
+
     ::lConnected := .F.
     ::nHandle := 0
+
+    if!( ::lEnvFromServer )
+        ::lCanConnect := .F.
+        ::jConnection := JsonObject():New()
+            ::jConnection["db_type"] := ''
+            ::jConnection["db_name"] := ''
+            ::jConnection["db_string"] := ''
+            ::jConnection["db_server"] := cDefaultServer__
+            ::jConnection["db_port"] := nDefaultPort__
+
+    else
+        if( U_GwGetDbConnection(@jConn,::cEnvironment) )
+            ::lCanConnect := .T.
+        endif
+        ::jConnection := jConn
+    endif
+
+    ::cDbType := ::jConnection["db_type"]
+    ::cDbAlias := ::jConnection["db_name"]
+    ::cDbString := ::jConnection["db_string"]
+    ::cDbServer := ::jConnection["db_server"]
+    ::nDbPort := ::jConnection["db_port"]
+
+Return
+
+/*/{Protheus.doc} GwDBConnect::Clear
+Remove dados de conexões anteriores.
+@type method
+@version 12.1.2310
+@author Gworks - Giovani
+@since 1/12/2025
+/*/
+Method Clear() Class GwDBConnect
+
+    ::jConnection["db_type"] := ''
+    ::jConnection["db_name"] := ''
+    ::jConnection["db_string"] := ''
+    ::jConnection["db_server"] := cDefaultServer__
+    ::jConnection["db_port"] := nDefaultPort__
+
+    ::cDbType := ''
+    ::cDbAlias := ''
+    ::cDbString := ''
+    ::cDbServer := ''
+    ::nDbPort := 0
 
 Return
 
@@ -81,12 +137,58 @@ Define a conexão a ser realizada.
 /*/
 Method SetConnection( _cDbType as character, _cDbAlias as character, _cDbServer as character, _nDbPort as numeric ) Class GwDBConnect
 
-    ::cDbType := _cDbType
-    ::cDbAlias := _cDbAlias
-    ::cDbServer := iif(!empty(_cDbServer), _cDbServer, ::cDbServer)
-    ::nDbPort := iif(!empty(_nDbPort), _nDbPort, ::nDbPort)
+    ::Clear()
+    ::Disconnect()
+    ::lCanConnect := .F.
+
+    ::jConnection["db_type"] := _cDbType
+    ::jConnection["db_name"] := _cDbAlias
+    ::jConnection["db_string"] := iif(!empty(_cDbType) .and. !empty(_cDbAlias), _cDbType+'/'+_cDbAlias, '')
+    ::jConnection["db_server"] := iif(!empty(_cDbServer), _cDbServer, ::cDbServer)
+    ::jConnection["db_port"] := iif(!empty(_nDbPort), _nDbPort, ::nDbPort)
+
+    ::cDbType := ::jConnection["db_type"]
+    ::cDbAlias := ::jConnection["db_name"]
+    ::cDbString := ::jConnection["db_string"]
+    ::cDbServer := ::jConnection["db_server"]
+    ::nDbPort := ::jConnection["db_port"]
+
+    if( !empty(::cDbString) .And. !empty(::cDbServer) .And. !empty(::nDbPort) )
+        ::lCanConnect := .T.
+    endif
 
 Return
+
+/*/{Protheus.doc} GwDBConnect::GetConnection
+Retorna a conexão definida no objeto instânciado.
+@type method
+@version 12.1.2310
+@author Gworks - Giovani
+@since 1/12/2025
+@return json, Retorna objeto json conforme a estrutura:
+    {
+        "db_type" : "string",
+        "db_name" : "string",
+        "db_string" : "string",
+        "db_server" : "string",
+        "db_port" : "numeric",
+        "db_can_connect" : "boolean"
+        "db_conneted" : "boolean"
+    }
+/*/
+Method GetConnection() Class GwDBConnect
+
+    Local jResult := JsonObject():New() as json
+
+    jResult["db_type"] := ::jConnection["db_type"]
+    jResult["db_name"] := ::jConnection["db_name"]
+    jResult["db_string"] := ::jConnection["db_string"]
+    jResult["db_server"] := ::jConnection["db_server"]
+    jResult["db_port"] := ::jConnection["db_port"]
+    jResult["db_can_connet"] := ::lCanConnect
+    jResult["db_conneted"] := ::lConnected
+
+Return jResult
 
 /*/{Protheus.doc} GwDBConnect::OpenConnect() as logical
 Conecta com o banco de dados configurado conforme método ::SetConnection().
@@ -98,33 +200,25 @@ Conecta com o banco de dados configurado conforme método ::SetConnection().
 /*/
 Method OpenConnect() as logical Class GwDBConnect
 
-    Local cStrConn as character
-
-    Local lResult := .F. as logical
-
     ::Disconnect()
 
-    if !empty(::cDbType) .And. !empty(::cDbAlias) .And. !empty(::cDbServer) .And. !empty(::nDbPort)
+    if ::lCanConnect
 
-        cStrConn := ::cDbType +'/'+ ::cDbAlias
+        ::nHandle := TCLink(cDbString, ::cDbServer, ::nDbPort)
 
-        ::nHandle := TCLink(cStrConn, ::cDbServer, ::nDbPort)
-
-        if ::nHandle < 0
-
-            ::Disconnect()
-
-        else
+        if ::nHandle > 0
 
             ::lConnected := .T.
 
-            lResult := .T.
-
+        else
+            conOut("GwDBConnect:OpenConnect - Error, TCLink returns '" + cValToChar(::nHandle)+"' value!")
         endif
 
+    else
+        conOut("GwDBConnect:OpenConnect - Missing DbType, DbAlias, DbServer or DbPort parameters!")
     endif
 
-Return lResult
+Return ::lConnected
 
 /*/{Protheus.doc} GwDBConnect::Disconnect() as logical
 Desconecta do Banco de Dados atualmente conectado.
@@ -132,21 +226,23 @@ Desconecta do Banco de Dados atualmente conectado.
 @version 12.1.2310
 @author Gworks - Giovani Soares
 @since 5/13/2024
+@param nHandle, numeric, Hangle de conexão a ser considerado (opcional).
+@param lVerbose, logical, Se .T. (true) exibe mensagens de advertência no console.
 @return logical, Retorna 'true' para sucesso e 'false' para falha na conexão.
+@obs Observações:
+    Se nHandle não for informado, considera o handle existente na propriedade ::nHandle do objeto instânciado.
 /*/
 Method Disconnect( nHandle as variant, lVerbose as logical ) as logical Class GwDBConnect
 
-    // Indica o número da conexão que será finalizada,
-    // se não for informado, a conexão ativa/atual será encerrada.
-    Default nHandle := nil
+    Default nHandle := ::nHandle
 
-    // Se .T., mostra mensagens de advertência do log de console,
-    // como por exemplo fechamento automático de alias da conexão.
     Default lVerbose := .F.
 
     if ::lConnected
 
-        TcUnLink(nHandle, lVerbose)
+        TcUnLink(nHandle, lVerbose) // se for inforamdo "nil" para nHandle, a conexão ativa será fechada
+
+        ::lConnected := .F.
 
     endif
 

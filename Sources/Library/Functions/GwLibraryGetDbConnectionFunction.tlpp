@@ -12,25 +12,29 @@ Obtem os dados de conexão com o Banco de Dados a partir do arquivo de configuraç
 @since 1/12/2025
 @param jConnection, json, Retorna dados de conexão no seguinte formato:
     {
-        "db_tipo":"string",
-        "db_name":"string",
-        "db_string":"string",
-        "db_server":"string",
-        "db_port" :"string"
+        "db_type" : "string",
+        "db_name" : "string",
+        "db_string" : "string",
+        "db_server" : "string",
+        "db_port" : "numeric"
     }
+@param cEnvironment, character, Nome do Ambiente a ser considerado (opcional).
 @return logical, Retorna .T. (true) para indicar sucesso e .F. (false) caso contrário.
+@obs Observações:
+    Se cEnvironment não for informado, será considerado o ambiente da
+    thread em execução corrente, conforme resultado da função GetEnvServer().
 /*/
-User Function GwGetDbConnection( jConnection as json ) as logical
+User Function GwGetDbConnection( jConnection as json, cEnvironment as character  ) as logical
 
     default jConnection := nil
+    default cEnvironment := GetEnvServer()
 
-    Local cEnvServer := '' as character
-    Local cDbTipo := '' as character
-    Local cDbName := '' as character
+    Local cDbType := '' as character
+    Local cDbAlias := '' as character
     Local cDbPort := '' as character
-    Local cServer := '' as character
+    Local cDbServer := '' as character
     Local cDBString := '' as character
-    Local lResult := .F. as logical
+    Local lResult as logical
 
     if valType(jConnection) == 'U'
         UserException("GetDbConnection - Parameter jConnection not provided!")
@@ -38,43 +42,51 @@ User Function GwGetDbConnection( jConnection as json ) as logical
 
     jConnection := JsonObject():New()
 
-    cEnvServer := GetEnvServer()
-
     // Obtem, prioritariamente, a configuração de conexão
     // Definida na sessão Environment (ambiente).
     // Obs.: Considera o prefixo "DB" na chave de busca.
-    cDbTipo := iif( empty(cDbTipo), GetPvProfString( cEnvServer, "DbDataBase" , cDbTipo, GetAdv97() ), cDbTipo )
-    cDbName := iif( empty(cDbName), GetPvProfString( cEnvServer, "DbAlias"    , cDbName, GetAdv97() ), cDbName )
-    cDbPort := iif( empty(cDbPort), GetPvProfString( cEnvServer, "DbPort"     , cDbPort, GetAdv97() ), cDbPort )
-    cServer := iif( empty(cServer), GetPvProfString( cEnvServer, "DbServer"   , cServer, GetAdv97() ), cServer )
+    cDbType   := iif( empty(cDbType)  , GetPvProfString( cEnvironment, "DbDataBase" , cDbType  , GetAdv97() ), cDbType   )
+    cDbAlias  := iif( empty(cDbAlias) , GetPvProfString( cEnvironment, "DbAlias"    , cDbAlias , GetAdv97() ), cDbAlias  )
+    cDbPort   := iif( empty(cDbPort)  , GetPvProfString( cEnvironment, "DbPort"     , cDbPort  , GetAdv97() ), cDbPort   )
+    cDbServer := iif( empty(cDbServer), GetPvProfString( cEnvironment, "DbServer"   , cDbServer, GetAdv97() ), cDbServer )
 
     // Obtem, prioritariamente, a configuração de conexão
     // Definida na sessão Environment (ambiente).
     // Obs.: Considera o prefixo "TOP" na chave de busca.
-    cDbTipo := iif( empty(cDbTipo), GetPvProfString( cEnvServer, "TopDataBase", cDbTipo, GetAdv97() ), cDbTipo )
-    cDbName := iif( empty(cDbName), GetPvProfString( cEnvServer, "TopAlias"   , cDbName, GetAdv97() ), cDbName )
-    cDbPort := iif( empty(cDbPort), GetPvProfString( cEnvServer, "TopPort"    , cDbPort, GetAdv97() ), cDbPort )
-    cServer := iif( empty(cServer), GetPvProfString( cEnvServer, "TopServer"  , cServer, GetAdv97() ), cServer )
+    cDbType   := iif( empty(cDbType)  , GetPvProfString( cEnvironment, "TopDataBase", cDbType  , GetAdv97() ), cDbType   )
+    cDbAlias  := iif( empty(cDbAlias) , GetPvProfString( cEnvironment, "TopAlias"   , cDbAlias , GetAdv97() ), cDbAlias  )
+    cDbPort   := iif( empty(cDbPort)  , GetPvProfString( cEnvironment, "TopPort"    , cDbPort  , GetAdv97() ), cDbPort   )
+    cDbServer := iif( empty(cDbServer), GetPvProfString( cEnvironment, "TopServer"  , cDbServer, GetAdv97() ), cDbServer )
 
     // Caso ainda não tenha conseguido obter os dados de conexão
     // Retorna as chaves definidas diretamente na sessão "DbAccess".
-    cDbTipo := iif( empty(cDbTipo), GetPvProfString( "DbAccess", "DataBase"   , cDbTipo, GetAdv97() ), cDbTipo )
-    cDbName := iif( empty(cDbName), GetPvProfString( "DbAccess", "Alias"      , cDbName, GetAdv97() ), cDbName )
-    cDbPort := iif( empty(cDbPort), GetPvProfString( "DbAccess", "Port"       , cDbPort, GetAdv97() ), cDbPort )
-    cServer := iif( empty(cServer), GetPvProfString( "DbAccess", "Server"     , cServer, GetAdv97() ), cServer )
+    cDbType   := iif( empty(cDbType)  , GetPvProfString( "DbAccess", "DataBase"     , cDbType  , GetAdv97() ), cDbType   )
+    cDbAlias  := iif( empty(cDbAlias) , GetPvProfString( "DbAccess", "Alias"        , cDbAlias , GetAdv97() ), cDbAlias  )
+    cDbPort   := iif( empty(cDbPort)  , GetPvProfString( "DbAccess", "Port"         , cDbPort  , GetAdv97() ), cDbPort   )
+    cDbServer := iif( empty(cDbServer), GetPvProfString( "DbAccess", "Server"       , cDbServer, GetAdv97() ), cDbServer )
 
     // Monta string de conexão
-    cDBString := cDbTipo+"/"+cDbName
+    cDBString := cDbType+'/'+cDbAlias
 
-    if !empty(cDbTipo) .and. !empty(cDbName) .and. !empty(cDbPort) .and. !empty(cServer)
+    if !empty(cDbType) .and. !empty(cDbAlias) .and. !empty(cDbPort) .and. !empty(cDbServer)
 
-        jConnection["db_tipo"] := cDbTipo
-        jConnection["db_name"] := cDbName
+        jConnection["db_type"] := cDbType
+        jConnection["db_name"] := cDbAlias
         jConnection["db_string"] := cDBString
-        jConnection["db_server"] := cServer
-        jConnection["db_port"] := cDbPort
+        jConnection["db_server"] := cDbServer
+        jConnection["db_port"] := val(cDbPort)
 
         lResult := .T.
+
+    else
+
+        jConnection["db_type"] := ''
+        jConnection["db_name"] := ''
+        jConnection["db_string"] := ''
+        jConnection["db_server"] := ''
+        jConnection["db_port"] := 0
+
+        lResult := .F.
 
     endif
 
