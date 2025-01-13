@@ -54,8 +54,8 @@ Method New( _lUseServerEnvironment as logical, _cEnvironment as character ) Clas
     default _lUseServerEnvironment := .F.
     default _cEnvironment := ''
 
-    ::cEnvironment := _cEnvironment
     ::lUseServerEnvironment := _lUseServerEnvironment
+    ::cEnvironment := _cEnvironment
 
     ::Init()
 
