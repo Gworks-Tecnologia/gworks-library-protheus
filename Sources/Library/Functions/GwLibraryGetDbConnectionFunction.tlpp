@@ -1,5 +1,3 @@
-
-
 #include "tlpp-core.th"
 
 namespace Gworks.Library.Functions
