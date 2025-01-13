@@ -26,14 +26,14 @@ Class GwDBConnect
     Private Data cDbServer as character
     Private Data nDbPort as numeric
     Private Data nHandle as numeric
-    Private Data lEnvFromServer as logical
+    Private Data lUseServerEnvironment as logical
     Private Data lCanConnect as logical
     Private Data lConnected as logical
 
     Public Method New() Constructor
     Public Method SetConnection(cDbType, cDbAlias, cDbServer, nDbPort)
     Public Method GetConnection()
-    Public Method OpenConnect() as logical
+    Public Method Connect() as logical
     Public Method Disconnect() as logical
 
     Private Method Init()
@@ -49,13 +49,13 @@ Método construtor da classe.
 @since 5/13/2024
 @return object, instância do objeto.
 /*/
-Method New( _lEnvFromServer as logical, _cEnvironment as character ) Class GwDBConnect
+Method New( _lUseServerEnvironment as logical, _cEnvironment as character ) Class GwDBConnect
 
-    default _lEnvFromServer := .F.
+    default _lUseServerEnvironment := .F.
     default _cEnvironment := ''
 
     ::cEnvironment := _cEnvironment
-    ::lEnvFromServer := _lEnvFromServer
+    ::lUseServerEnvironment := _lUseServerEnvironment
 
     ::Init()
 
@@ -75,7 +75,7 @@ Method Init() Class GwDBConnect
     ::lConnected := .F.
     ::nHandle := 0
 
-    if!( ::lEnvFromServer )
+    if!( ::lUseServerEnvironment )
         ::lCanConnect := .F.
         ::jConnection := JsonObject():New()
             ::jConnection["db_type"] := ''
@@ -192,7 +192,7 @@ Method GetConnection() Class GwDBConnect
 
 Return jResult
 
-/*/{Protheus.doc} GwDBConnect::OpenConnect() as logical
+/*/{Protheus.doc} GwDBConnect::Connect() as logical
 Conecta com o banco de dados configurado conforme método ::SetConnection().
 @type method
 @version 12.1.2310
@@ -200,7 +200,7 @@ Conecta com o banco de dados configurado conforme método ::SetConnection().
 @since 5/13/2024
 @return logical, Retorna 'true' para sucesso e 'false' para falha na conexão.
 /*/
-Method OpenConnect() as logical Class GwDBConnect
+Method Connect() as logical Class GwDBConnect
 
     ::Disconnect()
 
@@ -213,11 +213,11 @@ Method OpenConnect() as logical Class GwDBConnect
             ::lConnected := .T.
 
         else
-            conOut("GwDBConnect:OpenConnect - Error, TCLink returns '" + cValToChar(::nHandle)+"' value!")
+            conOut("GwDBConnect:Connect - Error, TCLink returns '" + cValToChar(::nHandle)+"' value!")
         endif
 
     else
-        conOut("GwDBConnect:OpenConnect - Missing DbType, DbAlias, DbServer or DbPort parameters!")
+        conOut("GwDBConnect:Connect - Missing DbType, DbAlias, DbServer or DbPort parameters!")
     endif
 
 Return ::lConnected
