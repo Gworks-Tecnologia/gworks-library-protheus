@@ -3,6 +3,8 @@
 using namespace Gworks.Library.Classes
 using namespace Gworks.Library.Functions
 
+namespace Gworks.Library.Classes
+
 static cDefaultServer__ := 'localhost' as character
 static nDefaultPort__ := 7890 as numeric
 
