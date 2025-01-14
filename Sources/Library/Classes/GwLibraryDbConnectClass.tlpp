@@ -85,7 +85,7 @@ Method Init() Class GwDBConnect
             ::jConnection["db_port"] := nDefaultPort__
 
     else
-        if( U_GwGetDbConnection(@jConn,::cEnvironment) )
+        if( U_GwGetDbConnec(@jConn, ::cEnvironment) )
             ::lCanConnect := .T.
         endif
         ::jConnection := jConn
@@ -206,7 +206,7 @@ Method Connect() as logical Class GwDBConnect
 
     if ::lCanConnect
 
-        ::nHandle := TCLink(cDbString, ::cDbServer, ::nDbPort)
+        ::nHandle := TCLink(::cDbString, ::cDbServer, ::nDbPort)
 
         if ::nHandle > 0
 

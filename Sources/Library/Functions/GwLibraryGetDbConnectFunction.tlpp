@@ -2,7 +2,7 @@
 
 namespace Gworks.Library.Functions
 
-/*/{Protheus.doc} GwGetDbConnection
+/*/{Protheus.doc} GwGetDbConnec
 Obtem os dados de conexão com o Banco de Dados a partir do arquivo de configuração do serviço em execução (appserver.ini).
 @type function
 @version 12.1.2310
@@ -22,10 +22,10 @@ Obtem os dados de conexão com o Banco de Dados a partir do arquivo de configuraç
     Se cEnvironment não for informado, será considerado o ambiente da
     thread em execução corrente, conforme resultado da função GetEnvServer().
 /*/
-User Function GwGetDbConnection( jConnection as json, cEnvironment as character  ) as logical
+User Function GwGetDbConnec( jConnection as json, cEnvironment as character  ) as logical
 
     default jConnection := nil
-    default cEnvironment := GetEnvServer()
+    default cEnvironment := ""
 
     Local cDbType := '' as character
     Local cDbAlias := '' as character
@@ -34,11 +34,11 @@ User Function GwGetDbConnection( jConnection as json, cEnvironment as character 
     Local cDBString := '' as character
     Local lResult as logical
 
-    if valType(jConnection) == 'U'
-        UserException("GetDbConnection - Parameter jConnection not provided!")
-    endif
-
     jConnection := JsonObject():New()
+
+    if empty(cEnvironment)
+        cEnvironment := GetEnvServer()
+    endif
 
     // Obtem, prioritariamente, a configuração de conexão
     // Definida na sessão Environment (ambiente).
