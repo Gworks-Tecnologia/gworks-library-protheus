@@ -1,6 +1,8 @@
 #include "totvs.ch"
 #include "tbiconn.ch"
 
+#define CRLF chr(13) + chr(10)
+
 /*/{Protheus.doc} GMNUEXEC
 Executar rotinas sem a necessidade de login pelo SIGAMDI/SIGAADV.
 @type function
@@ -8,12 +10,26 @@ Executar rotinas sem a necessidade de login pelo SIGAMDI/SIGAADV.
 @author Marinaldo de Jesus
 @since 30/04/2011
 @history 28/1/2025, Gworks - Giovani, Revisão.
-@param _cParms, character, Parâmetros no formato:"empresa;filial;módulo;rotina"
-@param _cAuthFile, character, Arquivo de senha para autenticação.
+@param _cParms, character, Parâmetros de execução no formato: "empresa;filial;módulo;rotina"
+@param _cAuthFile, character, Arquivo de senha para autenticação separado por linhas (opcional).
+    Exemplo:
+        linha 1: gworks.usuario
+        linha 2: gworks.senha
 @param _cTables, character, Lista de tabelas (opcional).
-@example U_GMNUEXEC("01;"0101;SIGACOM;MATA010").
-@obs A chamada pode ser realizada diretamente via linha de comando conforme exemplo a seguir:
-    totvsclient.exe -q -p=U_GMNUEXEC -a=01;0101;SIGACOM;MATA010 -c=tcp -e=environment -m -l
+@example
+    1. Chamada via vscode debugger:
+        "lastPrograms":[
+            {
+                "label": "U_GMNUEXEC",
+                "args": [
+                    "01;0102;SIGAOMS;OMSA200",
+                    "/totvs/share/debug/auth-protheus.txt",
+                    "DAI;DAK"
+                ]
+            }
+        ]
+    2. Chamada via linha de comando:
+        smartclient.exe -q -p=U_GMNUEXEC -a=01;0101;SIGACOM;MATA010 -c=tcp -e=environment -m -l
 /*/
 User Function gMnuExec( _cParms, _cAuthFile, _cTables ) // U_GMNUEXEC
 
@@ -30,6 +46,8 @@ User Function gMnuExec( _cParms, _cAuthFile, _cTables ) // U_GMNUEXEC
     Local cRotina // nome da rotina, ex.: "MATA010"
 
     // Usuário e senha para login
+    Local cFileContent
+    Local aAuthContent
     Local cUser
     Local cPassword
 
@@ -46,6 +64,22 @@ User Function gMnuExec( _cParms, _cAuthFile, _cTables ) // U_GMNUEXEC
     cFil := aParms[2]
     cModName := aParms[3]
     cRotina := aParms[4]
+
+    if _cAuthFile == "NO_AUTH"
+        cUser := nil
+        cPassword := nil
+    else
+        _cAuthFile := lower(_cAuthFile)
+        if left(_cAuthFile, 1) == "/" // se iniciar com /, é um caminho absoluto do Linux
+            _cAuthFile := "l:" + _cAuthFile
+        endif
+        if file(_cAuthFile,,.F.)
+            cFileContent := memoRead(_cAuthFile,.F.)
+            aAuthContent := StrTokArr(cFileContent,CRLF)
+            cUser := aAuthContent[1]
+            cPassword := aAuthContent[2]
+        endif
+    endif
 
     if !empty(_cTables)
         aTables := StrTokArr(_cTables,';')
