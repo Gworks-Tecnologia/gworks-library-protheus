@@ -1,7 +1,7 @@
-#include "protheus.ch"
+#include "totvs.ch"
 #include "tbiconn.ch"
 
-/*/{Protheus.doc} xMnuExec
+/*/{Protheus.doc} GMNUEXEC
 Executar rotinas sem a necessidade de login pelo SIGAMDI/SIGAADV.
 @type function
 @version 12.1.2310
@@ -9,28 +9,35 @@ Executar rotinas sem a necessidade de login pelo SIGAMDI/SIGAADV.
 @since 30/04/2011
 @history 28/1/2025, Gworks - Giovani, Revisão.
 @param _cParms, character, Parâmetros no formato:"empresa;filial;módulo;rotina"
-@param _cUser, character, Login do usuário (opcional).
-@param _cPassword, character, Senha correspondente ao login (opcional).
+@param _cAuthFile, character, Arquivo de senha para autenticação.
 @param _cTables, character, Lista de tabelas (opcional).
-@example U_XMNUEXEC("01;"0101;SIGACOM;MATA010").
+@example U_GMNUEXEC("01;"0101;SIGACOM;MATA010").
 @obs A chamada pode ser realizada diretamente via linha de comando conforme exemplo a seguir:
-    totvsclient.exe -q -p=U_XMNUEXEC -a=01;0101;SIGACOM;MATA010 -c=tcp -e=environment -m -l
+    totvsclient.exe -q -p=U_GMNUEXEC -a=01;0101;SIGACOM;MATA010 -c=tcp -e=environment -m -l
 /*/
-User Function xMnuExec( _cParms, _cUser, _cPassword, _cTables ) // U_XMNUEXEC
+User Function gMnuExec( _cParms, _cAuthFile, _cTables ) // U_GMNUEXEC
 
     Default _cParms := "99;01;SIGACOM;MATA010"
-    Default _cUser := nil
-    Default _cPassword := nil
+    Default _cAuthFile := "NO_AUTH"
     Default _cTables := nil
 
+    // Parâmetros referente à rotina desejada para execução
     Local aParms
-    Local bWindowInit
-    Local cEmp
-    Local cFil
-    Local cMod
-    Local cModName
-    Local cRotina
+    Local cEmp // empresa, ex.: "01"
+    Local cFil // filial, ex.: "0101"
+    Local cMod // módulo, ex.: "COM"
+    Local cModName // módulo com sigla, ex.: "SIGACOM"
+    Local cRotina // nome da rotina, ex.: "MATA010"
+
+    // Usuário e senha para login
+    Local cUser
+    Local cPassword
+
+    // Lista de tabelas a serem abertas na preparação do ambiente
     Local aTables
+
+    // Bloco de código para execução da rotina
+    Local bWindowInit
 
     _cParms := upper(_cParms)
     aParms := StrTokArr(_cParms,';')
@@ -49,8 +56,8 @@ User Function xMnuExec( _cParms, _cUser, _cPassword, _cTables ) // U_XMNUEXEC
     RPCSetEnv(;
         cEmp,; // cRpcEmp
         cFil,; // cRpcFil
-        _cUser,; // cEnvUser
-        _cPassword,; // cEnvPass
+        cUser,; // cEnvUser
+        cPassword,; // cEnvPass
         cMod,; // cEnvMod
         cRotina,; // cFunName
         aTables; // aTables
