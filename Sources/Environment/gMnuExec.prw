@@ -70,8 +70,10 @@ User Function gMnuExec( _cParms, _cAuthFile, _cTables ) // U_GMNUEXEC
         cPassword := nil
     else
         _cAuthFile := lower(_cAuthFile)
-        if left(_cAuthFile, 1) == "/" // se iniciar com /, é um caminho absoluto do Linux
-            _cAuthFile := "l:" + _cAuthFile
+        if left(_cAuthFile, 1) == "/"
+            _cAuthFile := "l:" + _cAuthFile // Linux
+        else
+            _cAuthFile := "c:"+ _cAuthFile // Windows
         endif
         if file(_cAuthFile,,.F.)
             cFileContent := memoRead(_cAuthFile,.F.)
