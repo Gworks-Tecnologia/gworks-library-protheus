@@ -14,7 +14,9 @@ Class GwFileIterator
     Public Data aFile             as array     default {}
     Public Data cFile             as character default ""
     Public Data cOS               as character default ""
+    Public Data cHeader           as character default ""
     Public Data nTotalLines       as numeric   default 0
+    Public Data lLoadFile         as logical   default .T.
     Public Data lLoadStatus       as logical   default .F.
     Public Data lStop             as logical   default .F.
     Public Data lIgnoreBlankLines as logical   default .F.
@@ -28,6 +30,7 @@ Class GwFileIterator
     // Métodos públicos da classe
     Public Method Destroy()
     Public Method SetFile( cFile as character )
+    Public Method SetHeader( cHeader as character )
     Public Method LoadFile() as logical
     Public Method GetLoadStatus() as logical
     Public Method EvalByCondition( bLoad as codeblock, bValid as codeblock, bExec as codeblock )
@@ -38,15 +41,19 @@ EndClass
 Método construtor de classe GwGetFile().
 @type method
 @version 12.1.33
-@author Gworks - Giovani Soares
+@author Gworks-Giovani
 @since 3/26/2023
 @return object, Instância da classe.
 /*/
-Method New( cFile as character ) Class GwFileIterator
+Method New( cFile as character, cHeader as character, lLoadFile as logical ) Class GwFileIterator
 
     Default cFile := ""
+    Default cHeader := ""
+    Default lLoadFile := .T.
 
     ::cFile := cFile
+    ::cHeader := cHeader
+    ::lLoadFile := lLoadFile
     ::lIgnoreBlankLines := .F.
 
     ::Init()
@@ -57,10 +64,13 @@ Return Self
 Inicializa os atributos da instância do objeto.
 @type method
 @version 12.1.33
-@author Gworks - Giovani Soares
+@author Gworks-Giovani
 @since 4/3/2023
 /*/
 Method Init() Class GwFileIterator
+
+    Default cHeader := ""
+    Default lLoadFile := .T.
 
     if !Empty(::oFile)
         ::Destroy()
@@ -73,7 +83,7 @@ Method Init() Class GwFileIterator
     ::lLoadStatus := .F.
     ::cOS := U_GWRemoteType()
 
-    if !Empty(::cFile)
+    if( ::lLoadFile .And. !Empty(::cFile) )
         ::LoadFile()
     endif
 
@@ -83,7 +93,7 @@ Return
 Destroi o objeto.
 @type method
 @version 12.1.33
-@author Gworks - Giovani Soares
+@author Gworks-Giovani
 @since 4/3/2023
 /*/
 Method Destroy() Class GwFileIterator
@@ -95,6 +105,8 @@ Method Destroy() Class GwFileIterator
     ::oError := nil
     ::oFile := nil
     ::cFile := ""
+    ::cHeader := ""
+    ::lLoadFile := .T.
     ::aFile := {}
     ::lLoadStatus := .F.
 
@@ -108,9 +120,11 @@ Define o arquivo a ser considerado para leitura e processamento pela instância d
 @since 4/3/2023
 @param cFile, character, arquivo
 /*/
-Method SetFile( cFile as character ) Class GwFileIterator
+Method SetFile( cFile as character, cHeader as character, lLoadFile as logical ) Class GwFileIterator
 
     Default cFile := ""
+    Default cHeader := ""
+    Default lLoadFile := .T.
 
     ::oError:cMethod := "SetFile"
 
@@ -120,8 +134,31 @@ Method SetFile( cFile as character ) Class GwFileIterator
     endif
 
     ::cFile := cFile
+    ::cHeader := cHeader
+    ::lLoadFile := lLoadFile
 
     ::Init()
+
+Return
+
+/*/{Protheus.doc} GwFileIterator::SetHeader
+Define, um cabeçalho (header) para o arquivo.
+@type method
+@version 12.1.2310
+@author Gworks - Giovani
+@since 14/04/2025
+@param cHeader, character, Header desejado.
+@obs O header será adicionado no primeiro elemento da propriedade Self:aFile.
+/*/
+Method SetHeader( cHeader as character ) Class GwFileIterator
+
+    ::cHeader := cHeader
+
+    if !( empty(::aFile) )
+        aAdd(::aFile, nil)
+        ::aFile := aIns(::aFile, 1 )
+        ::aFile[1] := ::cHeader
+    endif
 
 Return
 
@@ -129,7 +166,7 @@ Return
 Carrega o arquivo para o objeto.
 @type method
 @version 12.1.33
-@author Gworks - Giovani Soares
+@author Gworks-Giovani
 @since 4/3/2023
 @return logical, Retorna .T. para carregamento realizado com sucesso e .F. para falhas.
 /*/
@@ -152,6 +189,12 @@ Method LoadFile() as logical Class GwFileIterator
 
         ::aFile := ::oFile:GetAllLines()
 
+        if !empty(::cHeader)
+            aAdd(::aFile, nil)
+            ::aFile := aIns(::aFile, 1 )
+            ::aFile[1] := ::cHeader
+        endif
+
         ::oFile:Close() // fecha arquivo
 
     else
@@ -161,11 +204,7 @@ Method LoadFile() as logical Class GwFileIterator
     endif
 
     ::nTotalLines := Len(::aFile)
-    if ::nTotalLines >= 1 // cabeçalho e 1 (uma) linha de dados = 2 linhas no mínimo
-
-        lResult := .T.
-
-    else
+    if !( lResult := (::nTotalLines >= 1) )
         ::oError:cTitle := FunName()
         ::oError:cError := "Arquivo vazio!"
         ::oError:cSuggestion := "Verifque o arquivo selecionado e tente novamente."
@@ -185,7 +224,7 @@ Retorna o status da leitura e carregamento do arquivo para o objeto
 conforme resultado da execução do método ::LoadFile().
 @type method
 @version 12.1.33
-@author Gworks - Giovani Soares
+@author Gworks-Giovani
 @since 4/3/2023
 @return logical, Retorna .T. para sucesso e .F. para falha.
 /*/
@@ -196,7 +235,7 @@ Return ::lLoadStatus
 Para cada linha do arquivo avalia uma determinada estrutura de blocos de código (veja parâmetros).
 @type method
 @version 12.1.33
-@author Gworks - Giovani Soares
+@author Gworks-Giovani
 @since 4/3/2023
 @param bLoad, codeblock, Bloco de código para carga de dados.
 @param bValid, codeblock, Bloco de código de condição.
@@ -215,13 +254,13 @@ Method EvalByCondition( bLoad as codeblock, bValid as codeblock, bExec as codebl
             Loop // ignora linha conforme nStart
         endif
 
-        cLine  := ::aFile[nI]
+        cLine := ::aFile[nI]
 
         if ::lIgnoreBlankLines .And. Empty(AllTrim(cLine))
             Loop // ignora linhas vazias
         endif
 
-        xLoad := Eval( bLoad, cLine, nI, ::cFile )
+        xLoad  := Eval( bLoad, cLine, nI, ::cFile )
 
         lValid := Eval( bValid, xLoad, cLine, nI, ::cFile )
         if ::lStop
