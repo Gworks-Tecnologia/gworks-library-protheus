@@ -4,7 +4,13 @@ using namespace Gworks.Library.Functions
 
 namespace Gworks.Library.Classes
 
-
+/*/{Protheus.doc} GwMailAttachments
+Função para envio de e-mail com suporte a anexo.
+@type class
+@version 12.1.2310
+@author Gwork - Giovani
+@since 29/04/2025
+/*/
 Class GwMailAttachments
 
     Public Data cDirectory as character default ""
@@ -19,7 +25,14 @@ Class GwMailAttachments
 
 EndClass
 
-
+/*/{Protheus.doc} GwMailAttachments::New
+Método construtor da classe.
+@type method
+@version 12.1.2310
+@author Gworks - Giovani
+@since 29/04/2025
+@return object, Instância da classe.
+/*/
 Method New() Class GwMailAttachments
 
     Self:cDirectory := ""
@@ -27,7 +40,16 @@ Method New() Class GwMailAttachments
 
 Return Self
 
-
+/*/{Protheus.doc} GwMailAttachments::ReserveAttachDir
+Método para preparar e reservar o diretório de anexos.
+@type method
+@version 12.1.2310
+@author Gworks - Giovani
+@since 29/04/2025
+@param cAttachDirectory, character, Diretório de anexos.
+@param lEraseFiles, logical, Se .T. (true), apagará os arquivos existentes.
+@return variant, Retorna .T. (true) para indicar sucesso na operação e .F. (false) caso contrário.
+/*/
 Method ReserveAttachDir( cAttachDirectory as character, lEraseFiles as logical ) Class GwMailAttachments
 
     Local nInterval      := 5000 as numeric // intervalo entre tentativas
@@ -85,7 +107,14 @@ Method ReserveAttachDir( cAttachDirectory as character, lEraseFiles as logical )
 
 Return lRet
 
-
+/*/{Protheus.doc} GwMailAttachments::ReleaseAttachDir
+Método para liberar a reserva do diretório de anexos.
+@type method
+@version 12.1.2310
+@author Gworks - Giovani
+@since 29/04/2025
+@param lEraseFiles, logical, Se .T. (true), apagará os arquivos existentes.
+/*/
 Method ReleaseAttachDir( lEraseFiles as logical ) Class GwMailAttachments
 
     Default lEraseFiles := .T.
@@ -105,12 +134,27 @@ Method ReleaseAttachDir( lEraseFiles as logical ) Class GwMailAttachments
 
 Return
 
-
+/*/{Protheus.doc} GwMailAttachments::GetNameAttachDir
+Método para retornar o diretório de anexos.
+@type method
+@version 12.1.2310
+@author giovani
+@since 29/04/2025
+@return character, Diretório de anexos.
+/*/
 Method GetNameAttachDir() Class GwMailAttachments
-
 Return ::cDirectory
 
-
+/*/{Protheus.doc} GwMailAttachments::AttachFiles
+Método responsábel por copiar os arquivos da máquina local para o servidor.
+@type method
+@version 12.1.2310
+@author Gworks - Giovani
+@since 29/04/2025
+@param cLocalDir, character, Diretório Local
+@param lEraseLocal, logical, Se .T. (true), apagará os arquivos existentes.
+@return logical, Retorna .T. (true) para indicar sucesso na operação e .F. (false) caso contrário.
+/*/
 Method AttachFiles( cLocalDir as character, lEraseLocal as logical ) Class GwMailAttachments
 
     Local nI        := 0   as numeric
@@ -157,7 +201,21 @@ Method AttachFiles( cLocalDir as character, lEraseLocal as logical ) Class GwMai
 
 Return .T.
 
-
+/*/{Protheus.doc} GwMailAttachments::SendMail
+Méotodo responsável por enviar o respectivo e-mail com anexos.
+@type method
+@version 12.1.2310
+@author Gworks - Giovani
+@since 29/04/2025
+@param cEmailTO, character, Endereço de e-mail do destinatário.
+@param cEmailCC, character, Endereço de e-mail do destinatário em cópia.
+@param cEmailCCO, character, Endereço de e-mail do destinatário em cópia oculta.
+@param cSubject, character, Assunto do e-mail.
+@param cBody, character, Corpo do e-mail.
+@param cFileType, character, Tipos de arquivos a serem enviados, ex.: *.pdf, *.txt
+@param lSlipMail, logical, Se .T. (true), enviará um e-mail para cada destinatário separadamente.
+@return logical, Retorna .T. (true) para indicar sucesso na operação e .F. (false) caso contrário.
+/*/
 Method SendMail( cEmailTO  as character,;
                  cEmailCC  as character,;
                  cEmailCCO as character,;
