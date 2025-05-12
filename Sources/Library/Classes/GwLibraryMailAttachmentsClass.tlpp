@@ -16,6 +16,16 @@ Class GwMailAttachments
     Public Data cDirectory as character default ""
     Public Data lReserved  as logical default .F.
 
+    Public Data cEmailTO as character default ""
+    Public Data cEmailCC as character default ""
+    Public Data cEmailCCO as character default ""
+    Public Data cSubject as character default ""
+    Public Data cBody as character default ""
+    Public Data cFileType as character default "*.pdf, *.csv"
+    Public Data lSplitMail as logical default .F.
+    Public Data lError as logical default .F.
+    Public Data cError as character default ""
+
     Public Method New() Constructor
     Public Method ReserveAttachDir()
     Public Method ReleaseAttachDir()
@@ -56,7 +66,7 @@ Method ReserveAttachDir( cAttachDirectory as character, lEraseFiles as logical )
     Local nAttempt       := 0    as numeric // nro. tentativas atual
     Local nTotalAttempts := 10   as numeric // nro. tentativas
     Local lContinue      := .F.  as logical
-    Local lRet           := .F.  as logical
+    Local lResult        := .F.  as logical
 
     Default cAttachDirectory := "\attachments\"
     Default lEraseFiles      := .T.
@@ -88,24 +98,24 @@ Method ReserveAttachDir( cAttachDirectory as character, lEraseFiles as logical )
         ::cDirectory := cAttachDirectory
 
         // Cria o Diretório
-        if !ExistDir(cAttachDirectory)
-            MakeDir(cAttachDirectory) // MontaDir(cAttachDirectory)
+        if !ExistDir(cAttachDirectory,,.F.)
+            MakeDir(cAttachDirectory,,.F.)
         endif
 
         // Apaga qualquer arquivo existente no diretório
         if lEraseFiles
-            aEval( Directory(cAttachDirectory+"*.*"), { |aFile| FErase(cAttachDirectory+aFile[1]) })
+            aEval( Directory(cAttachDirectory+"*.*",,,.F.), { |aFile| FErase(cAttachDirectory+aFile[1]) })
         endif
 
-        lRet := .T.
+        lResult := .T.
 
     else
 
-        lRet := .F.
+        lResult := .F.
 
     endif
 
-Return lRet
+Return lResult
 
 /*/{Protheus.doc} GwMailAttachments::ReleaseAttachDir
 Método para liberar a reserva do diretório de anexos.
@@ -121,7 +131,7 @@ Method ReleaseAttachDir( lEraseFiles as logical ) Class GwMailAttachments
 
     // Apaga qualquer arquivo existente no diretório
     if lEraseFiles
-        aEval( Directory(::cDirectory+"*.*"), { |aFile| FErase(::cDirectory+aFile[1]) })
+        aEval( Directory(::cDirectory+"*.*",,,.F.), { |aFile| FErase(::cDirectory+aFile[1]) })
     endif
 
     // Libera o semáforo para o processamento
@@ -160,26 +170,24 @@ Method AttachFiles( cLocalDir as character, lEraseLocal as logical ) Class GwMai
     Local nI        := 0   as numeric
     Local aFiles    := {}  as array
     Local cFile     := ""  as character
-    Local lContinue := .T. as logical
 
     Default cLocalDir   := ""  // diretório local, origem dos arquivos a serem copiados
     Default lEraseLocal := .T. // apaga arquivos após a cópia para o servidor
-
-    if !::lReserved
-        if !::ReserveAttachDir(,.F.)
-            lContinue := .F.
-        endif
-    endif
 
     if Empty(cLocalDir)
         UserException("GwMailAttachments:AttachFiles - Argumentos inválidos ou não informados!")
     endif
 
-    if Right(cLocalDir,1) != "\"
-        cLocalDir += "\"
+    if !::lReserved .and. !::ReserveAttachDir(,.F.)
+        UserException("GwMailAttachments:AttachFiles - Falha ao reservar o diretório de anexos!")
     endif
 
-    aFiles := Directory(cLocalDir+"*.*")
+    do case
+        case at("\",cLocalDir) > 0 .and. Right(cLocalDir,1) != "\" ; cLocalDir += "\" // Windows
+        case at("/",cLocalDir) > 0 .and. Right(cLocalDir,1) != "/" ; cLocalDir += "/" // Linux
+    endcase
+
+    aFiles := Directory(cLocalDir+"*.*",,,.F.)
 
     // Move os arquivos para o Servidor
     for nI:=1 to Len(aFiles)
@@ -189,7 +197,7 @@ Method AttachFiles( cLocalDir as character, lEraseLocal as logical ) Class GwMai
         if CpyT2S(cFile, ::cDirectory, .F.) // se copiou...
 
             if lEraseLocal // ...e deve-se remover os arquivos de origem...
-                FErase(cFile,,.T.) // ...então apaga-os do diretório local
+                FErase(cFile,,.F.) // ...então apaga-os do diretório local
             endif
 
         else
@@ -207,84 +215,96 @@ Méotodo responsável por enviar o respectivo e-mail com anexos.
 @version 12.1.2310
 @author Gworks - Giovani
 @since 29/04/2025
-@param cEmailTO, character, Endereço de e-mail do destinatário.
-@param cEmailCC, character, Endereço de e-mail do destinatário em cópia.
-@param cEmailCCO, character, Endereço de e-mail do destinatário em cópia oculta.
-@param cSubject, character, Assunto do e-mail.
-@param cBody, character, Corpo do e-mail.
-@param cFileType, character, Tipos de arquivos a serem enviados, ex.: *.pdf, *.txt
-@param lSlipMail, logical, Se .T. (true), enviará um e-mail para cada destinatário separadamente.
+@param _cEmailTO, character, Endereço de e-mail do destinatário.
+@param _cEmailCC, character, Endereço de e-mail do destinatário em cópia.
+@param _cEmailCCO, character, Endereço de e-mail do destinatário em cópia oculta.
+@param _cSubject, character, Assunto do e-mail.
+@param _cBody, character, Corpo do e-mail.
+@param _cFileType, character, Tipos de arquivos a serem enviados, ex.: *.pdf, *.txt
+@param _lSplitMail, logical, Se .T. (true), enviará um e-mail para cada destinatário separadamente.
+@param _cRetError, character, Retorna a mensagem de erro ao tentar enviar o e-mail, se houver.
 @return logical, Retorna .T. (true) para indicar sucesso na operação e .F. (false) caso contrário.
 /*/
-Method SendMail( cEmailTO  as character,;
-                 cEmailCC  as character,;
-                 cEmailCCO as character,;
-                 cSubject  as character,;
-                 cBody     as character,;
-                 cFileType as character,;
-                 lSlipMail ) Class GwMailAttachments
+Method SendMail( _cEmailTO   as character,;
+                 _cEmailCC   as character,;
+                 _cEmailCCO  as character,;
+                 _cSubject   as character,;
+                 _cBody      as character,;
+                 _cFileType  as character,;
+                 _lSplitMail as logical,;
+                 _cRetError  as character ) Class GwMailAttachments
 
     Local aDirFiles   := {}  as array
     Local aFileType   := {}  as array
     Local aFiles      := {}  as array
     Local aEmail      := {}  as array
+    Local cFileType   := ""  as character
     Local cFileName   := ""  as character
+    Local cTO         := ""  as character
     Local nI          := 0   as numeric
     Local nJ          := 0   as numeric
-    Local lRet        := .T. as logical
+    Local lResult     := .T. as logical
 
-    Default cEmailTO  := ""
-    Default cEmailCC  := ""
-    Default cSubject  := ""
-    Default cBody     := ""
-    Default cFileType := "*.pdf"
-    Default lSlipMail := .F.
+    Default _cEmailTO   := nil
+    Default _cEmailCC   := nil
+    Default _cSubject   := nil
+    Default _cBody      := nil
+    Default _cFileType  := nil
+    Default _lSplitMail := nil
+    Default _cRetError  := ""
 
-    if  Empty(cEmailTO) .Or.;
-        Empty(cSubject) .Or.;
-        Empty(cBody)
+    ::cEmailTO   := iif( !empty(_cEmailTO)  , _cEmailTO  , ::cEmailTO   )
+    ::cEmailCC   := iif( !empty(_cEmailCC)  , _cEmailCC  , ::cEmailCC   )
+    ::cSubject   := iif( !empty(_cSubject)  , _cSubject  , ::cSubject   )
+    ::cBody      := iif( !empty(_cBody)     , _cBody     , ::cBody      )
+    ::cFileType  := iif( !empty(_cFileType) , _cFileType , ::cFileType  )
+    ::lSplitMail := iif( !empty(_lSplitMail), _lSplitMail, ::lSplitMail )
+
+    if  Empty(::cEmailTO) .Or.;
+        Empty(::cSubject) .Or.;
+        Empty(::cBody)
 
         UserException("GwMailAttachments:SendMail - Argumentos inválidos ou não informados!")
 
     endif
 
-    cEmailTO  := Replace(cEmailTO ,' ','')
-    cEmailCC  := Replace(cEmailCC ,' ','')
-    cEmailCCO := Replace(cEmailCCO,' ','')
+    ::cEmailTO  := Replace(::cEmailTO ,' ','')
+    ::cEmailCC  := Replace(::cEmailCC ,' ','')
+    ::cEmailCCO := Replace(::cEmailCCO,' ','')
 
     // Ontem a lista de e-mails caso seja necessário
     // enviar um e-mail para cada destinatário separadamente
-    if lSlipMail
-        if Empty(aEmail) .And. At(',',cEmailTO) > 0
-            aEmail := StrTokArr(cEmailTO,',') // suporte a e-mails separados por ','
+    if ::lSplitMail
+        if Empty(aEmail) .And. At(',',::cEmailTO) > 0
+            aEmail := StrTokArr(::cEmailTO,',') // suporte a e-mails separados por ','
         endif
-        if Empty(aEmail) .And. At(';',cEmailTO) > 0
-            aEmail := StrTokArr(cEmailTO,';') // suporte a e-mails separados por ';'
+        if Empty(aEmail) .And. At(';',::cEmailTO) > 0
+            aEmail := StrTokArr(::cEmailTO,';') // suporte a e-mails separados por ';'
         endif
     endif
     if Empty(aEmail)
-        aAdd(aEmail, cEmailTO)
+        aAdd(aEmail, ::cEmailTO)
     endif
-    cEmailTO := ""
+    ::cEmailTO := ""
 
     // Obtem a lista de extensões
-    if Empty(aFileType) .And. At(',',cFileType)
-        aFileType := StrTokArr(cFileType,',')
+    if Empty(aFileType) .And. At(',',::cFileType)
+        aFileType := StrTokArr(::cFileType,',')
     endif
-    if Empty(aFileType) .And. At(';',cFileType)
-        aFileType := StrTokArr(cFileType,';')
+    if Empty(aFileType) .And. At(';',::cFileType)
+        aFileType := StrTokArr(::cFileType,';')
     endif
     if Empty(aFileType)
-        aAdd(aFileType, cFileType)
+        aAdd(aFileType, ::cFileType)
     endif
-    cFileType := ""
+    ::cFileType := ""
 
     // Obtem a lista de arquivos, conforme extensões
     for nI:=1 to Len(aFileType)
 
         cFileType := aFileType[nI]
 
-        aDirFiles := Directory(::cDirectory+cFileType)
+        aDirFiles := Directory(::cDirectory+cFileType,,,.F.)
 
         for nJ:=1 to Len(aDirFiles)
 
@@ -299,14 +319,17 @@ Method SendMail( cEmailTO  as character,;
     // Envia e-mail
     for nI:=1 to Len(aEmail)
 
-        cEmailTO := AllTrim(aEmail[nI])
+        cTO := AllTrim(aEmail[nI])
 
-        lRet := U_GwSendMail(cSubject, cBody, cEmailTO, cEmailCC, cEmailCCO, aFiles)
+        lResult := U_GwSendMail(::cSubject, ::cBody, cTO, ::cEmailCC, ::cEmailCCO, aFiles, @_cRetError)
 
-        if !lRet
+        if !lResult
             exit
         endif
 
     next nI
 
-Return lRet
+    ::cError := allTrim(_cRetError)
+    ::lError := iif(empty(::cError), .F., .T.)
+
+Return lResult

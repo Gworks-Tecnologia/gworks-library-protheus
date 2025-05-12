@@ -10,21 +10,23 @@ Função para envio de e-mail com suporte a anexo.
 @since 27/09/2022
 @param cSubject, character, assunto.
 @param cBody, character, texto.
-@param cMailTO, character, destinatário.
-@param cMailCC, character, destinatários em cópia.
-@param aAttachment, array, anexos (caminho relativo).
-@param cError, character, variável para retorno da mensagem de erro (informar via ref. de memória).
-@return logical, se .T. e-mail enviado com sucesso e .F. e-mail não enviado.
+@param cMailTO, character, Destinatário.
+@param cMailCC, character, Destinatários em cópia.
+@param aAttachment, array, Anexos (caminho relativo).
+@param cRetError, character, Retorna a mensagem de erro ao tentar enviar o e-mail, se houver.
+@return logical, Retorna .T. (true) para indicar que o e-mail foi e .F. (false) caso contrário.
 @sample xRet := Common.Library.U_SendMail("teste", "Teste abc...", "giovani.manenti@gmail.com", "", "\attachments\rm20220927112746.pdf")
 /*/
-User Function GwSendMail( cSubject as character,;
+User Function GwSendMail( ;
+						cSubject as character,;
 						cBody as character,;
 						cMailTO as character,;
 						cMailCC as character,;
 						cMailCCO as character,;
 						aAttachment as array,;
-						cError as character )
+						cRetError as character )
 
+	Local lResult       := .F. as logical
 	Local aFile         := {}  as array
 	Local aSmtpServer   := {}  as array
 	Local cAccount      := ""  as character
@@ -38,7 +40,6 @@ User Function GwSendMail( cSubject as character,;
 	Local lTLS          := .F. as logical
 	Local lAuth         := .F. as logical
 	Local lAtthErr      := .F. as logical
-	Local lRet          := .F. as logical
 
 	Default cSubject    := ""
 	Default cBody       := ""
@@ -46,13 +47,13 @@ User Function GwSendMail( cSubject as character,;
 	Default cMailCC     := ""
 	Default cMailCCO    := ""
 	Default aAttachment := {}
-	Default cError      := ""
+	Default cRetError   := ""
 
 	aSmtpServer := StrToKarr(AllTrim(GetMV("MV_RELSERV")),":")
 	cAccount    := AllTrim(GetMV("MV_RELACNT"))
 	cPassword   := AllTrim(GetMV("MV_RELPSW" ))
-	lSSL        := GetMV("MV_RELTLS")
-	lTLS        := GetMV("MV_RELSSL")
+	lTLS        := GetMV("MV_RELTLS")
+	lSSL        := GetMV("MV_RELSSL")
 	lAuth       := GetMv("MV_RELAUTH",,.F.)
 
 	cSmtpServer := aSmtpServer[1]
@@ -73,19 +74,19 @@ User Function GwSendMail( cSubject as character,;
 
 		// Define o tempo de time out com servidor de Smtp
 		if ( nRes := oServer:SetSmtpTimeOut( 60 ) ) != 0
-			cError := oServer:GetErrorString( nRes )
+			cRetError := oServer:GetErrorString( nRes )
 			exit
 		endif
 
 		// Conecta no servidor Smtp
 		if ( nRes := oServer:SmtpConnect() ) != 0
-			cError := oServer:GetErrorString( nRes )
+			cRetError := oServer:GetErrorString( nRes )
 			exit
 		endif
 
 		if lAuth
 			if ( nRet := oServer:SMTPAuth( cAccount, cPassword ) ) != 0
-				cError := oServer:GetErrorString( nRes )
+				cRetError := oServer:GetErrorString( nRes )
 				exit
 			endif
 		endif
@@ -95,7 +96,7 @@ User Function GwSendMail( cSubject as character,;
 		oMessage:Clear() // limpa o objeto
 
 		// Popula com os dados de envio
-		oMessage:cFrom := cAccount
+		oMessage:cFrom := replace(cAccount,"=","@")
 		oMessage:cTo := cMailTO // e-mails de destinatário (separados por vírgula)
 		oMessage:cCc := cMailCC // e-mails em cópia (separados por vírgula)
 		oMessage:cBcc := cMailCCO // e-mails em cópia oculta (separados por vírgula)
@@ -111,7 +112,7 @@ User Function GwSendMail( cSubject as character,;
 			if !Empty(cAttachment) .And. !Empty(cFileName)
 				if ( nRes := oMessage:AttachFile( cAttachment ) ) < 0 //!= 0
 					oServer:SmtpDisconnect()
-					cError := oServer:GetErrorString( nRes )
+					cRetError := oServer:GetErrorString( nRes )
 					lAtthErr := .T.
 					exit
 				endif
@@ -125,7 +126,7 @@ User Function GwSendMail( cSubject as character,;
 
 		//Envia o e-mail
 		if ( nRes := oMessage:Send( oServer ) ) != 0
-			cError := oServer:GetErrorString( nRes )
+			cRetError := oServer:GetErrorString( nRes )
 			oServer:SmtpDisconnect()
 			exit
 		endif
@@ -135,7 +136,7 @@ User Function GwSendMail( cSubject as character,;
 			exit
 		endif
 
-		lRet := .T.
+		lResult := .T.
 
 		exit
 
@@ -143,4 +144,4 @@ User Function GwSendMail( cSubject as character,;
 
 	Freeobj(oServer)
 
-Return lRet
+Return lResult
