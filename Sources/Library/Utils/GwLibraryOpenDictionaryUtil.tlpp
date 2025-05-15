@@ -14,7 +14,7 @@ Manipula arquivos do dicionário de dados referente às tabelas de metadados SX1, 
 /*/
 User Function GwOpenDictionary( cDictionary as character, cAlias as character )
 
-	Local lRet := .F.
+	Local lResult := .F.
 
 	Default cDictionary := ""
 	Default cAlias := ""
@@ -28,9 +28,9 @@ User Function GwOpenDictionary( cDictionary as character, cAlias as character )
 		OpenSxs(,,,,,cAlias,cDictionary,,.F.)
 
 		if Select(cAlias) > 0
-			lRet := .T.
+			lResult := .T.
 		endif
 
 	endif
 
-Return lRet
+Return lResult
