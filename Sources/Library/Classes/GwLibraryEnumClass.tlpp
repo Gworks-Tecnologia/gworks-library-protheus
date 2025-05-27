@@ -24,15 +24,15 @@ Classe para definição de enumeradores.
 
         oEnum_ := GwEnum():New()
 
-        oEnum_:SetEnum( 'Pendente' , 'Solicitação de Compra aprovada!'  )
-        oEnum_:SetEnum( 'Aprovado' , 'Solicitação de Compra aprovada!'  )
-        oEnum_:SetEnum( 'Reprovado', 'Solicitação de Compra reprovada!' )
+        oEnum_:SetEnum( "Pendente" , "Solicitação de Compra aprovada!"  )
+        oEnum_:SetEnum( "Aprovado" , "Solicitação de Compra aprovada!"  )
+        oEnum_:SetEnum( "Reprovado", "Solicitação de Compra reprovada!" )
 
         do case
 
-            case nOpc == oEnum_:GetEnum( 'Pendente'  ) ; ConOut( 'Description: ' + oEnum_:GetDescription( nOpc ) )
-            case nOpc == oEnum_:GetEnum( 'Aprovado'  ) ; ConOut( 'Description: ' + oEnum_:GetDescription( nOpc ) )
-            case nOpc == oEnum_:GetEnum( 'Reprovado' ) ; ConOut( 'Description: ' + oEnum_:GetDescription( nOpc ) )
+            case nOpc == oEnum_:GetEnum( "Pendente"  ) ; ConOut( "Description: " + oEnum_:GetDescription( nOpc ) )
+            case nOpc == oEnum_:GetEnum( "Aprovado"  ) ; ConOut( "Description: " + oEnum_:GetDescription( nOpc ) )
+            case nOpc == oEnum_:GetEnum( "Reprovado" ) ; ConOut( "Description: " + oEnum_:GetDescription( nOpc ) )
 
         endcase
 
