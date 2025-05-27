@@ -11,14 +11,14 @@ namespace Gworks.Library.Classes
 
 Class GwError From ErrorClass
 
-    Public Data cError       as character default ""
-    Public Data cSuggestion  as character default ""
-    Public Data cTitle       as character default ""
-    Public Data cAutoGRLog   as character default ""
-    Public Data cFunName     as character default ""
-    Public Data cMethod      as character default ""
-    Public Data lError       as logical   default .F.
-    Public Data oSave        as object    default {}
+    Public Data cError as character default ""
+    Public Data cSuggestion as character default ""
+    Public Data cTitle as character default ""
+    Public Data cAutoGRLog as character default ""
+    Public Data cFunName as character default ""
+    Public Data cMethod as character default ""
+    Public Data lError as logical default .F.
+    Public Data oSave as object default {}
 
     // Métodos construtores
     Public Method New() Constructor // construtor com argumentos
@@ -33,6 +33,7 @@ Class GwError From ErrorClass
     Public Method DefineWithError( lError as logical ) // define que a instância da classe foi definida com erro
     Public Method HasError() as logical // indica que a instância da classe GwError foi definida como erro
     Public Method ShowError( cStyle as character, cTitle as character, lShowAutoGRLog as logical, lDefineWithError as logical, lUpdateErrorClass as logical ) as variant // exibe a mensagem de erro entre: "INFO", "STOP", "ALERT", "HELP"
+    Public Method SetExecAutoVariables() as variant
     Public Method SetAutoGRLog( cAutoGRLog as character ) // define a mensagem para exibição via função MostraErro()
     Public Method SetAutoGRLogFromModel( oModel as object ) as variant // define a mensagem para exibição via função MostraErro() a partir de um array (somente para funções mvc)
     Public Method SetAutoGRLogFromExecAuto( cExecAutoName as character ) as variant
@@ -105,10 +106,13 @@ Method DisplayHelp( cTitle as character, cErro as character, cSuggestion as char
             iif(!Empty(cSuggestion),cSuggestion,"Favor entrar em contato com o suporte técnico." ) ;
         )
     Else
+        if type('lMsHelpAuto') == 'U'
+            Private lMsHelpAuto as logical
+        endif
+        lMsHelpAuto := .F.
         Help(nil, nil, cTitle, nil, cErro, 1, 0, nil, nil, nil, nil, nil, {cSuggestion})
     EndIf
 Return
-
 
 /*/{Protheus.doc} Gwerror::Clear
 Recicla o objeto limpando todos seus atributos.
@@ -278,6 +282,31 @@ Method ShowError( cStyle as character, cTitle as character, lShowAutoGRLog as lo
 
 Return
 
+/*/{Protheus.doc} GwError::SetExecAutoVariables
+Define as variáveis de ambiente a serem usadas para controle de erro e log da execução de rotina via MsExecAuto().
+Variáveis:
+ - lMsErroAuto: Indica de se houve erro não fatal durante a execução;
+ - lMsHelpAuto: Habilita a captura das mensagens de erro;
+ - lAutoErrNoFile: Desabilita a geração do arquivo de log padrão do sistema.
+@type method
+@version 12.1.2410
+@author giovani
+@since 5/21/2025
+@obs As referidas variáveis devem ser declaradas com escopo "Private" antes da chamada deste método.
+@link https://tdn.totvs.com/pages/releaseview.action?pageId=566489232
+/*/
+Method SetExecAutoVariables( nOpc as numeric ) as variant Class GwError
+
+    if type("lMsErroAuto") == "U" .or. type("lMsHelpAuto") == "U" .or. type("lAutoErrNoFile") == "U"
+        ::ThrowException("Environment variables lMsErroAuto, lMsHelpAuto or lAutoErrNoFile are not defined.")
+    endif
+
+    lMsErroAuto    := .F.
+    lMsHelpAuto    := .T.
+    lAutoErrNoFile := .T.
+
+Return
+
 /*/{Protheus.doc} GwError::SetAutoGRLog
 Define a mensagem de erro proveniente de execuções automáticas, como ExecAuto().
 @type method
@@ -383,15 +412,19 @@ Exibe a mensagem de erro, aviso ou log, conforme defindo por ::cAutoGRLog.
 @since 3/21/2023
 /*/
 Method ShowAutoGRLog() as variant Class GwError
+
     if type('lAutoErrNoFile') == 'U'
-        Private lAutoErrNoFile := .F.
+        Private lAutoErrNoFile as logical
     endif
-    if lAutoErrNoFile
-        lAutoErrNoFile := .F.
-    endif
+
+    lAutoErrNoFile := .F.
+
     AutoGRLog(::cAutoGRLog)
+
     MostraErro()
+
 Return
+
 
 /*/{Protheus.doc} GwError::ThrowException() as variant
 Lança exceção de erro.
