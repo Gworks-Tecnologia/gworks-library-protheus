@@ -1,0 +1,56 @@
+#include "tlpp-core.th"
+
+namespace Gworks.Library.Mapping
+
+/*/{Protheus.doc} GwGetStructForJsonMapping
+Obtem os metadados correspondentes ao mapeamento de campos de uma relação de dados externa para uma interna do ERP.
+@type function
+@version 12.1.2310
+@author Gworks - Giovani
+@since 5/29/2025
+@param jMapping, json, Mapeamento de campos conforme exemplo a seguir:
+    {
+        "campo_externo_1": { "erp_field_name": "campo_erp_x" },
+        "campo_externo_2": { "erp_field_name": "campo_erp_y" },
+        "campo_externo_3": { "erp_field_name": "campo_erp_z" }
+    }
+@obs jMapping deve ser informado por referência de memória pois serão
+acrescidas as seguintes propriedades ao objeto json:
+ - erp_field_type <tipode de dado>
+ - erp_field_size <tamanho>
+ - erp_field_decimals <decimais>
+ - erp_field_required <obrigatório>
+ - erp_field_default <valor padrão>
+/*/
+User Function GwGetStructForJsonMapping( jMapping as json )
+
+    Local nI as integer
+    Local aNames as array
+    Local cCampoExt as character // campo externo (api, csv, etc)
+    Local cCampoErp as character // campo do ERP
+
+    if!( U_GwOpenDictionary("SX3", "SX3DIC") )
+        UserException():New("GetStruct - Error to opening dictionary SX3...")
+    endif
+
+    dbSelectArea("SX3DIC")
+    SX3DIC->(dbSetOrder(2)) // X3_CAMPO
+    aNames := jMapping:getNames()
+    for nI:=1 to len(aNames)
+        cCampoExt := aNames[nI]
+        cCampoErp := jMapping[cCampoExt]["erp_field_name"]
+        cCampoErp := PadR(cCampoErp, 10, " ")
+        if!( SX3DIC->(msSeek( cCampoErp )) )
+            UserException():New("GetStruct - Invalid ERP field name " + cCampoErp + " in dictionary SX3...")
+            exit
+        endif
+
+        jMapping[cCampoExt]["erp_field_type"] := SX3DIC->X3_TIPO
+        jMapping[cCampoExt]["erp_field_size"] := SX3DIC->X3_TAMANHO
+        jMapping[cCampoExt]["erp_field_decimals"] := SX3DIC->X3_DECIMAL
+        jMapping[cCampoExt]["erp_field_required"] := x3Obrigat(SX3DIC->X3_CAMPO)
+        jMapping[cCampoExt]["erp_field_default"] := criaVar(SX3DIC->X3_CAMPO)
+
+    next
+
+Return
