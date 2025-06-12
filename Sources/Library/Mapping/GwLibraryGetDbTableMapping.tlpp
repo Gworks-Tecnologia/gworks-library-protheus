@@ -1,0 +1,87 @@
+#include 'tlpp-core.th'
+
+using namespace Gworks.Library.Classes
+using namespace Gworks.Library.Utils
+using namespace Gworks.Library.Functions
+
+namespace Gworks.Library.Mapping
+
+/*/{Protheus.doc} GwGetDbTableMapping
+Retorna a descrição de campos conforme dicionário de dados.
+@type function
+@version 12.1.2210
+@author Gworks-Giovani
+@since 21/05/2024
+@param aTabelas, array, Array de tabelas conforme SX2.
+@param cLang, character, Idioma desejado.
+@param lInvert, logical,
+    Define se a orderm do array retornado será invertida (.T.) em relação à posição original (.F.).
+    Onde:
+        - Original ...: Campo/Descrição (.F.);
+        - Invertido ..: Descrição/Campo (.T.);
+@return object, Objeto do da classe GwKeyValue() contendo o mapeamento.
+/*/
+User Function GwGetDbTableMapping(aTabelas as array, cLang as character, lInvert as logical) as object
+
+    Local aArea         := {}                 as array
+    Local cTabela       := ""                 as character
+    Local cDescricao    := ""                 as character
+    Local nX            := 0                  as numeric
+    Local oGwKeyValue   := GwKeyValue():New() as object
+
+    default aTabelas  := {}
+    default cLang     := ""
+    default lInvert   := .F.
+
+    if(Empty(aTabelas) .Or. Empty(cLang))
+        UserException("GwGetDbTableMapping - Parametros não informados ou inválidos.")
+    endIf
+
+    aArea := GetArea()
+
+    U_GwOpenDictionary("SX2","SX2DIC")
+
+    SX2DIC->(DbSetOrder(1))
+
+    for nX:=1 to Len(aTabelas)
+
+        cTabela := aTabelas[nX]
+
+        SX2DIC->(DbGoTop())
+        SX2DIC->(MsSeek(cTabela))
+        while !SX2DIC->(EOF()) .And. SX2DIC->X2_CHAVE == cTabela
+
+            cTable := AllTrim( SX2DIC->X2_CHAVE )
+
+            do case
+
+                case Lower(cLang) == "db"  ; cDescricao := AllTrim( SX2DIC->X2_CHAVE    )
+                case Lower(cLang) == "pt"  ; cDescricao := AllTrim( SX2DIC->X2_NOME     )
+                case Lower(cLang) == "spa" ; cDescricao := AllTrim( SX2DIC->X2_NOMESPA  )
+                case Lower(cLang) == "eng" ; cDescricao := AllTrim( SX2DIC->X2_NOMEENG  )
+
+            endcase
+
+            if Lower(cLang) != "db"
+
+                cDescricao := U_GwCamelCase( cDescricao )
+                cDescricao := U_GwCleanSpecialChar( cDescricao )
+
+            endif
+
+            if !lInvert
+                oGwKeyValue:Add( AllTrim( SX2DIC->X2_CHAVE ), cDescricao )
+            else
+                oGwKeyValue:Add( cDescricao, AllTrim( SX2DIC->X2_CHAVE ) )
+            endif
+
+            SX2DIC->(DbSkip())
+
+        enddo
+
+    next
+
+    SX2DIC->(DbCloseArea())
+    RestArea(aArea)
+
+Return oGwKeyValue
