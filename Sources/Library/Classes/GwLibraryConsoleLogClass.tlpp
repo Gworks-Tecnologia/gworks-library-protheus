@@ -23,9 +23,6 @@ Class GwConsoleLog
 	// Métodos construtores
 	Public Method New() Constructor
 
-	// Métodos internos
-	Public Method Init() as variant
-
 	// Métodos públicos
 	Public Method Clear() as variant
 	Public Method UseFwLogMsgClass( lArg as logical ) as variant
@@ -39,6 +36,9 @@ Class GwConsoleLog
 	Public Method CreateLogFile( cFileName as character ) as variant
 	Public Method GetLastMessage() as character
 	Public Method GetLogFile() as character
+
+	// Métodos internos
+	Private Method Init() as variant
 
 EndClass
 
