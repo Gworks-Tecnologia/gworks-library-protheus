@@ -1,0 +1,113 @@
+#include "tlpp-core.th"
+
+using namespace Gworks.Library.Functions
+using namespace Gworks.Library.Utils
+
+namespace Gworks.Library.Classes
+
+/*/{Protheus.doc} GwStructJsonMapping
+Monta uma esturutra de mapeamento de campos no seguinte formato Json:
+    {
+        "campo_externo_1":
+            {
+                "erp_field_name": <sting>,
+                "erp_field_type": <sting>,
+                "erp_field_size": <integer>,
+                "erp_field_decimals": <integer>,
+                "erp_field_required": <logical>,
+                "erp_field_default": <variant>
+            }
+    }
+@type class
+@version 12.1.2410
+@author Gworks - Giovani
+@since 6/13/2025
+/*/
+Class GwStructJsonMapping
+
+    Data jMapping as json
+
+    // Métodos contrutores
+    Public Method New() Constructor
+
+    // Métodos públicos
+    Public Method SetField( cExternalField as character, cErpField as character )
+    Public Method GetStruct() as json
+
+    // Metodos internos
+    Private Method Init()
+
+EndClass
+
+/*/{Protheus.doc} GwStructJsonMapping::New
+Método construtor da classe.
+@type method
+@version 12.1.2410
+@author Gworks - Giovani
+@since 6/13/2025
+@return object, Retorna instância do objeto.
+/*/
+Method New() Class GwStructJsonMapping
+
+    ::Init()
+
+Return Self
+
+/*/{Protheus.doc} GwStructJsonMapping::Init
+Método de inicialização da Classe.
+@type method
+@version 12.1.2410
+@author Gworks - Giovani
+@since 6/13/2025
+/*/
+Method Init() Class GwStructJsonMapping
+
+    ::jMapping := JsonObject():New()
+
+Return
+
+/*/{Protheus.doc} GwStructJsonMapping::SetField
+Método para incluir um mapeamento entre 2 (dois) campos informados.
+@type method
+@version 12.1.2410
+@author Gworks - Giovani
+@since 6/13/2025
+@param cExternalField, character, Campo externo.
+@param cErpField, character, Campo do Erp.
+/*/
+Method SetField( cExternalField as character, cErpField as character ) Class GwStructJsonMapping
+
+    Local cSeek := ( cErpField:=allTrim(cErpField), PadR(cErpField,10," ") ) as character // campo do ERP
+
+    if!( U_GwOpenDictionary("SX3", "SX3DIC") )
+        UserException():New("GwStructJsonMapping:SetFields - Error to opening dictionary SX3...")
+    endif
+
+    dbSelectArea("SX3DIC")
+    SX3DIC->(dbSetOrder(2)) // X3_CAMPO
+    if!( SX3DIC->(msSeek( cSeek )) )
+        UserException():New("GwStructJsonMapping:SetFields - Invalid ERP field " + cErpField + " in dictionary SX3...")
+    endif
+
+    ::jMapping[cExternalField]["erp_field_name"] := cErpField
+    ::jMapping[cExternalField]["erp_field_type"] := SX3DIC->X3_TIPO
+    ::jMapping[cExternalField]["erp_field_size"] := SX3DIC->X3_TAMANHO
+    ::jMapping[cExternalField]["erp_field_decimals"] := SX3DIC->X3_DECIMAL
+    ::jMapping[cExternalField]["erp_field_required"] := x3Obrigat(SX3DIC->X3_CAMPO)
+    ::jMapping[cExternalField]["erp_field_default"] := criaVar(SX3DIC->X3_CAMPO)
+
+    SX3DIC->(dbCloseArea())
+
+Return
+
+/*/{Protheus.doc} GwStructJsonMapping::GetStruct
+Método que recupera o mapeamento de campos construído.
+@type method
+@version 12.1.2410
+@author Gworks - Giovani
+@since 6/13/2025
+@return json, Retorna mapeamento de campos.
+/*/
+Method GetStruct() Class GwStructJsonMapping
+
+Return ::jMapping
