@@ -1,26 +1,26 @@
 #include 'tlpp-core.th'
 #include 'tlpp-rest.th'
 
-Class RestTlppSampleHelloWord
+Class RestTlppSampleHelloworld
 
 	public data cReturn as character
 
 	public method new()
 
-	@Get("/test/RestTlppSampleHelloWord")
-	@Get("/test/RestTlppSampleHelloWord/:param1")
-	@Get("/test/RestTlppSampleHelloWord/:param1/:param2")
+	@Get("/test/RestTlppSampleHelloworld")
+	@Get("/test/RestTlppSampleHelloworld/:param1")
+	@Get("/test/RestTlppSampleHelloworld/:param1/:param2")
 	public Method sayHello() as logical
 
 EndClass
 
-Method new() Class RestTlppSampleHelloWord
+Method new() Class RestTlppSampleHelloworld
 
 	::cReturn := "Meu primeiro REST em TL++"
 
 Return self
 
-Method sayHello() as logical Class RestTlppSampleHelloWord
+Method sayHello() as logical Class RestTlppSampleHelloworld
 
 	Local jPath := {} as json
 
