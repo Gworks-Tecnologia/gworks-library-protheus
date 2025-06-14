@@ -1,0 +1,352 @@
+#include "tlpp-core.th"
+
+using namespace Gworks.Library.Functions
+using namespace Gworks.Library.Utils
+
+namespace Gworks.Library.Classes
+
+/*/{Protheus.doc} GwMessagingClass
+Classe para manipulação de mensagens de erro e log.
+@type class
+@version 12.1.2410
+@author Gworks - Giovani
+@since 6/14/2025
+@example
+    Private oMessage as GwMessagingClass():New()
+
+    oMessage:SetProperty("error_state", .F.)
+    oMessage:SetProperty("error_message", "Mensagem de erro..." )
+    oMessage:SetProperty("error_suggestion", "Sugestão de ação..." )
+    oMessage:SetProperty("error_title", "Erro" )
+    oMessage:SetProperty("error_style", "INFO" )
+    oMessage:SetProperty("error_details", "Detalhes do erro..." )
+    oMessage:SetProperty("log_state", "INFO")
+    oMessage:DisplayMessage()
+/*/
+Class GwMessagingClass
+
+    Public Data jMessage as json
+    Public Data aProperties as array
+    Public Data lBlind as logical
+    Public Data lAutoLogMessage as logical
+
+    Public Data oError as object
+    Public Data oLog as object
+
+    Private Data lSaveLogFile as logical
+    Private Data lIgnoreInfoLogState as logical
+    Private Data cInfoLogState as character
+
+    // Métodos contrutores
+    Public Method New() Constructor
+
+    // Métodos públicos
+    Public Method Clear()
+    Public Method GetObject( cName as character ) as variant
+    Public Method AutoLogMessage( lAuto as logical )
+    Public Method IgnoreInfoLogSate( lIgnore as logical )
+    Public Method SetInfoLogState( cState as character )
+    Public Method SetProperty( cProperty as character, xValue as variant )
+    Public Method DisplayMessage()
+    Public Method Close()
+
+    // Metodos internos
+    Private Method Init( oError as object, oLog as object )
+
+EndClass
+
+/*/{Protheus.doc} GwMessagingClass::New
+Método construtor da classe.
+@type method
+@version 12.1.2410
+@author Gworks - Giovani
+@since 6/13/2025
+@param oError, object, Objeto da classe GwError(), opcional.
+@param oLog, object, Objeto da classe GwConsoleLog(), opcional.
+@return object, Retorna instância do objeto.
+/*/
+Method New( oError as object, oLog as object ) Class GwMessagingClass
+
+    ::Init( oError, oLog )
+
+    ::lAutoLogMessage := .T.
+
+Return Self
+
+/*/{Protheus.doc} GwMessagingClass::Init
+Método de inicialização da Classe.
+@type method
+@version 12.1.2410
+@author Gworks - Giovani
+@since 6/13/2025
+@param oError, object, Objeto da classe GwError(), opcional.
+@param oLog, object, Objeto da classe GwConsoleLog(), opcional.
+@obs Se o objeto oError ou oLog não forem informados, serão:
+    (1) inicializados apartir de variáveis privadas, se existentes;
+    (2) criados caso não existam como variáveis privadas.
+/*/
+Method Init( oError as object, oLog as object ) Class GwMessagingClass
+
+    do case
+        case( valType(oError) != 'U' )
+            ::oError := oError
+
+        case( type("oError_") != 'U' )
+            ::oError := oError_
+
+        otherwise
+            ::oError := GwError():New()
+
+    endcase
+
+    do case
+        case( valType(oLog) != 'U' )
+            ::oLog := oLog
+
+        case( type("oLog_") != 'U' )
+            ::oLog := oLog_
+
+        otherwise
+            ::oLog := GwConsoleLog():New()
+
+    endcase
+
+    if( type("lBlind_") != 'U' )
+        ::lBlind := lBlind_
+    else
+        ::lBlind := ( isBlind() .or. type("cEmpAnt")=="U" )
+    endif
+
+    ::jMessage := JsonObject():New()
+
+    ::jMessage["error_state"] := .F.
+    ::jMessage["error_message"] := ""
+    ::jMessage["error_suggestion"] := ""
+    ::jMessage["error_title"] := ""
+    ::jMessage["error_style"] := "HELP"
+    ::jMessage["error_details"] := ""
+
+    ::jMessage["log_state"] := ""
+    ::jMessage["log_message"] := ""
+    ::jMessage["log_console_print"] := .T.
+    ::jMessage["log_console_break_line"] := .F.
+
+    ::aProperties := ::jMessage:getNames()
+    ::lSaveLogFile := .T. // premissa: sempre será salvo o log
+    ::lIgnoreInfoLogState := .F. // premissa: não serão ignorados nenhum estado de log
+    ::cInfoLogState := "INFO/SUCCESS"
+
+Return
+
+/*/{Protheus.doc} GwMessagingClass::Clear
+Método de reclinagem da classe.
+@type method
+@version 12.1.2410
+@author Gworks - Giovani
+@since 6/14/2025
+/*/
+Method Clear() Class GwMessagingClass
+
+    ::oError:Clear()
+
+    ::oLog:Clear()
+
+    ::init()
+
+Return
+
+/*/{Protheus.doc} GwMessagingClass::AutoLogMessage
+Liga/desliga a mensagem automática de oLog conforme oError.
+@type method
+@version 12.1.2410
+@author Gworks - Giovani
+@since 6/14/2025
+@param lAuto, logical, Se .T. (true) indica log automático, se .F. (false) manual.
+@obs O comportamento pode ser entendido como:
+    (1) Se .T. (true), comportamento padrão da classe, a propriedade "log_message" será alimentada conforme "error_message";
+    (2) Se .F. (false), a propriedade "log_message" deverá ser alimentada manualmente por meio do método SetProperty().
+/*/
+Method AutoLogMessage( lAuto as logical ) Class GwMessagingClass
+
+    ::lAutoLogMessage := lAuto
+
+Return
+
+/*/{Protheus.doc} GwMessagingClass::IgnoreInfoLogSate
+Define se os estados de log "informativos" serão ignorados, e portanto o log não será salvo.
+@type method
+@version 12.1.2410
+@author Gworks - Giovani
+@since 6/14/2025
+@param lIgnore, logical, Determinação lógica entre .T. (true) ou .F. (false).
+/*/
+Method IgnoreInfoLogSate( lIgnore as logical ) Class GwMessagingClass
+
+    ::lIgnoreInfoLogState := lIgnore
+    ::lSaveLogFile := iif( lIgnore, .F., .T. )
+
+Return
+
+/*/{Protheus.doc} GwMessagingClass::SetInfoLogState
+Define novos estados de log que serão considerados como "informativos".
+@type method
+@version 12.1.2410
+@author Gworks - Giovani
+@since 6/14/2025
+@param cState, character, Estado de log desejado, ex.: "WARNING".
+/*/
+Method SetInfoLogState( cState as character ) Class GwMessagingClass
+
+    ::cInfoLogState += ('/'+cState)
+
+Return
+
+/*/{Protheus.doc} GwMessagingClass::GetObject
+Retorna o objeto oError ou oLog conforme parâmetro de entrada.
+@type method
+@version 12.1.2410
+@author Gworks - Giovani
+@since 6/14/2025
+@param cName, character, Nome do objeto, entre: "oError" ou "oLog".
+@return object, Retorna o objeto oError ou oLog correspondente.
+/*/
+Method GetObject( cName as character ) Class GwMessagingClass
+
+    if cName == "oError"
+        return oError
+    endif
+
+    if cName == "oLog"
+        return oLog
+    endif
+
+Return
+
+/*/{Protheus.doc} GwMessagingClass::SetProperty
+Define as propriedades da mensagem.
+@type method
+@version 12.1.2410
+@author Gwortks - Giovani
+@since 6/14/2025
+@param cProperty, character, Nome da Propriedade.
+@param xValue, variant, Valor a ser atribuído.
+@obs O atributo "cProperty" pode ser preenchido com:
+    "error_state": Usado pela classe GwError(), se .T. (true) indica que houve erro/falha no processamento e .F. (false) caso contrário;
+    "error_message": Usado pelas classes GwConsoleLog() e GwError(), representa a mensagem de erro a ser considerdada;
+    "error_suggestion": Usado pela classe GwError(), representa a mensagem de sugestão/ação a ser considerada;
+    "error_title": Usado pela classe GwError(), representa o Título da mensagem;
+    "error_style": Usado pela classe GwError() para determinar a estilo da mensagem a ser exibida, entre:
+        INFO - FwAlertInfo()
+        STOP - FwAlertStop()
+        ALERT - FwAlertWarning()
+        HELP - Help()
+    "error_details": Usado pelas classes GwConsoleLog() e GwError(), campo destinado a log/exibição de textos longos.
+    "log_state": Usado pela classe GwConsoleLog(), representa o estado do log, entre:
+        FAULT
+        SUCCESS
+        INFO
+/*/
+Method SetProperty( cProperty as character, xValue as variant ) Class GwMessagingClass
+
+    do case
+        case cProperty == "lError"; cProperty := "error_state"
+        case cProperty == "cError"; cProperty := "error_message"
+        case cProperty == "cSuggestion"; cProperty := "error_suggestion"
+        case cProperty == "cTitle"; cProperty := "error_title"
+        case cProperty == "cStyle"; cProperty := "error_style"
+        case cProperty == "cDetails"; cProperty := "error_details"
+        case cProperty == "cState"; cProperty := "log_state"
+        case cProperty == "lConsolePrint"; cProperty := "log_console_print"
+        case cProperty == "lConsoleBreakLine"; cProperty := "log_console_break_line"
+    endcase
+
+    if aScan(::aProperties, cProperty ) == 0
+        UserException("GwMessagingClass:SetProperty - Invalid property name...")
+    endif
+
+    if( cProperty == "log_state" )
+        xValue := allTrim(upper(xValue))
+        if( !::lIgnoreInfoLogState .or. !(xValue $ ::cInfoLogState) )
+            lSaveLogFile := .T.
+        endif
+    endif
+
+    if( ::lAutoLogMessage ;
+        .and. cProperty == "error_message" )
+
+        ::jMessage["log_message"] := upper(fwNoAccent(xValue))
+
+    endif
+
+    ::jMessage[cProperty] := xValue
+
+Return
+
+/*/{Protheus.doc} GwMessagingClass::DisplayMessage
+Exibe a mensagem de erro (1) e alimenta buffer de log (2).
+    (1) Mensagem de erro é exibida somente se for execução com interface gráfica (::lBlind == .F.);
+    (2) O buffer de é sempre alimentado automaticamente, porém só será gravado com a invocação do método SaveLogFile().
+@type method
+@version 12.1.2410
+@author Gworks - Giovani
+@since 6/14/2025
+/*/
+Method DisplayMessage() Class GwMessagingClass
+
+    Local lErrorDetails := empty(::jMessage['error_details']) as logical
+
+    oError:SetError( ;
+                ::jMessage['error_message'],;
+                ::jMessage['error_suggestion'],;
+                ::jMessage['error_title'],;
+                ::jMessage['error_state'] )
+
+    oLog:SetState(::jMessage['log_state'])
+    oLog:SetMessage( ;
+                    ::jMessage['log_message'],;
+                    ::jMessage["log_console_print"],;
+                    ::jMessage["log_console_break_line"] )
+
+    if( lErrorDetails )
+
+        if( oError:cAutoGRLog != ::jMessage['error_details'] )
+            oError:SetAutoGRLog( ::jMessage['error_details'] )
+        endif
+
+        // Sempre quebra a linha no buffer do log para mensagens de detalhes,
+        // principalmente devido ao tamanho destas mensagens e pelas mesmas
+        // poderem conter quebras de linha.
+        // Esta abordagem, torna o log mais estético e de fácil leitura.
+        oLog:SetMessage( ;
+                        ::jMessage['error_details'],;
+                        ::jMessage["log_console_print"],;
+                        .F. )
+
+    endif
+
+    if!( ::lBlind )
+
+        oError:ShowError( ::jMessage['error_style'] )
+
+    endif
+
+Return
+
+/*/{Protheus.doc} GwMessagingClass::SaveLogFile
+Salva o buffer de log em arquivo.
+@type method
+@version 12.1.2410
+@author giovani
+@since 6/14/2025
+/*/
+Method Close() Class GwMessagingClass
+
+    if!( ::lSaveLogFile )
+        return
+    endif
+
+    ::oLog_:CreateLogFile()
+
+    ::Clear()
+
+Return
