@@ -39,6 +39,7 @@ Class GwConsoleLog
 
 	// Métodos internos
 	Private Method Init() as variant
+	Private Method TextNormalize( cText as character ) as character
 
 EndClass
 
@@ -75,6 +76,9 @@ Method Init() Class GwConsoleLog
 	::lConsolePrint := .T.
 
 Return
+
+Method TextNormalize( cText as character ) as character Class GwConsoleLog
+Return Upper(FwNoAccent(AllTrim(cText)))
 
 /*/{Protheus.doc} GwConsoleLog::Clear() as variant
 Recicla o objeto limpando todos seus atributos.
@@ -152,7 +156,7 @@ Define o estado que o log representa, por exemplo: SUCESSO, FALHA, INFO, etc...
 @since 3/21/2023
 /*/
 Method SetState( cState as character ) as variant Class GwConsoleLog
-	::cState := cState
+	::cState := ::TextNormalize(cState)
 Return
 
 /*/{Protheus.doc} GwConsoleLog::SetLogId( cLogId as character ) as variant
@@ -163,7 +167,7 @@ Define um identificador para o registro ao gerar o log.
 @since 3/21/2023
 /*/
 Method SetLogId( cLogId as character ) as variant Class GwConsoleLog
-	::cLogId := cLogId
+	::cLogId := ::TextNormalize(cLogId)
 Return
 
 /*/{Protheus.doc} GwConsoleLog::SetLogDescription( cLogDescription as character ) as variant
@@ -184,7 +188,7 @@ Define a mensagem do log.
 @author Gworks - Giovani Soares
 @since 20/09/2022
 /*/
-Method SetMessage( cMessage as character, lConsolePrint as logical, lBreakLine as logical ) as variant Class GwConsoleLog
+Method SetMessage( xMessage as variant, lConsolePrint as logical, lBreakLine as logical ) as variant Class GwConsoleLog
 
 	Local nStart        := 0  as numeric
 	Local cPrefix       := "" as character
@@ -196,7 +200,19 @@ Method SetMessage( cMessage as character, lConsolePrint as logical, lBreakLine a
 	Default lConsolePrint := ::lConsolePrint
 	Default lBreakLine    := .F.
 
-	::cLastMessage := AllTrim(cMessage)
+	do case
+
+		case valType(xMessage) == 'C'
+			::cLastMessage := ::TextNormalize(xMessage)
+
+		case valType(xMessage) == 'A'
+			::cState := ::cLastMessage := ::TextNormalize(xMessage[1])
+			::cLastMessage := ::cLastMessage := ::TextNormalize(xMessage[2])
+
+		otherwise
+			UserException("GwConsoleLog:SetMessage - Argumento xMessage inválido!")
+
+	endcase
 
 	// Define o estado da mensagem de log
 	// Ex.: SUCCESS, FAULT, INFO, etc..
@@ -281,7 +297,7 @@ Method CreateLogFile( cFileName as character ) as variant Class GwConsoleLog
 
 	if !ExistDir("\log",,/*lChangeCase*/.F.)
 		if MakeDir("\log",,/*lChangeCase*/.F.) != 0
-			UserException('Falha ao criar o diretório "\log" no Rootpath do ambiente. Favor contatar o o suporte técnico.')
+			UserException("GwConsoleLog:CreateLogFile - Falha ao criar o diretório "+'"log"'+" no Rootpath do ambiente!")
 		endif
 	endif
 
