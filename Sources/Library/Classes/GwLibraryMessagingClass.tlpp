@@ -47,6 +47,7 @@ Class GwMessagingClass
     Public Method IgnoreInfoLogSate( lIgnore as logical )
     Public Method SetInfoLogState( cState as character )
     Public Method SetProperty( cProperty as character, xValue as variant )
+    Public Method DefineErrorAuto( cFrom as character, xParam as variant )
     Public Method Display()
     Public Method Close()
 
@@ -248,6 +249,12 @@ Define as propriedades da mensagem.
 /*/
 Method SetProperty( cProperty as character, xValue as variant ) Class GwMessagingClass
 
+    Default xValue := nil
+
+    if xValue == nil
+        return
+    endif
+
     do case
         case cProperty == "lError"; cProperty := "error_state"
         case cProperty == "cError"; cProperty := "error_message"
@@ -282,6 +289,40 @@ Method SetProperty( cProperty as character, xValue as variant ) Class GwMessagin
 
 Return
 
+/*/{Protheus.doc} GwMessagingClass::DefineErrorAuto
+Obtem erros da gravação/execução autônoma de dados a partir de:
+    (1) Modelo MVC;
+    (2) ExecAuto.
+@type method
+@version 12.1.2410
+@author Gworks - Giovani
+@since 6/15/2025
+@param cFrom, character, Origem da execução, entre: "model" ou "execauto".
+@param xParam, variant, Considerar as seguintes regras:
+    (1) Se cFrom == 'model', informar o objeto do modelo MVC. Ex.: oModel;
+    (2) Se cFrom == 'execauto', informar o nome da rotina correspondente do ExecAuto. Ex.: "MATA010".
+/*/
+Method DefineErrorAuto( cFrom as character, xParam as variant ) Class GwMessagingClass
+
+    Default xParam := ''
+
+    do case
+
+        case "model" $ lower(cFrom) .and. valType(xParam) == "O"
+            ::oError:SetAutoGRLogFromModel(xParam)
+
+        case "execauto" $ lower(cFrom) .and. valType(xParam) == "C"
+            ::oError:SetAutoGRLogFromExecAuto(xParam)
+
+    otherwise
+        UserException("GwMessagingClass:DefineErrorAuto - Invalid parameters...")
+
+    endcase
+
+    ::jMessage["error_details"] := ::oError:cAutoGRLog()
+
+Return
+
 /*/{Protheus.doc} GwMessagingClass::Display
 Exibe a mensagem de erro (1) e alimenta buffer de log (2).
     (1) Mensagem de erro é exibida somente se for execução com interface gráfica (::lBlind == .F.);
@@ -295,29 +336,29 @@ Method Display() Class GwMessagingClass
 
     Local lErrorDetails := empty(::jMessage['error_details']) as logical
 
-    oError:SetError( ;
+    ::oError:SetError( ;
                 ::jMessage['error_message'],;
                 ::jMessage['error_suggestion'],;
                 ::jMessage['error_title'],;
                 ::jMessage['error_state'] )
 
-    oLog:SetState(::jMessage['log_state'])
-    oLog:SetMessage( ;
+    ::oLog:SetState(::jMessage['log_state'])
+    ::oLog:SetMessage( ;
                     ::jMessage['log_message'],;
                     ::jMessage["log_console_print"],;
                     ::jMessage["log_console_break_line"] )
 
     if( lErrorDetails )
 
-        if( oError:cAutoGRLog != ::jMessage['error_details'] )
-            oError:SetAutoGRLog( ::jMessage['error_details'] )
+        if( ::oError:cAutoGRLog != ::jMessage['error_details'] )
+            ::oError:SetAutoGRLog( ::jMessage['error_details'] )
         endif
 
         // Sempre quebra a linha no buffer do log para mensagens de detalhes,
         // principalmente devido ao tamanho destas mensagens e pelas mesmas
         // poderem conter quebras de linha.
         // Esta abordagem, torna o log mais estético e de fácil leitura.
-        oLog:SetMessage( ;
+        ::oLog:SetMessage( ;
                         ::jMessage['error_details'],;
                         ::jMessage["log_console_print"],;
                         .F. )
@@ -326,7 +367,7 @@ Method Display() Class GwMessagingClass
 
     if!( ::lBlind )
 
-        oError:ShowError( ::jMessage['error_style'] )
+        ::oError:ShowError( ::jMessage['error_style'] )
 
     endif
 
