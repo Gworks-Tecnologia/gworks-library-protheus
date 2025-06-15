@@ -207,7 +207,7 @@ Method SetMessage( xMessage as variant, lConsolePrint as logical, lBreakLine as 
 
 		case valType(xMessage) == 'A'
 			::cState := ::cLastMessage := ::TextNormalize(xMessage[1])
-			::cLastMessage := ::cLastMessage := ::TextNormalize(xMessage[2])
+			::cLastMessage := ::cLastMessage := AllTrim(xMessage[2])
 
 		otherwise
 			UserException("GwConsoleLog:SetMessage - Argumento xMessage inválido!")
