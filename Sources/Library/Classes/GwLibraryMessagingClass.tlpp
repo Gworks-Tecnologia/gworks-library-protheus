@@ -21,7 +21,7 @@ Classe para manipulação de mensagens de erro e log.
     oMessage:SetProperty("error_style", "INFO" )
     oMessage:SetProperty("error_details", "Detalhes do erro..." )
     oMessage:SetProperty("log_state", "INFO")
-    oMessage:DisplayMessage()
+    oMessage:Display()
 /*/
 Class GwMessagingClass
 
@@ -47,7 +47,7 @@ Class GwMessagingClass
     Public Method IgnoreInfoLogSate( lIgnore as logical )
     Public Method SetInfoLogState( cState as character )
     Public Method SetProperty( cProperty as character, xValue as variant )
-    Public Method DisplayMessage()
+    Public Method Display()
     Public Method Close()
 
     // Metodos internos
@@ -212,11 +212,11 @@ Retorna o objeto oError ou oLog conforme parâmetro de entrada.
 /*/
 Method GetObject( cName as character ) Class GwMessagingClass
 
-    if cName == "oError"
+    if "error" $ lower(allTrim(cName))
         return oError
     endif
 
-    if cName == "oLog"
+    if "log" $ lower(allTrim(cName))
         return oLog
     endif
 
@@ -267,7 +267,7 @@ Method SetProperty( cProperty as character, xValue as variant ) Class GwMessagin
     if( cProperty == "log_state" )
         xValue := allTrim(upper(xValue))
         if( !::lIgnoreInfoLogState .or. !(xValue $ ::cInfoLogState) )
-            lSaveLogFile := .T.
+            ::lSaveLogFile := .T.
         endif
     endif
 
@@ -282,7 +282,7 @@ Method SetProperty( cProperty as character, xValue as variant ) Class GwMessagin
 
 Return
 
-/*/{Protheus.doc} GwMessagingClass::DisplayMessage
+/*/{Protheus.doc} GwMessagingClass::Display
 Exibe a mensagem de erro (1) e alimenta buffer de log (2).
     (1) Mensagem de erro é exibida somente se for execução com interface gráfica (::lBlind == .F.);
     (2) O buffer de é sempre alimentado automaticamente, porém só será gravado com a invocação do método SaveLogFile().
@@ -291,7 +291,7 @@ Exibe a mensagem de erro (1) e alimenta buffer de log (2).
 @author Gworks - Giovani
 @since 6/14/2025
 /*/
-Method DisplayMessage() Class GwMessagingClass
+Method Display() Class GwMessagingClass
 
     Local lErrorDetails := empty(::jMessage['error_details']) as logical
 
