@@ -89,12 +89,13 @@ Method SetField( cExternalField as character, cErpField as character ) Class GwS
         UserException():New("GwStructJsonMapping:SetFields - Invalid ERP field " + cErpField + " in dictionary SX3...")
     endif
 
-    ::jMapping[cExternalField]["erp_field_name"] := cErpField
-    ::jMapping[cExternalField]["erp_field_type"] := SX3DIC->X3_TIPO
-    ::jMapping[cExternalField]["erp_field_size"] := SX3DIC->X3_TAMANHO
-    ::jMapping[cExternalField]["erp_field_decimals"] := SX3DIC->X3_DECIMAL
-    ::jMapping[cExternalField]["erp_field_required"] := x3Obrigat(SX3DIC->X3_CAMPO)
-    ::jMapping[cExternalField]["erp_field_default"] := criaVar(SX3DIC->X3_CAMPO)
+    ::jMapping[cExternalField] := JsonObject():New()
+        ::jMapping[cExternalField]["erp_field_name"] := cErpField
+        ::jMapping[cExternalField]["erp_field_type"] := SX3DIC->X3_TIPO
+        ::jMapping[cExternalField]["erp_field_size"] := SX3DIC->X3_TAMANHO
+        ::jMapping[cExternalField]["erp_field_decimals"] := SX3DIC->X3_DECIMAL
+        ::jMapping[cExternalField]["erp_field_required"] := x3Obrigat(SX3DIC->X3_CAMPO)
+        ::jMapping[cExternalField]["erp_field_default"] := criaVar(SX3DIC->X3_CAMPO)
 
     SX3DIC->(dbCloseArea())
 

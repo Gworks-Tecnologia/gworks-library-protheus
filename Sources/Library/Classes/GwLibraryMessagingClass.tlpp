@@ -214,11 +214,11 @@ Retorna o objeto oError ou oLog conforme parâmetro de entrada.
 Method GetObject( cName as character ) Class GwMessagingClass
 
     if "error" $ lower(allTrim(cName))
-        return oError
+        return ::oError
     endif
 
     if "log" $ lower(allTrim(cName))
-        return oLog
+        return ::oLog
     endif
 
 Return
@@ -382,11 +382,11 @@ Salva o buffer de log em arquivo.
 /*/
 Method Close() Class GwMessagingClass
 
-    if!( ::lSaveLogFile )
-        return
-    endif
+    if( ::lSaveLogFile )
 
-    ::oLog_:CreateLogFile()
+        ::oLog_:CreateLogFile()
+
+    endif
 
     ::Clear()
 
