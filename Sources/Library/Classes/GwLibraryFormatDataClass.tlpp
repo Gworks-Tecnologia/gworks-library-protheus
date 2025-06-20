@@ -1,0 +1,89 @@
+#include "TOTVS.ch"
+
+namespace Gworks.Library.Classes
+
+/*/{Protheus.doc} GwFormatData
+Classe genérica para formatação de dados.
+Consultar métodos disponíveis.
+@type class
+@version 12.1.2410
+@author Gworks - Giovani
+@since 6/20/2025
+/*/
+Class GwFormatData
+
+    Public xValue as variant
+
+    // Método construtor
+    Public Method New() Constructor
+
+    // Métodos públicos
+    Public Method DateToUtc( _dValue as date, _cTime as character ) as date
+
+    // Métodos privados
+    Private Method SetValue( _xValue as variant )
+
+EndClass
+
+/*/{Protheus.doc} GwFormatData::New
+Classe genérica para conversão de tipos de dados.
+@type method
+@version 12.1.2410
+@author Gworks - Giovani
+@since 6/20/2025
+@return object, Retorna instância do objeto da classe.
+/*/
+Method New() Class GwFormatData
+
+    ::xValue := nil
+
+Return Self
+
+/*/{Protheus.doc} GwFormatData::SetValue
+Define valor do atributo ::xValue da classe.
+@type method
+@version 121.1.2410
+@author giovani
+@since 6/20/2025
+@param _xValue, variant, Tipo de dado qualquer.
+/*/
+Method SetValue( _xValue as variant ) Class GwFormatData
+
+    if!( empty(::xValue) )
+        fwFreeVar(::xValue)
+    endif
+
+    ::xValue := _xValue
+
+Return
+
+/*/{Protheus.doc} GwFormatData::DateToUtc
+Converte data/hora, conforme parâmetros de entrada, em string no formato UTC, ex.: "2025-04-01T00:00:00".
+@type method
+@version 12 1.2310
+@author Gworks - Giovani
+@since 6/20/2025
+@param _dValue, date, Data a ser considerada na conversão.
+@param _cTime, character, Horário a ser considerado na conversão.
+@return character, Retorna string em formato UTC.
+/*/
+Method DateToUtc( _dValue as date, _cTime as character ) as date Class GwFormatData
+
+    Default _dValue := dDataBase
+    Default _cTime := time()
+
+    Local cResult as character
+    Local cDate as character
+    Local cYear as character
+    Local cMonth as character
+    Local cDay as character
+
+    cDate :=  dToS( _dValue )
+    cYear := SubStr(cDate, 1, 4)
+    cMonth := PadL(SubStr(cDate, 4, 2), 2, '0')
+    cDay := PadL(SubStr(cDate, 6, 2), 2, '0')
+    cResult := cYear +'-'+cMonth+'-'+cDay+'T'+_cTime
+
+    ::SetValue( cResult )
+
+Return dDate
