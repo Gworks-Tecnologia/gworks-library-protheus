@@ -32,7 +32,7 @@ Class GwConsoleLog
 	Public Method SetState( cState as character ) as variant
 	Public Method SetLogId( cLogId as character ) as variant
 	Public Method SetLogDescription( cLogDescription as character ) as variant
-	Public Method SetMessage( cMessage as character, lConsolePrint as logical, lBreakLine as logical ) as variant
+	Public Method SetMessage( xMessage as variant, lConsolePrint as logical, lBreakLine as logical ) as variant
 	Public Method CreateLogFile( cFileName as character ) as variant
 	Public Method GetLastMessage() as character
 	Public Method GetLogFile() as character
