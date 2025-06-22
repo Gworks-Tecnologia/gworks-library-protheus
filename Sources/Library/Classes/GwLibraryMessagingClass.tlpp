@@ -267,7 +267,7 @@ Method SetProperty( cProperty as character, xValue as variant ) Class GwMessagin
         case cProperty == "lConsoleBreakLine"; cProperty := "log_console_break_line"
     endcase
 
-    if aScan(::aProperties, cProperty ) == 0
+    if aScan( ::aProperties, cProperty ) == 0
         UserException("GwMessagingClass:SetProperty - Invalid property name...")
     endif
 
