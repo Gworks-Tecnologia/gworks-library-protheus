@@ -384,7 +384,7 @@ Method Close() Class GwMessagingClass
 
     if( ::lSaveLogFile )
 
-        ::oLog_:CreateLogFile()
+        ::oLog:CreateLogFile()
 
     endif
 
