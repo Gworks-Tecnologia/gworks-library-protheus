@@ -334,7 +334,7 @@ Exibe a mensagem de erro (1) e alimenta buffer de log (2).
 /*/
 Method Display() Class GwMessagingClass
 
-    Local lErrorDetails := empty(::jMessage['error_details']) as logical
+    Local lErrorDetails := !empty(::jMessage['error_details']) as logical
 
     ::oError:SetError( ;
                 ::jMessage['error_message'],;
