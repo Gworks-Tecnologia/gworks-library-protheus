@@ -18,7 +18,7 @@ Class GwFormatData
     Public Method New() Constructor
 
     // Métodos públicos
-    Public Method DateToUtc( dValue as date, cTime as character ) as date
+    Public Method DateToUtc( dValue as date, cTime as character ) as character
 
     // Métodos privados
     Private Method Init()
@@ -81,7 +81,7 @@ Converte data/hora, conforme parâmetros de entrada, em string no formato UTC, ex
 @param cTime, character, Horário a ser considerado na conversão.
 @return character, Retorna string em formato UTC.
 /*/
-Method DateToUtc( dValue as date, cTime as character ) as date Class GwFormatData
+Method DateToUtc( dValue as date, cTime as character ) as character Class GwFormatData
 
     Default cTime := time()
 
@@ -103,4 +103,4 @@ Method DateToUtc( dValue as date, cTime as character ) as date Class GwFormatDat
 
     ::SetValue( cResult )
 
-Return dDate
+Return cResult
