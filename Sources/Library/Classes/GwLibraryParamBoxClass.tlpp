@@ -75,7 +75,7 @@ Método de inicialização da classe.
 /*/
 Method Init() Class GwParamBox
 
-    if jParam:GetNames() > 0
+    if( valType(::jParam) != 'U' .and. ::jParam:GetNames() > 0 )
         fwFreeVar( ::jParam )
     endif
 
@@ -159,7 +159,7 @@ Método interno para composição do array de parâmetros para uso com a função Para
 /*/
 Method GetParamBoxArray() Class GwParamBox
 
-    Local aResult as array
+    Local aResult := {} as array
 
     Local aParam as array
 
@@ -183,7 +183,7 @@ Method GetParamBoxArray() Class GwParamBox
                 loop
             endif
 
-            aadd( aParam, ::jResult[cNameParam][cNameProperty] )
+            aadd( aParam, ::jParam[cNameParam][cNameProperty] )
 
         next
 
@@ -316,8 +316,10 @@ Adiciona um novo parâmetro que deverá ser exibido na janela de diálogo.
 /*/
 Method AddParam( cType as character, cName as character ) Class GwParamBox
 
-    if!( lower(allTrim(cType)) $ "get;combo;password;memo" )
-        UserException("GwParamBox:AddParam - Ivalid parameter type...")
+    cType := lower(allTrim(cType))
+
+    if!( cType $ "get;combo;password;memo" )
+        UserException("GwParamBox:AddParam - Ivalid parameter cType...")
     endif
 
     ::jParam[cName] := ::GetTemplate(cType)
@@ -347,12 +349,12 @@ Method SetProperty( cName as character, cProperty as character, xValue as varian
 
     aNamesParam := ::jParam:getNames()
     if aScan( aNamesParam, cName ) == 0
-        UserException("GwParamBox:SetProperty - Ivalid parameter name...")
+        UserException("GwParamBox:SetProperty - Ivalid parameter cName...")
     endif
 
     aNamesTemplate := ::jParam[cName]:getNames()
     if aScan( aNamesTemplate, cProperty ) == 0
-        UserException("GwParamBox:SetProperty - Ivalid parameter property...")
+        UserException("GwParamBox:SetProperty - Ivalid parameter cProperty...")
     endif
 
     ::jParam[cName][cProperty] := xValue
@@ -405,6 +407,8 @@ Method ShowDialog() Class GwParamBox
 
             fwFreeVar(aRetParam)
 
+            ::SetReturnedValues()
+
             lResult := .T.
 
             exit
@@ -429,12 +433,18 @@ Retorna o valor de um parâmetro conforme resposta da janela de diálogo em ParamB
 Method GetValue( cName as character ) Class GwParamBox
 
     Local xResult as variant
+    Local aNamesParam as array
     Local aOptions as array
+
+    aNamesParam := ::jParam:getNames()
+    if aScan( aNamesParam, cName ) == 0
+        UserException("GwParamBox:GetValue - Ivalid parameter cName...")
+    endif
 
     xResult := ::jParam[cName]["xValue"]
 
     // Corrige bug de retorno do parâmetro tipo combobox
-    if ::jParam["nType"] == TYPE_COMBO
+    if ::jParam[cName]["nType"] == TYPE_COMBO
 
         aOptions := ::jParam[cName]["aOptions"]
 
