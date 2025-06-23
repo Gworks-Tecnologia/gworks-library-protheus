@@ -1,0 +1,574 @@
+#include "TOTVS.ch"
+
+#define TYPE_GET 1
+#define TYPE_COMBO 2
+#define TYPE_PASSWORD 8
+#define TYPE_MEMO 11
+
+namespace Gworks.Library.Classes
+
+/*/{Protheus.doc} GwParamBox
+Classe genérica para criação de janelas de diálogo com parâmetros via função ParamBox().
+@type class
+@version 12.1.2410
+@author Gworks - Giovani
+@since 6/21/2025
+/*/
+Class GwParamBox
+
+    Public Data jParam as json
+
+    // Atributos genéricos de controle de parâmetros
+    Private Data nDefaultSizeGet as numeric
+    Private Data lDefaultRequired as logical
+
+    // Atributos epecíficos da janela de diálogo
+    Private Data cDialogTitle as character
+    Private Data aDialogReturn as array
+    Private Data bDialogValid as codeblock
+    Private Data lDialogCanSave as logical
+    Private Data lDialogUserSave as logical
+
+    // Métodos construtores
+    Public Method New() Constructor
+
+    // Métodos públicos
+    Public Method SetDefaultSizeGet( nSize as numeric )
+    Public Method SetDefaultRequired( lRequired as logical )
+    Public Method SetDialogTitle( cTitle as character )
+    Public Method SetDialogValid( bValid as codeblock )
+    Public Method SetDialogSave( lSave as logical )
+
+    Public Method AddParam( cType as character, cProperty as character )
+    Public Method SetProperty( cName as character, cProperty as character, xValue as variant )
+    Public Method ShowDialog()
+    Public Method GetValue( cName as character ) as variant
+
+    // Métodos privados
+    Private Method Init()
+    Private Method GetTemplate( cType as character ) as json
+    Private Method GetParamBoxArray() as array
+    Private Method SetReturnedValues()
+
+EndClass
+
+/*/{Protheus.doc} GwParamBox::New
+Método construtor da classe.
+@type method
+@version 12.1.2410
+@author Gworks - Giovani
+@since 6/21/2025
+@return object, Retorna instância da classe.
+/*/
+Method New() Class GwParamBox
+
+    ::Init()
+
+Return Self
+
+/*/{Protheus.doc} GwParamBox::Init
+Método de inicialização da classe.
+@type method
+@version 12.1.2410
+@author Gworks - Giovani
+@since 6/21/2025
+/*/
+Method Init() Class GwParamBox
+
+    if jParam:GetNames() > 0
+        fwFreeVar( ::jParam )
+    endif
+
+    if !empty( ::aDialogReturn )
+        fwFreeVar( ::aDialogReturn )
+    endif
+
+    ::jParam := JsonObject():New()
+    ::nDefaultSizeGet := 100
+    ::lDefaultRequired := .F.
+
+    ::cDialogTitle := "Parâmetros"
+    ::aDialogReturn := {}
+    ::bDialogValid := {|| .T.}
+    ::lDialogCanSave := .F.
+    ::lDialogUserSave := .F.
+
+Return
+
+
+Method GetTemplate( cType as character ) as json Class GwParamBox
+
+    Local jReturn := JsonObject():New() as json
+
+    do case
+
+        case cType == "get"
+            jReturn["nType"] := TYPE_GET
+            jReturn["cDescription"]  := ""
+            jReturn["cInit"] := ""
+            jReturn["cPicture"] := "@!"
+            jReturn["cValidation"] := ".T."
+            jReturn["cQuery"] := ""
+            jReturn["cWhen"] := ".T."
+            jReturn["nSize"] := ::nDefaultSizeGet
+            jReturn["lRequired"] := ::lDefaultRequired
+            jReturn["xValue"] := nil
+
+        case cType == "combo"
+            jReturn["nType"] := TYPE_COMBO
+            jReturn["cDescription"]  := ""
+            jReturn["nInit"] := 0
+            jReturn["aOptions"] := {}
+            jReturn["nSize"] := 10
+            jReturn["cValidation"] := ".T."
+            jReturn["lRequired"] := ::lDefaultRequired
+            jReturn["xValue"] := nil
+
+        case cType == "password"
+            jReturn["nType"] := TYPE_PASSWORD
+            jReturn["cDescription"]  := ""
+            jReturn["cInit"] := ""
+            jReturn["cPicture"] := "@!"
+            jReturn["cValidation"] := ".T."
+            jReturn["cQuery"] := ""
+            jReturn["cWhen"] := ".T."
+            jReturn["nSize"] := ::nDefaultSizeGet
+            jReturn["lRequired"] := ::lDefaultRequired
+            jReturn["xValue"] := nil
+
+        case cType == "memo"
+            jReturn["nType"] := TYPE_MEMO
+            jReturn["cDescription"]  := ""
+            jReturn["cInit"] := ""
+            jReturn["cValidation"] := ".T."
+            jReturn["cWhen"] := ".T."
+            jReturn["lRequired"] := ::lDefaultRequired
+            jReturn["xValue"] := nil
+
+    endcase
+
+Return jReturn
+
+/*/{Protheus.doc} GwParamBox::GetParamBoxArray
+Método interno para composição do array de parâmetros para uso com a função ParamBox().
+@type method
+@version 12.1.2410
+@author Gworks - Giovani
+@since 6/21/2025
+@return array, Retorna array de parâmetros para uso com a função ParamBox().
+/*/
+Method GetParamBoxArray() Class GwParamBox
+
+    Local aResult as array
+
+    Local aParam as array
+
+    Local nX as integer
+    Local nY as integer
+    Local aNamesParam := ::jParam:getNames() as array
+    Local aNamesProperty as array
+    Local cNameParam as character
+    Local cNameProperty as character
+
+    for nX:=1 to len(aNamesParam)
+
+        cNameParam := aNamesParam[nX]
+        aNamesProperty := ::jParam[cNameParam]:getNames()
+        aParam := {}
+
+        for nY:=1 to len(aNamesProperty)
+
+            cNameProperty := aNamesProperty[nY]
+            if cNameProperty == "xValue"
+                loop
+            endif
+
+            aadd( aParam, ::jResult[cNameParam][cNameProperty] )
+
+        next
+
+        aadd( aResult, aClone(aParam) )
+
+        fwFreeVar(aParam)
+
+    next
+
+    nX := 0
+    nY := 0
+    cNameParam := ""
+    cNameProperty := ""
+    fwFreeVar(aNamesParam)
+    fwFreeVar(aNamesProperty)
+
+Return aResult
+
+/*/{Protheus.doc} GwParamBox::SetReturnedValues
+Atualiza a propriedade xValue de cada parâmetro correspondente em ::jParam conforme aos valores retornados pela função ParamBox().
+@type method
+@version 12.1.2410
+@author Gworks - Giovani
+@since 6/21/2025
+/*/
+Method SetReturnedValues() Class GwParamBox
+
+    Local nI as integer
+    Local aNamesParam := ::jParam:getNames() as array
+    Local cNameParam as character
+
+    for nI:=1 to len(aNamesParam)
+
+        cNameParam := aNamesParam[nI]
+
+        ::jParam[cNameParam]["xValue"] := ::aDialogReturn[nI]
+
+    next
+
+    nI := 0
+    cNameParam := ""
+    fwFreeVar(aNamesParam)
+
+Return
+
+/*/{Protheus.doc} GwParamBox::SetSizeGet
+Define o tamanho padrão que os campos do tipo MSGet() deverão ter em janela de diálogo.
+@type method
+@version 12.1.2410
+@author Gworks - Giovani
+@since 6/21/2025
+@param nSize, numeric, Tamanho em pixels.
+/*/
+Method SetDefaultSizeGet( nSize as numeric ) Class GwParamBox
+
+    ::nDefaultSizeGet := nSize
+
+Return
+
+/*/{Protheus.doc} GwParamBox::SetRequired
+Define o comportamento padrão da obrigatoriedade dos campos na janela de diálogo.
+@type method
+@version 12.1.2410
+@author Gworks - Giovani
+@since 6/21/2025
+@param lRequired, logical, Se .T. (true) o campo será obrigatório, se .F. (false) não.
+/*/
+Method SetDefaultRequired( lRequired as logical ) Class GwParamBox
+
+    ::lDefaultRequired := lRequired
+
+Return
+
+/*/{Protheus.doc} GwParamBox::SetDialogTitle
+Define o título da janela de diálogo.
+@type method
+@version 12.1.2410
+@author Gworks - Giovani
+@since 6/21/2025
+@param cTitle, character, Título da janela de diálogo.
+/*/
+Method SetDialogTitle( cTitle as character ) Class GwParamBox
+
+    ::cDialogTitle := cTitle
+
+Return
+
+/*/{Protheus.doc} GwParamBox::SetDialogValid
+Define o método que será executado ao validar a janela de diálogo.
+@type method
+@version 12.1.2410
+@author Gworks - Giovani
+@since 6/21/2025
+@param bValid, codeblock, Bloco de código que será executado ao validar a janela de diálogo.
+/*/
+Method SetDialogValid( bValid as codeblock ) Class GwParamBox
+
+    ::bDialogValid := bValid
+
+Return
+
+/*/{Protheus.doc} GwParamBox::SetDialogSave
+Define se a janela de diálogo poderá ter seu conteúdo salvo para exibição na próxima execução.
+@type method
+@version 12.1.2410
+@author Gworks - Giovani
+@since 6/21/2025
+@param lSave, logical, Se .T. (true) a janela poderá ser salva, se .F. (false) não.
+/*/
+Method SetDialogSave( lSave as logical ) Class GwParamBox
+
+    if lSave
+        ::lDialogCanSave := .T.
+        ::lDialogUserSave := .T.
+    else
+        ::lDialogCanSave := .F.
+        ::lDialogUserSave := .F.
+    endif
+
+Return
+
+/*/{Protheus.doc} GwParamBox::AddParam
+Adiciona um novo parâmetro que deverá ser exibido na janela de diálogo.
+@type method
+@version 12.1.2410
+@author Gworks - Giovani
+@since 6/21/2025
+@param cType, character, Tipo do parâmetro, entre: "get", "combo", "password" ou "memo".
+@param cName, character, Nome de identificação do parâmetro.
+/*/
+Method AddParam( cType as character, cName as character ) Class GwParamBox
+
+    if!( lower(allTrim(cType)) $ "get;combo;password;memo" )
+        UserException("GwParamBox:AddParam - Ivalid parameter type...")
+    endif
+
+    ::jParam[cName] := ::GetTemplate(cType)
+
+Return
+
+/*/{Protheus.doc} GwParamBox::SetProperty
+Atribui valor à uma propriedade qualquer conforme parâmetros criados por meio da invocação do método AddParam().
+@type method
+@version 12.1.2410
+@author Gworks - Giovani
+@since 6/21/2025
+@param cName, character, Nome do parâmetro.
+@param cProperty, character, Nome da propriedade.
+@param xValue, variant, Valor a ser atribuído.
+/*/
+Method SetProperty( cName as character, cProperty as character, xValue as variant ) Class GwParamBox
+
+    Default xValue := nil
+
+    Local aNamesParam as array
+    Local aNamesTemplate as array
+
+    if xValue == nil
+        return
+    endif
+
+    aNamesParam := ::jParam:getNames()
+    if aScan( aNamesParam, cName ) == 0
+        UserException("GwParamBox:SetProperty - Ivalid parameter name...")
+    endif
+
+    aNamesTemplate := ::jParam[cName]:getNames()
+    if aScan( aNamesTemplate, cProperty ) == 0
+        UserException("GwParamBox:SetProperty - Ivalid parameter property...")
+    endif
+
+    ::jParam[cName][cProperty] := xValue
+
+Return
+
+/*/{Protheus.doc} GwParamBox::ShowDialog
+Exibe a janela de diálogo para interação com o usuário.
+@type method
+@version 12.1.2410
+@author Gworks - Giovani
+@since 6/21/2025
+@return logical, Retorna .T. (true) se o usuário confirmar a janela, .F. (false) se o usuário cancelar a janela.
+/*/
+Method ShowDialog() Class GwParamBox
+
+    Local lResult := .F. as logical
+    Local aRetparam := {} as array
+
+    while .T.
+
+        // 1 - <aParametros> - Vetor com as configurações
+        // 2 - <cTitle>      - Título da janela
+        // 3 - <aRet>        - Vetor passador por referencia que contém o retorno dos parâmetros
+        // 4 - <bOk>         - Code block para validar o botão Ok
+        // 5 - <aButtons>    - Vetor com mais botões além dos botões de Ok e Cancel
+        // 6 - <lCentered>   - Centralizar a janela
+        // 7 - <nPosX>       - Se não centralizar janela coordenada X para início
+        // 8 - <nPosY>       - Se não centralizar janela coordenada Y para início
+        // 9 - <oDlgWizard>  - Utiliza o objeto da janela ativa
+        //10 - <cLoad>       - Nome do perfil se caso for carregar
+        //11 - <lCanSave>    - Salvar os dados informados nos parâmetros por perfil
+        //12 - <lUserSave>   - Configuração por usuário
+        aRetParam := {}
+        if ParamBox( ;
+                    ::GetParamBoxArray(),;
+                    ::cDialogTitle,;
+                    @aRetParam,;
+                    ::bDialogValid,; // bOk
+                    nil,; // aButtons
+                    nil,; // lCentered
+                    nil,; // nPosX
+                    nil,; // nPosY
+                    nil,; // oDlgWizard
+                    nil,; // cLoad
+                    ::lDialogCanSave,; // lCanSave
+                    ::lDialogUserSave ) // lUserSave
+
+            ::aDialogReturn := aClone(aRetParam)
+
+            fwFreeVar(aRetParam)
+
+            lResult := .T.
+
+            exit
+
+        elseif FwAlertYesNo("Deseja realmente cancelar?", "Cancelar")
+            exit
+        endif
+
+    enddo
+
+Return lResult
+
+/*/{Protheus.doc} GwParamBox::GetValue
+Retorna o valor de um parâmetro conforme resposta da janela de diálogo em ParamBox().
+@type method
+@version 12.1.2410
+@author Gworks - Giovani
+@since 6/21/2025
+@param cName, character, Nome do parâmetro desejado.
+@return variant, Retorno de tipo de dado qualquer.
+/*/
+Method GetValue( cName as character ) Class GwParamBox
+
+    Local xResult as variant
+    Local aOptions as array
+
+    xResult := ::jParam[cName]["xValue"]
+
+    // Corrige bug de retorno do parâmetro tipo combobox
+    if ::jParam["nType"] == TYPE_COMBO
+
+        aOptions := ::jParam[cName]["aOptions"]
+
+        xResult := iif( valType(xResult) == 'C', xResult, aOptions[xResult] )
+
+    endif
+
+Return xResult
+
+/*
+aAdd(aParamBox,{1,"Data"  ,Ctod(Space(8)),"","","","",50,.F.}) // Tipo data
+// [1]-Tipo 1 -> MsGet()
+// [2]-Descricao
+// [3]-String contendo o inicializador do campo
+// [4]-String contendo a Picture do campo
+// [5]-String contendo a validacao
+// [6]-Consulta F3
+// [7]-String contendo a validacao When
+// [8]-Tamanho do MsGet
+// [9]-Flag .T./.F. Parametro Obrigatorio ?
+
+aAdd(aParamBox,{2,"Informe o mês",1,aCombo,50,"",.F.})
+// [1]-Tipo 2 -> Combo
+// [2]-Descricao
+// [3]-Numerico contendo a opcao inicial do combo
+// [4]-Array contendo as opcoes do Combo
+// [5]-Tamanho do Combo
+// [6]-Validacao
+// [7]-Flag .T./.F. Parametro Obrigatorio ?
+// Cuidado, há um problema nesta opção quando selecionado a 1ª opção.
+
+aAdd(aParamBox,{3,"Mostra deletados",1,{"Sim","Não"},50,"",.F.})
+// [1]-Tipo 3 -> Radio
+// [2]-Descricao
+// [3]-Numerico contendo a opcao inicial do Radio
+// [4]-Array contendo as opcoes do Radio
+// [5]-Tamanho do Radio
+// [6]-Validacao
+// [7]-Flag .T./.F. Parametro Obrigatorio ?
+
+aAdd(aParamBox,{4,"Marca todos ?",.F.,"Marque todos se necessário for.",90,"",.F.})
+// [1]-Tipo 4 -> Say + CheckBox
+// [2]-Descricao
+// [3]-Indicador Logico contendo o inicial do Check
+// [4]-Texto do CheckBox
+// [5]-Tamanho do Radio
+// [6]-Validacao
+// [7]-Flag .T./.F. Parametro Obrigatorio ?
+
+aAdd(aParamBox,{5,"Marca todos ?",.F.,50,"",.F.})
+// [1]-Tipo 5 -> Somente CheckBox
+// [2]-Descricao
+// [3]-Indicador Logico contendo o inicial do Check
+// [4]-Tamanho do Radio
+// [5]-Validacao
+// [6]-Flag .T./.F. Parametro Obrigatorio ?
+
+aAdd(aParamBox,{6,"Buscar arquivo",Space(50),"","","",50,.F.,"Todos os arquivos (*.*) |*.*"})
+// [1]-Tipo 6 -> File
+// [2]-Descricao
+// [3]-String contendo o inicializador do campo
+// [4]-String contendo a Picture do campo
+// [5]-String contendo a validacao
+// [6]-String contendo a validacao When
+// [7]-Tamanho do MsGet
+// [8]-Flag .T./.F. Parametro Obrigatorio ?
+// [9]-Texto contendo os tipos de arquivo, exemplo: "Arquivos .CSV |*.CSV"
+// 10]-Diretorio inicial do cGetFile
+// 11]-Número relativo a visualização, podendo ser por diretório ou por arquivo (0,1,2,4,8,16,32,64,128)
+
+aAdd(aParamBox,{7,"Monte o filtro","SX5","X5_FILIAL==xFilial('SX5')"})
+// [1]-Tipo 7 -> Montagem de expressao de filtro
+// [2]-Descricao
+// [3]-Alias da tabela
+// [4]-Filtro inicial
+
+aAdd(aParamBox,{8,"Digite a senha",Space(15),"","","","",80,.F.})
+// [1]-Tipo 8 -> MsGet Password
+// [2]-Descricao
+// [3]-String contendo o inicializador do campo
+// [4]-String contendo a Picture do campo
+// [5]-String contendo a validacao
+// [6]-Consulta F3
+// [7]-String contendo a validacao When
+// [8]-Tamanho do MsGet
+// [9]-Flag .T./.F. Parametro Obrigatorio ?
+
+aAdd(aParamBox,{9,"Texto aleatório, apenas demonstrativo.",150,7,.T.})
+// [1]-Tipo 9 -> Somente uma mensagem, formato de um título
+// [2]-Texto descritivo
+// [3]-Largura do texto
+// [4]-Altura do texto
+// [5]-Valor lógico sendo: .T. => fonte tipo VERDANA e .F. => fonte tipo ARIAL
+
+aAdd(aParamBox,{10,"Cliente",Space(6),"SA1",40,"C",6,".T."})
+// [1]-Tipo 10 -> Range de busca
+// [2]-Título
+// [3]-Inicializador padrão
+// [4]-Consulta F3
+// [5]-Tamanho do GET
+// [6]-Tipo do dado, somente (C=caractere e D=data)
+// [7]-Tamanho do espaço
+// [8]-Condição When
+
+aAdd(aParamBox,{11,"Informe o motivo","",".T.",".T.",.T.})
+// [1]-Tipo 11 -> MultiGet (Memo)
+// [2]-Descrição
+// [3]-Inicializador padrão
+// [4]-Validação
+// [5]-When
+// [6]-Campo com preenchimento obrigatório .T.=Sim .F.=Não (incluir a validação na função ParamOk)
+
+// Parametros da função Parambox()
+// -------------------------------
+// 1 - < aParametros > - Vetor com as configurações
+// 2 - < cTitle >      - Título da janela
+// 3 - < aRet >        - Vetor passador por referencia que contém o retorno dos parâmetros
+// 4 - < bOk >         - Code block para validar o botão Ok
+// 5 - < aButtons >    - Vetor com mais botões além dos botões de Ok e Cancel
+// 6 - < lCentered >   - Centralizar a janela
+// 7 - < nPosX >       - Se não centralizar janela coordenada X para início
+// 8 - < nPosY >       - Se não centralizar janela coordenada Y para início
+// 9 - < oDlgWizard >  - Utiliza o objeto da janela ativa
+//10 - < cLoad >       - Nome do perfil se caso for carregar
+//11 - < lCanSave >    - Salvar os dados informados nos parâmetros por perfil
+//12 - < lUserSave >   - Configuração por usuário
+
+// Caso alguns parâmetros para a função não seja passada será considerado DEFAULT as seguintes abaixo:
+// DEFAULT bOk   := {|| (.T.)}
+// DEFAULT aButtons := {}
+// DEFAULT lCentered := .T.
+// DEFAULT nPosX  := 0
+// DEFAULT nPosY  := 0
+// DEFAULT cLoad     := ProcName(1)
+// DEFAULT lCanSave := .T.
+// DEFAULT lUserSave := .F.
+*/
