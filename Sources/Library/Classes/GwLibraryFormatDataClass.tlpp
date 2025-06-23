@@ -12,16 +12,17 @@ Consultar métodos disponíveis.
 /*/
 Class GwFormatData
 
-    Public xValue as variant
+    Public Data xValue as variant
 
     // Método construtor
     Public Method New() Constructor
 
     // Métodos públicos
-    Public Method DateToUtc( _dValue as date, _cTime as character ) as date
+    Public Method DateToUtc( dValue as date, cTime as character ) as date
 
     // Métodos privados
-    Private Method SetValue( _xValue as variant )
+    Private Method Init()
+    Private Method SetValue( xValue as variant )
 
 EndClass
 
@@ -35,9 +36,22 @@ Classe genérica para conversão de tipos de dados.
 /*/
 Method New() Class GwFormatData
 
-    ::xValue := nil
+    ::Init()
 
 Return Self
+
+/*/{Protheus.doc} GwFormatData::Init
+Método de inicialização da classe.
+@type method
+@version 12.1.2410
+@author Gworks - Giovani
+@since 6/21/2025
+/*/
+Method Init() Class GwFormatData
+
+    ::xValue := nil
+
+Return
 
 /*/{Protheus.doc} GwFormatData::SetValue
 Define valor do atributo ::xValue da classe.
@@ -45,15 +59,15 @@ Define valor do atributo ::xValue da classe.
 @version 121.1.2410
 @author giovani
 @since 6/20/2025
-@param _xValue, variant, Tipo de dado qualquer.
+@param xValue, variant, Tipo de dado qualquer.
 /*/
-Method SetValue( _xValue as variant ) Class GwFormatData
+Method SetValue( xValue as variant ) Class GwFormatData
 
     if!( empty(::xValue) )
         fwFreeVar(::xValue)
     endif
 
-    ::xValue := _xValue
+    ::xValue := xValue
 
 Return
 
@@ -63,14 +77,13 @@ Converte data/hora, conforme parâmetros de entrada, em string no formato UTC, ex
 @version 12 1.2310
 @author Gworks - Giovani
 @since 6/20/2025
-@param _dValue, date, Data a ser considerada na conversão.
-@param _cTime, character, Horário a ser considerado na conversão.
+@param dValue, date, Data a ser considerada na conversão.
+@param cTime, character, Horário a ser considerado na conversão.
 @return character, Retorna string em formato UTC.
 /*/
-Method DateToUtc( _dValue as date, _cTime as character ) as date Class GwFormatData
+Method DateToUtc( dValue as date, cTime as character ) as date Class GwFormatData
 
-    Default _dValue := dDataBase
-    Default _cTime := time()
+    Default cTime := time()
 
     Local cResult as character
     Local cDate as character
@@ -78,11 +91,15 @@ Method DateToUtc( _dValue as date, _cTime as character ) as date Class GwFormatD
     Local cMonth as character
     Local cDay as character
 
-    cDate :=  dToS( _dValue )
+    if empty( dValue )
+        UserException("GwFormatData:DateToUtc - Invalid parameter dValue.")
+    endif
+
+    cDate :=  dToS( dValue )
     cYear := SubStr(cDate, 1, 4)
     cMonth := PadL(SubStr(cDate, 4, 2), 2, '0')
     cDay := PadL(SubStr(cDate, 6, 2), 2, '0')
-    cResult := cYear +'-'+cMonth+'-'+cDay+'T'+_cTime
+    cResult := cYear +'-'+cMonth+'-'+cDay+'T'+cTime
 
     ::SetValue( cResult )
 
