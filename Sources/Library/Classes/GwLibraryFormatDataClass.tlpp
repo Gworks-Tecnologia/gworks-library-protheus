@@ -97,8 +97,8 @@ Method DateToUtc( dValue as date, cTime as character ) as character Class GwForm
 
     cDate :=  dToS( dValue )
     cYear := SubStr(cDate, 1, 4)
-    cMonth := PadL(SubStr(cDate, 4, 2), 2, '0')
-    cDay := PadL(SubStr(cDate, 6, 2), 2, '0')
+    cMonth := PadL(SubStr(cDate, 5, 2), 2, '0')
+    cDay := PadL(SubStr(cDate, 7, 2), 2, '0')
     cResult := cYear +'-'+cMonth+'-'+cDay+'T'+cTime
 
     ::SetValue( cResult )
