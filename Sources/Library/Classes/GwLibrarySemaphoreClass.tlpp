@@ -1,0 +1,149 @@
+#include "TOTVS.ch"
+#include "FWMVCDef.ch"
+#include "MsObject.ch"
+
+using namespace Gworks.Library.Utils
+using namespace Gworks.library.Functions
+
+namespace Gworks.Library.Classes
+
+/*/{Protheus.doc} GwSemaphore
+Classe de controle de semáforo.
+@type class
+@version 12.1.2410
+@author Gworks - Giovani
+@since 7/2/2025
+/*/
+Class GwSemaphore
+
+    Public Data cLock as character
+    Public Data lLockByCompanyGroup as logical
+    Public Data lLockByBranch as logical
+    Public Data lLockResult as logical
+
+    // Métodos construtores da classe
+    Public Method New() Constructor
+
+    // Métodos públicos da classe
+    Public Method Clear()
+    Public Method SetCompanyGroupLock( lLockByCompanyGroup as logical )
+    Public Method SetBranchLock( lLockByBranch as logical )
+    Public Method Lock( cLock as character ) as logical
+    Public Method UnLock() as logical
+
+    // Métodos privados da classe
+    Private Method Init()
+
+
+EndClass
+
+/*/{Protheus.doc} GwSemaphore::New
+Método construtores da classe.
+@type method
+@version 12.1.2410
+@author Gworks - Giovani
+@since 7/2/2025
+@return variant, Retorna a instância da classe.
+/*/
+Method New() Class GwSemaphore
+
+    ::Init()
+
+Return Self
+
+/*/{Protheus.doc} GwSemaphore::Init
+Método de incialização da classe.
+@type method
+@version 12.1.2410
+@author Gworks - Giovani
+@since 7/2/2025
+/*/
+Method Init() Class GwSemaphore
+
+    ::cLock := ""
+    ::lLockByCompanyGroup := .T.
+    ::lLockByBranch := .F.
+
+Return
+
+/*/{Protheus.doc} GwSemaphore::Clear
+Limpa o controle semafórico.
+@type method
+@version 12.1.2410
+@author Gworks - Giovani
+@since 7/2/2025
+/*/
+Method Clear() Class GwSemaphore
+
+    ::cLock := ""
+
+Return
+
+/*/{Protheus.doc} GwSemaphore::SetCompanyGroupLock
+Define se o controle semafórico deverá ser alocado por grupo de empresa.
+@type method
+@version 12.1.2410
+@author Gworks - Giovani
+@since 7/2/2025
+@param lLockByCompanyGroup, logical, Se .T. (true) o controle semafórico será alocado por grupo de empresa.
+/*/
+Method SetCompanyGroupLock( lLockByCompanyGroup as logical ) Class GwSemaphore
+
+    ::lLockByCompanyGroup := lLockByCompanyGroup
+
+Return
+
+/*/{Protheus.doc} GwSemaphore::SetBranchLock
+Define se o controle semafórico deverá ser alocado por filial.
+@type method
+@version 12.1.2410
+@author Gworks - Giovani
+@since 7/2/2025
+@param lLockByBranch, logical, Se .T. (true) o controle semafórico será alocado por filial.
+/*/
+Method SetBranchLock( lLockByBranch as logical ) Class GwSemaphore
+
+    ::lLockByBranch := lLockByBranch
+
+Return
+
+/*/{Protheus.doc} GwSemaphore::Lock
+Aloca no controle semafórico o conteúdo especificado pelo atributo cLock.
+@type method
+@version 12.1.2410
+@author Gworks - Giovani
+@since 7/2/2025
+@param cLock, character, Conteúdo a ser alocado no controle semafórico.
+/*/
+Method Lock( cLock as character ) as logical Class GwSemaphore
+
+    ::cLock := cLock
+
+    ::lLockResult := LockByName( ::cLock, ::lLockByCompanyGroup, ::lLockByBranch )
+
+Return ::lLockResult
+
+/*/{Protheus.doc} GwSemaphore::UnLock
+Desaloca do controle semafórico o conteúdo especificado pelo método ::Lock().
+@type method
+@version 12.1.2410
+@author Gworks - Giovani Soares
+@since 7/2/2025
+/*/
+Method UnLock() as logical Class GwSemaphore
+
+    Local lResult as logical
+
+    if !empty(::cLock)
+
+        UnLockByName( ::cLock, ::lLockByCompanyGroup, ::lLockByBranch )
+
+        lResult := .T.
+
+    else
+
+        lResult := .F.
+
+    endif
+
+Return lResult
