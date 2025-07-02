@@ -156,6 +156,27 @@ Method Clear() Class GwMessagingClass
 
 Return
 
+/*/{Protheus.doc} GwMessagingClass::GetObject
+Retorna o objeto oError ou oLog conforme parâmetro de entrada.
+@type method
+@version 12.1.2410
+@author Gworks - Giovani
+@since 6/14/2025
+@param cName, character, Nome do objeto, entre: "oError" ou "oLog".
+@return object, Retorna o objeto oError ou oLog correspondente.
+/*/
+Method GetObject( cName as character ) Class GwMessagingClass
+
+    if "error" $ lower(allTrim(cName))
+        return ::oError
+    endif
+
+    if "log" $ lower(allTrim(cName))
+        return ::oLog
+    endif
+
+Return
+
 /*/{Protheus.doc} GwMessagingClass::AutoLogMessage
 Liga/desliga a mensagem automática de oLog conforme oError.
 @type method
@@ -199,27 +220,6 @@ Define novos estados de log que serão considerados como "informativos".
 Method SetInfoLogState( cState as character ) Class GwMessagingClass
 
     ::cInfoLogState += ('/'+cState)
-
-Return
-
-/*/{Protheus.doc} GwMessagingClass::GetObject
-Retorna o objeto oError ou oLog conforme parâmetro de entrada.
-@type method
-@version 12.1.2410
-@author Gworks - Giovani
-@since 6/14/2025
-@param cName, character, Nome do objeto, entre: "oError" ou "oLog".
-@return object, Retorna o objeto oError ou oLog correspondente.
-/*/
-Method GetObject( cName as character ) Class GwMessagingClass
-
-    if "error" $ lower(allTrim(cName))
-        return ::oError
-    endif
-
-    if "log" $ lower(allTrim(cName))
-        return ::oLog
-    endif
 
 Return
 
