@@ -195,6 +195,8 @@ Method StartThreadAsync( jRequest as json ) Class GwQueue
         aParams[25] ;
     )
 
+    sleep(500)
+
 Return
 
 /*/{Protheus.doc} GwQueue::QueueMonitor
@@ -296,6 +298,8 @@ Method RunProcess( jProcesses as json ) Class GwQueue
         else
 
             sleep(jProcesses["wait_time"]) // aguarda N segundos...
+
+            nI-- // se mantem no mesmo elemento de jRequuest
 
         endif
 
