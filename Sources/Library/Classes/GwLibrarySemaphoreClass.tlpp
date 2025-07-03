@@ -1,6 +1,4 @@
-#include "TOTVS.ch"
-#include "FWMVCDef.ch"
-#include "MsObject.ch"
+#include "tlpp-core.th"
 
 using namespace Gworks.Library.Utils
 using namespace Gworks.library.Functions
@@ -33,7 +31,6 @@ Class GwSemaphore
 
     // Métodos privados da classe
     Private Method Init()
-
 
 EndClass
 
