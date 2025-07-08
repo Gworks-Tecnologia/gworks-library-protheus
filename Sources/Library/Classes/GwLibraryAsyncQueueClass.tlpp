@@ -1,21 +1,23 @@
 #include "tlpp-core.th"
 
+#define NPOS_THREAD_NAME 1
+#define NPOS_THREAD_COMPLETED 2
+
 using namespace Gworks.Library.Utils
 using namespace Gworks.library.Functions
 
 namespace Gworks.Library.Classes
 
-/*/{Protheus.doc} GwQueue
+/*/{Protheus.doc} GwAsyncQueue
 Classe para execução de filas de processamento de forma assíncrona (multithread).
 @type class
 @version 12.1.2410
 @author Gworks - Giovani
 @since 7/2/2025
 /*/
-Class GwQueue
+Class GwAsyncQueue
 
     Private Data cProcessName as character
-    Private Data nRunningThreads as integer
     Private Data oSemaphore as object
     Private Data aQueue as array
 
@@ -24,19 +26,20 @@ Class GwQueue
 
     // Métodos públicos da classe
     Public Method Clear()
-    Public Method RunProcess( aProcesses )
+    Public Method GetSemaphore() as object
+    Public Method Execute( jProcess as json )
 
     // Métodos privados da classe
     Private Method Init()
-    Private Method ValidateProcessStructure( jProcesses as json )
+    Private Method ValidateProcessStructure( jProcess as json )
     Private Method ValidateRequestStructure( jRequest as json )
+    Private Method GetActiveThreads( nRetRunning ) as logical
+    Private Method WaitingFinishExecution( nWaitTime as integer )
     Private Method StartThreadAsync()
-    Private Method QueueMonitor()
-    Private Method GetActiveThreads() as integer
 
 EndClass
 
-/*/{Protheus.doc} GwQueue::New
+/*/{Protheus.doc} GwAsyncQueue::New
 Método construtores da classe.
 @type method
 @version 12.1.2410
@@ -44,76 +47,88 @@ Método construtores da classe.
 @since 7/2/2025
 @return variant, Retorna a instância da classe.
 /*/
-Method New( cProcessName as character ) Class GwQueue
+Method New( cProcessName as character ) Class GwAsyncQueue
 
     if empty( cProcessName )
-        UserException("GwQueue:New - Process name is required...")
+        UserException("GwAsyncQueue:New - Process name is required...")
     endif
 
     ::Init( cProcessName )
 
 Return Self
 
-/*/{Protheus.doc} GwQueue::Init
+/*/{Protheus.doc} GwAsyncQueue::Init
 Método de incialização da classe.
 @type method
 @version 12.1.2410
 @author Gworks - Giovani
 @since 7/2/2025
 /*/
-Method Init( cProcessName as character ) Class GwQueue
+Method Init( cProcessName as character ) Class GwAsyncQueue
 
     ::cProcessName := cProcessName
     ::oSemaphore := GwSemaphore():New()
-    ::nRunningThreads := 0
     ::aQueue := {}
 
 Return
 
-/*/{Protheus.doc} GwQueue::Clear
+/*/{Protheus.doc} GwAsyncQueue::Clear
 Limpa o controle semafórico.
 @type method
 @version 12.1.2410
 @author Gworks - Giovani
 @since 7/2/2025
 /*/
-Method Clear() Class GwQueue
+Method Clear() Class GwAsyncQueue
 
     ::cLock := ""
     ::oSemaphore:Clear()
-    ::nRunningThreads := 0
 
     fwFreeVar(::aQueue)
     ::aQueue := {}
 
 Return
 
-/*/{Protheus.doc} GwQueue::ValidateProcessStructure
-Método privado para validar a estrutura de jProcesses.
+/*/{Protheus.doc} GwAsyncQueue::GetSemaphore
+Retorna o objeto semafórico.
+@type method
+@version 12.1.2410
+@author Gworks - Giovani
+@since 7/7/2025
+@return object, Objeto semafórico da classe GwSemaphore().
+/*/
+Method GetSemaphore() as object Class GwAsyncQueue
+Return ::oSemaphore
+
+/*/{Protheus.doc} GwAsyncQueue::ValidateProcessStructure
+Método privado para validar a estrutura de jProcess.
 @type method
 @version 12.1.2410
 @author Gworks - Giovani
 @since 7/3/2025
-@param jProcesses, json, Objeto jProcesses.
+@param jProcess, json, Objeto jProcess.
 /*/
-Method ValidateProcessStructure( jProcesses as json ) Class GwQueue
+Method ValidateProcessStructure( jProcess as json ) Class GwAsyncQueue
 
     Local nI as integer
     Local aNames as array
+    Local cNames := "max_threads;"+;
+                    "wait_time;"+;
+                    "request_list" as character
 
-    aNames := jProcesses:GetNames()
+    aNames := jProcess:GetNames()
 
     for nI:=1 to len(aNames)
 
-        if!(aNames[nI] $ "wait_time;max_threads;request_list" )
-            UserException("GwQueue:ValidateProcessStructure - Invalid process structure...")
+        if!( aNames[nI] $ cNames )
+            UserException("GwAsyncQueue:ValidateProcessStructure - Invalid process structure...")
         endif
 
     next
 
 Return
 
-/*/{Protheus.doc} GwQueue::ValidateRequestStructure
+/*/{Protheus.doc} GwAsyncQueue::ValidateRequestStructure
 Método privado para validar a estrutura de jRequest.
 @type method
 @version 12.1.2410
@@ -121,23 +136,81 @@ Método privado para validar a estrutura de jRequest.
 @since 7/3/2025
 @param jRequest, json, Objeto jRequest.
 /*/
-Method ValidateRequestStructure( jRequest as json ) Class GwQueue
+Method ValidateRequestStructure( jRequest as json ) Class GwAsyncQueue
 
-    Local aNames as array
     Local nI as integer
+    Local aNames as array
+    Local cNames := "request_id;"+;
+                    "request_function;"+;
+                    "request_params" as character
 
     aNames := jRequest:GetNames()
     for nI:=1 to len(aNames)
 
-        if!(aNames[nI] $ "request_id;request_function;request_params;" )
-            UserException("GwQueue:ValidateRequestStructure - Invalid request structure...")
+        if!( aNames[nI] $ cNames )
+            UserException("GwAsyncQueue:ValidateRequestStructure - Invalid request structure...")
         endif
 
     next
 
 Return
 
-/*/{Protheus.doc} GwQueue::StartThreadAsync
+/*/{Protheus.doc} GwAsyncQueue::GetActiveThreads
+Método privado para verificar se existem threads ativas.
+@type method
+@version 12.1.2410
+@author Gworks - Giovani
+@since 7/3/2025
+@param nRetRunning, numeric, Retorna por ref. de memória a quant. de threads ativas.
+@return logical, Retorna .T. (true) para indicar que existem threads ativas e .F. (false) caso contrário.
+/*/
+Method GetActiveThreads( nRetRunning as numeric ) as logical Class GwAsyncQueue
+
+    Local nResult as integer
+    Local nI as integer
+    Local cThreadName as character
+
+    for nI:=1 to len( ::aQueue )
+
+        cThreadName := ::aQueue[ nI ][ NPOS_THREAD_NAME ]
+
+        if ::oSemaphore:Lock( cThreadName )
+
+            ::aQueue[ nI ][ NPOS_THREAD_COMPLETED ] := .T. // define a thread como concluída
+
+            ::oSemaphore:UnLock()
+
+        endif
+
+        if!( ::aQueue[ nI ][ NPOS_THREAD_COMPLETED ] ) // se a thread ainda não foi concluída
+            nResult++
+        endif
+
+    next
+
+    nRetRunning := nResult
+
+Return( nResult > 0 )
+
+/*/{Protheus.doc} GwAsyncQueue::WaitingFinishExecution
+Método interno para aguardar o término de execução de threads remanascentes.
+@type method
+@version 12.1.2410
+@author Gworks - Giovani
+@since 7/8/2025
+@param nWaitTime, numeric, Tempo de espera em milisegundos.
+/*/
+Method WaitingFinishExecution( nWaitTime as integer ) Class GwAsyncQueue
+
+    while ::GetActiveThreads()
+
+        sleep(nWaitTime)
+
+    enddo
+
+Return
+
+/*/{Protheus.doc} GwAsyncQueue::StartThreadAsync
 Inicia uma thread assíncrona.
 @type method
 @version 12.1.2410
@@ -145,17 +218,21 @@ Inicia uma thread assíncrona.
 @since 7/3/2025
 @param jRequest, json, Elemento de request_list.
 /*/
-Method StartThreadAsync( jRequest as json ) Class GwQueue
+Method StartThreadAsync( jRequest as json ) Class GwAsyncQueue
 
     Local nI as integer
-    Local aParams := array(25) as array
+    Local aParams := array(24) as array
 
     Local lWait := .F. as logical
     Local cThreadName := ::cProcessName +":"+ allTrim(str(jRequest["request_id"])) as character
     Local lCompleted := .F. as logical
 
-    if len( jRequest["request_params"] ) > 25
-        UserException("GwQueue:StartThreadAsync - The request_params must have a maximum of 25 parameters...")
+    if( valType( jRequest["request_params"] ) != "A" )
+        jRequest["request_params"] := {}
+    endif
+
+    if( len( jRequest["request_params"] ) > 24 )
+        UserException("GwAsyncQueue:StartThreadAsync - The request_params must have a maximum of 24 parameters...")
     endif
 
     for nI:=1 to len(jRequest["request_params"])
@@ -169,6 +246,7 @@ Method StartThreadAsync( jRequest as json ) Class GwQueue
         jRequest["request_function"],;
         GetEnvServer(),;
         lWait,;
+        cThreadName,;
         aParams[1],;
         aParams[2],;
         aParams[3],;
@@ -191,97 +269,47 @@ Method StartThreadAsync( jRequest as json ) Class GwQueue
         aParams[20],;
         aParams[21],;
         aParams[23],;
-        aParams[24],;
-        aParams[25] ;
+        aParams[24] ;
     )
 
     sleep(500)
 
 Return
 
-/*/{Protheus.doc} GwQueue::QueueMonitor
-Monitora a fila de execução atualizando às threads já concluídas.
-@type method
-@version 12.1.2410
-@author Gworks - Giovani
-@since 7/3/2025
-/*/
-Method QueueMonitor() Class GwQueue
-
-    Local cThreadName as character
-
-    Local nI as integer
-
-    for nI:=1 to len( ::aQueue )
-
-        cThreadName := ::aQueue[ nI ][ 1 ]
-
-        if oSemaphore:Lock( cThreadName )
-
-            ::aQueue[ nI ][ 2 ] := .T. // define a thread como concluída
-
-            oSemaphore:UnLock()
-
-        endif
-
-    next
-
-Return
-
-/*/{Protheus.doc} GwQueue::GetActiveThreads
-Retorna a quantidade de threads ativas.
-@type method
-@version 12.1.2410
-@author Gworks - Giovani
-@since 7/3/2025
-@return numeric, Número de threads ativas.
-/*/
-Method GetActiveThreads() as integer Class GwQueue
-
-    Local nI as integer
-    Local nResult as integer
-
-    for nI:=1 to len( ::aQueue )
-
-        if!( ::aQueue[ nI ][ 2 ] ) // se a thread já foi concluída
-            nResult++
-        endif
-
-    next
-
-Return nResult
-
-/*/{Protheus.doc} GwQueue::RunProcess
+/*/{Protheus.doc} GwAsyncQueue::Execute
 Executa de forma assíncrona uma lista de processos informados via parâmetro.
 @type method
 @version 12.1.2410
 @author Gworks - Giovani
 @since 7/3/2025
-@param jProcesses, json, Estrutura de dados a ser considerada no formato:
+@param jProcess, json, Estrutura de dados a ser considerada no formato:
     {
-        "wait_time": 5000,
         "max_threads": 5,
+        "wait_time": 5000,
         "request_list": [
             {
                 "request_id": 1,
                 "request_function": "U_MinhaFuncao",
-                "request_params": [xParam1, xParam2, ..., xParam25]
+                "request_params": [xParam1, xParam2, ..., xParam24]
             }
         ]
     }
 @obs
-    O controle da fila de execução será realizado via semáforo obedecendo a expressão ::cProcessName +":"+ allTrim(str(jRequest["request_id"]))
-    logo é necessário que a função definida em request_function confirme o controle de semáforo para que o monitoramento da fila funcione adequadamente.
+    O controle da fila de execução será realizado via semáforo obedecendo a expressão
+    ::cProcessName +":"+ jRequest["request_id"] para cada elemento contido em request_list.
+    Portanto, é necessário que a função definida em request_function confirme o controle
+    de semáforo para que o monitoramento da fila funcione adequadamente.
 /*/
-Method RunProcess( jProcesses as json ) Class GwQueue
+Method Execute( jProcess as json ) Class GwAsyncQueue
 
+    Local nRunning as numeric
     Local nI as integer
     Local aRequest as array
     Local jRequest as json
 
-    ::ValidateProcessStructure( jProcesses )
+    ::ValidateProcessStructure( jProcess )
 
-    aRequest := jProcesses["request_list"]
+    aRequest := jProcess["request_list"]
 
     for nI:=1 to len(aRequest)
 
@@ -289,20 +317,22 @@ Method RunProcess( jProcesses as json ) Class GwQueue
 
         ::ValidateRequestStructure( jRequest )
 
-        ::nRunningThreads := ::GetActiveThreads()
+        ::GetActiveThreads( @nRunning )
 
-        if ::nRunningThreads <= jProcesses["max_threads"] // se o número de threads ativas é menor ou igual ao máximo de threads permitidas
+        if nRunning <= jProcess["max_threads"] // se o número de threads ativas é menor ou igual ao máximo de threads permitidas
 
             ::StartThreadAsync( jRequest )
 
         else
 
-            sleep(jProcesses["wait_time"]) // aguarda N segundos...
+            sleep(jProcess["wait_time"]) // aguarda N segundos...
 
-            nI-- // se mantem no mesmo elemento de jRequuest
+            nI-- // se mantem no mesmo elemento de jRequest
 
         endif
 
     next
+
+    ::WaitingFinishExecution( jProcess["wait_time"] )
 
 Return

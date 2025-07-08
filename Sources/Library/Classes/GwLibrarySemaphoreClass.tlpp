@@ -15,7 +15,7 @@ Classe de controle de semáforo.
 Class GwSemaphore
 
     Public Data cLock as character
-    Public Data lLockByCompanyGroup as logical
+    Public Data lLockByCompany as logical
     Public Data lLockByBranch as logical
     Public Data lLockResult as logical
 
@@ -24,8 +24,8 @@ Class GwSemaphore
 
     // Métodos públicos da classe
     Public Method Clear()
-    Public Method SetCompanyGroupLock( lLockByCompanyGroup as logical )
-    Public Method SetBranchLock( lLockByBranch as logical )
+    Public Method ControlByCompany( lEnable as logical )
+    Public Method ControlByBranch( lEnable as logical )
     Public Method Lock( cLock as character ) as logical
     Public Method UnLock() as logical
 
@@ -58,7 +58,7 @@ Método de incialização da classe.
 Method Init() Class GwSemaphore
 
     ::cLock := ""
-    ::lLockByCompanyGroup := .T.
+    ::lLockByCompany := .T.
     ::lLockByBranch := .F.
 
 Return
@@ -76,31 +76,43 @@ Method Clear() Class GwSemaphore
 
 Return
 
-/*/{Protheus.doc} GwSemaphore::SetCompanyGroupLock
-Define se o controle semafórico deverá ser alocado por grupo de empresa.
+/*/{Protheus.doc} GwSemaphore::ControlByCompany
+Lida/Desliga o controle semafórico por grupo de empresa.
 @type method
 @version 12.1.2410
 @author Gworks - Giovani
-@since 7/2/2025
-@param lLockByCompanyGroup, logical, Se .T. (true) o controle semafórico será alocado por grupo de empresa.
+@since 7/7/2025
+@param lEnable, logical, Se .T. (true) indica se o controle deve ser habilitado e .F. (false) desabilita.
 /*/
-Method SetCompanyGroupLock( lLockByCompanyGroup as logical ) Class GwSemaphore
+Method ControlByCompany( lEnable as logical ) Class GwSemaphore
 
-    ::lLockByCompanyGroup := lLockByCompanyGroup
+    if( lEnable )
+        ::lLockByCompany := .T.
+        ::lLockByBranch := .F.
+    else
+        ::lLockByCompany := .F.
+        ::lLockByBranch := .F.
+    endif
 
 Return
 
-/*/{Protheus.doc} GwSemaphore::SetBranchLock
-Define se o controle semafórico deverá ser alocado por filial.
+/*/{Protheus.doc} GwSemaphore::ControlByBranch
+Lida/Desliga o controle semafórico por filial.
 @type method
 @version 12.1.2410
 @author Gworks - Giovani
-@since 7/2/2025
-@param lLockByBranch, logical, Se .T. (true) o controle semafórico será alocado por filial.
+@since 7/7/2025
+@param lEnable, logical, Se .T. (true) indica se o controle deve ser habilitado e .F. (false) desabilita.
 /*/
-Method SetBranchLock( lLockByBranch as logical ) Class GwSemaphore
+Method ControlByBranch( lEnable as logical ) Class GwSemaphore
 
-    ::lLockByBranch := lLockByBranch
+    if( lEnable )
+        ::lLockByCompany := .T.
+        ::lLockByBranch := .T.
+    else
+        ::lLockByCompany := .T.
+        ::lLockByBranch := .F.
+    endif
 
 Return
 
@@ -116,7 +128,7 @@ Method Lock( cLock as character ) as logical Class GwSemaphore
 
     ::cLock := cLock
 
-    ::lLockResult := LockByName( ::cLock, ::lLockByCompanyGroup, ::lLockByBranch )
+    ::lLockResult := LockByName( ::cLock, ::lLockByCompany, ::lLockByBranch )
 
 Return ::lLockResult
 
@@ -133,7 +145,7 @@ Method UnLock() as logical Class GwSemaphore
 
     if !empty(::cLock)
 
-        UnLockByName( ::cLock, ::lLockByCompanyGroup, ::lLockByBranch )
+        UnLockByName( ::cLock, ::lLockByCompany, ::lLockByBranch )
 
         lResult := .T.
 
