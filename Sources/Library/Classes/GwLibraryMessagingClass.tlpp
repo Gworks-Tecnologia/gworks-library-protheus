@@ -319,7 +319,7 @@ Method DefineErrorAuto( cFrom as character, xParam as variant ) Class GwMessagin
 
     endcase
 
-    ::jMessage["error_details"] := ::oError:cAutoGRLog()
+    ::jMessage["error_details"] := ::oError:cAutoGRLog
 
 Return
 
