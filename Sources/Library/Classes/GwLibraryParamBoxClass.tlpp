@@ -119,7 +119,7 @@ Method GetTemplate( cType as character ) as json Class GwParamBox
             jReturn["cDescription"]  := ""
             jReturn["nInit"] := 0
             jReturn["aOptions"] := {}
-            jReturn["nSize"] := 10
+            jReturn["nSize"] := 30
             jReturn["cValidation"] := ".T."
             jReturn["lRequired"] := ::lDefaultRequired
             jReturn["xValue"] := nil
@@ -188,8 +188,6 @@ Method GetParamBoxArray() Class GwParamBox
         next
 
         aadd( aResult, aClone(aParam) )
-
-        fwFreeVar(aParam)
 
     next
 
@@ -357,7 +355,15 @@ Method SetProperty( cName as character, cProperty as character, xValue as varian
         UserException("GwParamBox:SetProperty - Ivalid parameter cProperty...")
     endif
 
-    ::jParam[cName][cProperty] := xValue
+    do case
+
+        case valType(xValue) == "A"
+            ::jParam[cName][cProperty] := aClone(xValue)
+
+        otherwise
+            ::jParam[cName][cProperty] :=  xValue
+
+    endcase
 
 Return
 
