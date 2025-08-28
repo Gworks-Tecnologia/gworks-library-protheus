@@ -1,0 +1,139 @@
+#include "tlpp-core.th"
+
+using namespace Gworks.Library.Utils
+using namespace Gworks.library.Functions
+
+namespace Gworks.Library.Classes
+
+Static cSx2_Exc__ := ;
+                    "X2_CHAVE;" +;
+                    "X2_ARQUIVO;" +;
+                    "X2_NOME;" +;
+                    "X2_NOMESPA;" +;
+                    "X2_NOMEENG;" +;
+                    "X2_MODO;" +;
+                    "X2_MODOUN;" +;
+                    "X2_MODOEMP;" +;
+                    "X2_UNICO" as character
+
+Class GwMetaDataCommit
+
+    Private Method jMetaData as json
+
+    Public Method New() Constructor
+    Public Method Clear()
+
+    Public Method VldData()
+    Public Method CommitData()
+
+    Private Method Init()
+
+EndClass
+
+Method New( jMetaData as json ) Class GwMetaDataCommit
+
+    ::Init( jMetaData )
+
+Return Self
+
+Method Init( jMetaData as json ) Class GwMetaDataCommit
+
+    ::jMetaData := jMetaData
+
+Return
+
+Method Clear() Class GwMetaDataCommit
+    ::Init()
+Return
+
+Method VldData() Class GwMetaDataCommit
+
+    Local lResult as logical
+
+    Local nI as integer
+    Local aTables as array
+    Local aFields as array
+    Local aIndexes as array
+    Local aTriggers as array
+    Local aFolders as array
+    Local aParameters as array
+
+    Local jTable as json
+    //Local jField as json
+    //Local jIndexe as json
+    //Local jTrigger as json
+    //Local jFolder as json
+    //Local jParameter as json
+
+    // tables
+    // fields
+    // indexes
+    // triggers
+    // folders
+    // parameters
+    BEGIN SEQUENCE
+
+        aTables := jMetaData["tables"]
+        aFields := jMetaData["fields"]
+        aIndexes := jMetaData["indexes"]
+        aTriggers := jMetaData["triggers"]
+        aFolders := jMetaData["folders"]
+        aParameters := jMetaData["parameters"]
+
+        for nI:=1 to len(aTables)
+            jTable := aTables[nI]
+            if!(lResult := fGetTable(@jTable))
+                BREAK
+            endif
+        next
+
+    END SEQUENCE
+
+    // cAlias := "SX3"
+    // dbSelectArea(cAlias)
+    // (cAlias)->(dbSetOrder(2)) // X3_CAMPO
+    // (cAlias)->(dbGoTop())
+    // if (cAlias)->(msSeek(jField["name"]))
+    //     jRetValid["exists"] := .T.
+    // endif
+    // (cAlias)->(dbCloseArea())
+    // RestArea(aArea)
+
+Return lResult
+
+
+Static Function fGetTable( jTable as json )
+
+    Local cAlias as character
+
+    cAlias := "SX2"
+    dbSelectArea(cAlias)
+    (cAlias)->(dbSetOrder(2)) // X2_ARQUIVO
+    (cAlias)->(dbGoTop())
+    if (cAlias)->(msSeek(cTable+cEmpAnt))
+        jRetValid["exists"] := .T.
+    endif
+    (cAlias)->(dbCloseArea())
+
+    jTable["commit_info"] := jSonObject():New()
+    jTable["commit_info"]["recno"] := iif( jRetValid["exists"], (cAlias)->(recno()), 0 )
+    jTable["commit_info"]["exists"] := ( jTable["recno"] > 0 )
+    jTable["commit_info"]["operation"] := iif( jTable["exists"], "UPDATE", "INSERT" )
+    jTable["commit_info"]["exclusive_fields"] := cSx2_Exc__
+    jTable["commit_info"]["changed_fields"] := array(0)
+    if jTable["exists"]
+        aAdd( jTable["changed_fields"], iif( allTrim((cAlias)->&("X2_CHAVE")) != allTrim(jTable["alias"]), "X2_CHAVE", "" ) )
+        aAdd( jTable["changed_fields"], iif( allTrim((cAlias)->&("X2_ARQUIVO")) != allTrim(jTable["alias"]+cEmpAnt), "X2_ARQUIVO", "" ) )
+        aAdd( jTable["changed_fields"], iif( allTrim((cAlias)->&("X2_NOME")) != allTrim(jTable["name"]), "X2_NOME", "" ) )
+        aAdd( jTable["changed_fields"], iif( allTrim((cAlias)->&("X2_NOMESPA")) != allTrim(jTable["name_sp"]), "X2_NOMESPA", "" ) )
+        aAdd( jTable["changed_fields"], iif( allTrim((cAlias)->&("X2_NOMEENG")) != allTrim(jTable["name_eng"]), "X2_NOMEENG", "" ) )
+        aAdd( jTable["changed_fields"], iif( allTrim((cAlias)->&("X2_MODO")) != allTrim(jTable["sharing_branch"]), "X2_MODO", "" ) )
+        aAdd( jTable["changed_fields"], iif( allTrim((cAlias)->&("X2_MODOUN")) != allTrim(jTable["sharing_unit"]), "X2_MODOUN", "" ) )
+        aAdd( jTable["changed_fields"], iif( allTrim((cAlias)->&("X2_MODOEMP")) != allTrim(jTable["sharing_company"]), "X2_MODOEMP", "" ) )
+        aAdd( jTable["changed_fields"], iif( allTrim((cAlias)->&("X2_UNICO")) != allTrim(jTable["unique_key"]), "X2_UNICO", "" ) )
+    endif
+    jTable["exclusive_access"] := aScan( jTable["changed_fields"], allTrim(x) $ jTable["commit_info"]["exclusive_fields"] ) //  "X2_CHAVE" jTable["changed_fields"]
+
+    RestArea(aArea)
+
+Return .T.

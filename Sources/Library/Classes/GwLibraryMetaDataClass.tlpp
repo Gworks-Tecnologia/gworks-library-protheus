@@ -1,0 +1,810 @@
+#include "tlpp-core.th"
+
+#define STR_X3RESERV "xxxxxx x        "
+#define STR_X3RESERV_FILIAL "XXXXXX X        "
+#define STR_X3USADO_S "x       x       x       x       x       x       x       x       x       x       x       x       x       x       x x     "
+#define STR_X3USADO_N "x       x       x       x       x       x       x       x       x       x       x       x       x       x       x       "
+#define STR_X3OBRIGAT_S "x       "
+#define STR_X3OBRIGAT_N "        "
+
+#define STR_SPACE " "
+
+using namespace Gworks.Library.Utils
+using namespace Gworks.library.Functions
+
+namespace Gworks.Library.Classes
+
+/*/{Protheus.doc} GwAsyncQueue
+Classe para execução de filas de processamento de forma assíncrona (multithread).
+@type class
+@version 12.1.2410
+@author Gworks - Giovani
+@since 7/2/2025
+/*/
+Class GwMetaData From GwMetaDataCommit
+
+    Public Data jMetaData as json
+    Public Data nLenBranch as integer
+    Public Data nLenCompay as integer
+
+    Private Data lCommitInit as logical
+
+    // Métodos construtores da classe
+    Public Method New() Constructor
+
+    Public Method Clear()
+    Public Method CommitData()
+    Public Method AddTable( jTable as json )
+    Public Method AddField( jField as json, xDefaults as variant )
+    Public Method AddIndex( jIndex as json )
+    // Public Method AddTriggers()
+    Public Method AddFolder( jFolder as json )
+    // Public Method AddParameters()
+
+    Private Method ValidTable( jTable as json, jRetValid as json ) as logical
+    Private Method ValidField( jField as json, jRetValid as json ) as logical
+    Private Method ValidIndex( jIndex as json, jRetValid as json ) as logical
+    Private Method ValidFolder( jField as json, jRetValid as json ) as logical
+
+    // Métodos privados da classe
+    Private Method Init()
+    Private Method SeekAttr( cMetaName as character, cMetaField as character, xContent as variant, nRetPos as integer ) as logical
+    Private Method GetFieldPrefix( cAlias as character, cRetPrefix as character ) as logical
+    Private Method SetFieldBranch()
+
+EndClass
+
+/*/{Protheus.doc} GwMetaData::New
+Método construtor da classe.
+@type method
+@version 12.1.2410
+@author Gworks - Giovani
+@since 8/12/2025
+@return object, Instância da classe.
+/*/
+Method New() Class GwMetaData
+
+    ::Init()
+
+Return Self
+
+/*/{Protheus.doc} GwMetaData::Init
+Método de inicialização da classe.
+@type method
+@version 12.1.2410
+@author Gworks - Giovani
+@since 8/12/2025
+/*/
+Method Init() Class GwMetaData
+
+    if( type('cEmpAnt') == 'U' .or. type('cFilAnt') == 'U' )
+        UserException("GwMetaData:Init - Environment not defined...")
+    endif
+
+    ::nLenBranch := len(cEmpAnt)
+    ::nLenCompay := len(cFilAnt)
+    ::jMetaData := JsonObject():New()
+        ::jMetaData["tables"] := {} // sx2
+        ::jMetaData["fields"] := {} // sx3
+        ::jMetaData["indexes"] := {} // six
+        ::jMetaData["triggers"] := {} // sx7
+        ::jMetaData["folders"] := {} // sxa
+        ::jMetaData["parameters"] := {} // sx6
+
+    if!( ::lCommitInit )
+        _Super:New( ::jMetaData ) ; ::lCommitInit := .T. // cria nova instância
+    else
+        _Super:Clear() // recicla a instância
+    endif
+
+Return
+
+/*/{Protheus.doc} GwMetaData::Clear
+Método para reinicializar os atributos da classe.
+@type method
+@version 12.1.2410
+@author Gworks - Giovani
+@since 8/12/2025
+/*/
+Method Clear() Class GwMetaData
+
+    ::Init()
+
+Return
+
+/*/{Protheus.doc} GwMetaData::SeekAttr
+Método interno para buscar atributos conforme objeto ::jMetaData.
+@type method
+@version 12.1.2410
+@author Gworks - Giovani
+@since 8/4/2025
+@param cMetaName, character, Nome da tabela de metadados a ser pesquisada (ex: "tables", "fields", "indexes", etc.)
+@param cMetaField, character, Nome do campo a ser pesquisado na tabela de metadados.
+@param xContent, variant, Conteúdo a ser pesquisado no campo especificado.
+@param nRetPos, numeric, Retorna a posição do registro encontrado na tabela de metadados.
+@return logical, Retorna .T. (true) se o registro for encontrado, ou .F. (false) caso contrário.
+/*/
+Method SeekAttr( cMetaName as character, cMetaField as character, xContent as variant, nRetPos as integer ) as logical Class GwMetaData
+
+    nRetPos := aScan( ::jMetaData[ cMetaName ], {|x| x[ cMetaField ] == xContent } )
+
+Return( nRetPos > 0 )
+
+/*/{Protheus.doc} GwMetaData::GetFieldPrefix
+Método interno para obter o prefixo de campo de acordo com o alias de uma tabela.
+@type method
+@version 12.1.2410
+@author Gworks - Giovani
+@since 8/22/2025
+@param cAlias, character, Alias da tabela a qual o campo pertence.
+@param cRetPrefix, character, Retorna o prefixo do campo.
+@return logical, Retorna .T. (true) para indicar que o prefixo foi obtido com sucesso, ou .F. (false) caso contrário.
+/*/
+Method GetFieldPrefix( cAlias as character, cRetPrefix as character ) as logical Class GwMetaData
+
+    Default cAlias := ""
+
+    cRetPrefix := iif( left(cAlias,1) == "S", right(cAlias,2), cAlias )
+
+Return( allTrim(str(len(cAlias))) $ '2/3' )
+
+
+Method SetFieldBranch( cAlias as character ) Class GwMetaData
+
+    Default cAlias := ""
+
+    Local cAlias as character
+    Local cPrefix as character
+    Local jBranch as json
+
+    if!( ::GetFieldPrefix( cAlias, @cPrefix ) )
+        UserException("GwMetaData:SetFieldBranch - Invalid alias for field prefix.")
+    endif
+
+    jBranch := JsonObject():New()
+        jBranch["alias"] := cAlias
+        jBranch["order"] := "01"
+        jBranch["name"] := cPrefix + "_FILIAL"
+        jBranch["type"] := "C"
+        jBranch["size"] := len(cFilAnt)
+        jBranch["decimal"] := 0
+        jBranch["title"] := "Filial"
+        jBranch["title_sp"] := "Sucursal"
+        jBranch["title_eng"] := "Branch"
+        jBranch["description"] := "Filial do Sistema"
+        jBranch["description_sp"] := "Sucursal"
+        jBranch["description_eng"] := "Branch of the System"
+        jBranch["picture"] := "@!"
+        jBranch["vld_user"] := STR_SPACE
+        jBranch["when"] := STR_SPACE
+        jBranch["used"] := STR_X3USADO_N
+        jBranch["init"] := STR_SPACE
+        jBranch["dataset"] := STR_SPACE
+        jBranch["level"] := "1"
+        jBranch["used_brw"] := "N"
+        jBranch["visual"] := STR_SPACE
+        jBranch["context"] := STR_SPACE
+        jBranch["requisite"] := STR_SPACE
+        jBranch["init_brw"] := STR_SPACE
+        jBranch["folder"] := STR_SPACE
+
+    jDefaults := JsonObject():New()
+        jDefaults["X3_RESERV"] := STR_X3RESERV_FILIAL
+        jDefaults["X3_CHECK"] :=  STR_SPACE
+        jDefaults["X3_TRIGGER"] := "U"
+        jDefaults["X3_PROPRI"] := "U"
+        jDefaults["X3_PICTVAR"] := STR_SPACE
+        jDefaults["X3_GRPSXG"] := "033"
+        jDefaults["X3_PYME"] := "S"
+        jDefaults["X3_CONDSQL"] := STR_SPACE
+        jDefaults["X3_CHKSQL"] := STR_SPACE
+        jDefaults["X3_IDXSRV"] := STR_SPACE
+        jDefaults["X3_ORTOGRA"] := STR_SPACE
+        jDefaults["X3_IDXFLD"] := STR_SPACE
+        jDefaults["X3_TELA"] := STR_SPACE
+        jDefaults["X3_PICBRV"] := STR_SPACE
+        jDefaults["X3_AGRUP"] := STR_SPACE
+        jDefaults["X3_POSLGT"] := STR_SPACE
+        jDefaults["X3_MODAL"] := STR_SPACE
+
+    ::AddField( jBranch, jDefaults )
+
+Return
+
+/*/{Protheus.doc} GwMetaData::CommitData
+Méotodo para validar e commitar os dados de uma tabela no dicionário de dados do ERP.
+@type method
+@version 12.1.2410
+@author Gworks - Giovani
+@since 8/22/2025
+@return logical, Retorna .T. (true) caso o commit tenha sido realizado com sucesso e .F. (false) caso contrário.
+/*/
+Method CommitData() Class GwMetaData
+
+    Local lResult as logical
+
+    if( lResult := _Super:VldData())
+        _Super:CommitData( ::jMetaData )
+    endif
+
+Return lResult
+
+/*/{Protheus.doc} GwMetaData::AddTable
+Método para adicionar uma tabela à tabela SX2 (tabelas) do dicionário de dados do ERP.
+@type method
+@version 12.1.2410
+@author Gworks - Giovani
+@since 8/4/2025
+@param jTable, json, Objeto referente aos metadados para gravação conforme layout:
+    {
+        "alias" : "string",
+        "name" : "string",
+        "name_sp" : "string",
+        "name_eng" : "string",
+        "sharing_branch" : "C/E",
+        "sharing_unit" : "C/E",
+        "sharing_company" : "C/E",
+        "unique_key" : "string"
+    }
+/*/
+Method AddTable( jTable as json ) Class GwMetaData
+
+    Local jSX2 as json
+    Local aNames := jTable:getNames() as array
+    Local jValid as json
+
+    if!( ::ValidTable( jTable, @jValid ) )
+        UserException("GwMetaData:AddTable - " + jValid["exception"])
+    endif
+
+    if jValid["exists"]
+        UserException("GwMetaData:AddTable - " + jValid["exception"])
+    endif
+
+    jSX2 := JsonObject():New()
+        jSX2["X2_CHAVE"] := jTable["alias"]
+        jSX2["X2_PATH"] := STR_SPACE
+        jSX2["X2_ARQUIVO"] := jTable["alias"]+cEmpAnt
+        jSX2["X2_NOME"] := jTable["name"]
+        jSX2["X2_NOMESPA"] := iif( aScan(aNames, "name_sp") > 0, jTable["name_sp"], jTable["name"] )
+        jSX2["X2_NOMEENG"] := iif( aScan(aNames, "name_eng") > 0, jTable["name_eng"], jTable["name"] )
+        jSX2["X2_ROTINA"] := STR_SPACE
+        jSX2["X2_MODO"] := jTable["sharing_branch"]
+        jSX2["X2_MODOUN"] := jTable["sharing_unit"]
+        jSX2["X2_MODOEMP"] := jTable["sharing_company"]
+        jSX2["X2_DELET"] := "0"
+        jSX2["X2_TTS"] := STR_SPACE
+        jSX2["X2_UNICO"] := iif( aScan(aNames, "unique_key") > 0, jTable["unique_key"], "" )
+        jSX2["X2_PYME"] := STR_SPACE
+        jSX2["X2_MODULO"] := "0"
+        jSX2["X2_DISPLAY"] := STR_SPACE
+        jSX2["X2_SYSOBJ"] := STR_SPACE
+        jSX2["X2_USROBJ"] := STR_SPACE
+        jSX2["X2_POSLGT"] := STR_SPACE
+        jSX2["X2_CLOB"] := STR_SPACE
+        jSX2["X2_AUTREC"] := STR_SPACE
+        jSX2["X2_TAMFIL"] := ::nLenBranch
+        jSX2["X2_TAMUN"] := "0"
+        jSX2["X2_TAMEMP"] := ::nLenCompay
+        jSX2["X2_STAMP"] := STR_SPACE
+        jSX2["X2_INSDT"] := STR_SPACE
+
+    aAdd(::jMetaData["tables"], jSX2)
+
+    ::SetFieldBranch( jTable["alias"] )
+
+Return
+
+/*/{Protheus.doc} GwMetaData::ValidTable
+Método interno para validar o objeto candidato a ser adicionado à tabela de dicionário de dados SX2 (tabelas).
+@type method
+@version 12.1.2410
+@author Gworks - Giovani
+@since 8/4/2025
+@param jTable, json, Objeto candidato a ser validado.
+@param jRetValid, json, Retorna validação do objeto conforme layout:
+    {
+        "exists" : "boolean",
+        "exception" : "string",
+        "required" : "string"
+    }
+@return logical, Retorna .T. (true) caso a validação seja bem sucedida, ou .F. (false) caso contrário.
+/*/
+Method ValidTable( jTable as json, jRetValid as json ) as logical Class GwMetaData
+
+    Local aNames as array
+
+    Private cNames_ as character
+    Private cNotFound_ as character
+
+    jRetValid := JsonObject():New()
+        jRetValid["exists"] := .F.
+        jRetValid["exception"] := ""
+        jRetValid["required"] := { ;
+                                "alias",;
+                                "name",;
+                                "sharing_branch",;
+                                "sharing_unit",;
+                                "sharing_company" }
+    aNames := jTable:getNames()
+    aEval( aNames, {|x| cNames_ += (x+";") } )
+    aEval( jRetValid["required"], {|x| cNotFound_ += iif( !(x $ cNames_), x+";", "" ) } )
+    if !empty(cNotFound_)
+        jRetValid["exception"] := 'Parameters "' + cNotFound_ + '" are required.'
+    else
+        do case
+            case len(jTable["alias"]) != 3; jRetValid["exception"] := 'Parameter "alias" must be 3 characters.'
+            case len(jTable["name"]) == 0; jRetValid["exception"] := 'Parameter "name" cannot be empty.'
+            case !( jTable["sharing_branch"] $ "C/E" ); jRetValid["exception"] := 'Parameter "sharing_branch" must be "C" or "E".'
+            case !( jTable["sharing_unit"] $ "C/E" ); jRetValid["exception"] := 'Parameter "sharing_unit" must be "C" or "E".'
+            case !( jTable["sharing_company"] $ "C/E" ); jRetValid["exception"] := 'Parameter "sharing_company" must be "C" or "E".'
+        endcase
+    endif
+
+    if !empty( jRetValid["exception"] )
+        return .F.
+    endif
+
+    if ::SeekAttr( "tables", "X2_ARQUIVO", jTable["alias"]+cEmpAnt )
+        jRetValid["exists"] := .T.
+        jRetValid["exception"] := 'Parameter "alias" already added in this metadata instance.'
+        return .F.
+    endif
+
+Return .T.
+
+/*/{Protheus.doc} GwMetaData::AddField
+Método para adicionar um campo à tabela SX3 (campos) do dicionário de dados do ERP.
+@type method
+@version 12.1.2410
+@author Gworks - Giovani
+@since 8/4/2025
+@param jField, json, Objeto referente aos metadados para gravação conforme layout:
+    {
+        "alias" : "string",
+        "order" : "string",
+        "name" : "string",
+        "type" : "string",
+        "size" : "numeric",
+        "decimal" : "numeric",
+        "picture" : "string",
+        "context" : "string",
+        "visual" : "string",
+        "requisite" : "string",
+        "title" : "string",
+        "description" : "string",
+        "used" : "boolean",
+        "used_brw" : "boolean"
+    }
+@param xDefaults, variant, Argumento opcional referente à informações complementares, conforme layout:
+    {
+        "X3_RESERV" : "string",
+        "X3_CHECK" : "string",
+        "X3_TRIGGER" : "string",
+        "X3_PROPRI" : "string",
+        "X3_PICTVAR" : "string",
+        "X3_GRPSXG" : "string",
+        "X3_PYME" : "string",
+        "X3_CONDSQL" : "string",
+        "X3_CHKSQL" : "string",
+        "X3_IDXSRV" : "string",
+        "X3_ORTOGRA" : "string",
+        "X3_IDXFLD" : "string",
+        "X3_TELA" : "string",
+        "X3_PICBRV" : "string",
+        "X3_AGRUP" : "string",
+        "X3_POSLGT" : "string",
+        "X3_MODAL" : "string"
+    }
+/*/
+Method AddField( jField as json, xDefaults as variant ) Class GwMetaData
+
+    Default xDefaults := nil
+
+    Local jSX3 as json
+    Local aNames := jField:getNames() as array
+    Local jValid as json
+
+    if valType(xDefaults) == "J"
+        jField["defaults"] := xDefaults
+    else
+        jField["defaults"] := jsonObject():New()
+            jField["defaults"]["X3_RESERV"] := STR_X3RESERV
+            jField["defaults"]["X3_CHECK"] := STR_SPACE
+            jField["defaults"]["X3_TRIGGER"] := STR_SPACE
+            jField["defaults"]["X3_PROPRI"] := "U"
+            jField["defaults"]["X3_PICTVAR"] := STR_SPACE
+            jField["defaults"]["X3_GRPSXG"] := STR_SPACE
+            jField["defaults"]["X3_PYME"] := "S"
+            jField["defaults"]["X3_CONDSQL"] := STR_SPACE
+            jField["defaults"]["X3_CHKSQL"] := STR_SPACE
+            jField["defaults"]["X3_IDXSRV"] := STR_SPACE // "N"
+            jField["defaults"]["X3_ORTOGRA"] := "N"
+            jField["defaults"]["X3_IDXFLD"] := "N"
+            jField["defaults"]["X3_TELA"] := STR_SPACE
+            jField["defaults"]["X3_PICBRV"] := STR_SPACE
+            jField["defaults"]["X3_AGRUP"] := STR_SPACE
+            jField["defaults"]["X3_POSLGT"] := STR_SPACE // "1"
+            jField["defaults"]["X3_MODAL"] := STR_SPACE // "2"
+    endif
+
+    if!( ::ValidField( jField, @jValid ) )
+        UserException("GwMetaData:AddField - " + jValid["exception"])
+    endif
+
+    if jValid["exists"]
+        UserException("GwMetaData:AddTable - " + jValid["exception"])
+    endif
+
+    if( aScan( aNames, "combo_box" ) == 0 )
+        jField["combo_box"] := ""
+    endif
+
+    jSX3 := JsonObject():New()
+        jSX3["X3_ARQUIVO"] := jField["alias"]
+        jSX3["X3_ORDEM"] := jField["order"]
+        jSX3["X3_CAMPO"] := jField["name"]
+        jSX3["X3_TIPO"] := jField["type"]
+        jSX3["X3_TAMANHO"] := jField["size"]
+        jSX3["X3_DECIMAL"] := jField["decimal"]
+        jSX3["X3_TITULO"] := jField["title"]
+        jSX3["X3_TITSPA"] := iif( aScan(aNames, "title_sp") > 0, jField["title_sp"], jField["title"] )
+        jSX3["X3_TITENG"] := iif( aScan(aNames, "title_eng") > 0, jField["title_eng"], jField["title"] )
+        jSX3["X3_DESCRIC"] := jField["description"]
+        jSX3["X3_DESCSPA"] := iif( aScan(aNames, "description_sp") > 0, jField["description_sp"], jField["description"] )
+        jSX3["X3_DESCENG"] := iif( aScan(aNames, "description_eng") > 0, jField["description_eng"], jField["description"] )
+        jSX3["X3_PICTURE"] := jField["picture"]
+        jSX3["X3_VALID"] := STR_SPACE
+        jSX3["X3_USADO"] := iif( valType(jField["used"])=="C", jField["used"], iif( jField["used"], STR_X3USADO_S, STR_X3USADO_N ) )
+        jSX3["X3_RELACAO"] := jField["init"]
+        jSX3["X3_F3"] := jField["dataset"]
+        jSX3["X3_NIVEL"] := iif( aScan(aNames, "level" ) > 0, jField["level"], "0" )
+        jSX3["X3_RESERV"] := jField["defaults"]["X3_RESERV"]
+        jSX3["X3_CHECK"] := jField["defaults"]["X3_CHECK"]
+        jSX3["X3_TRIGGER"] := jField["defaults"]["X3_TRIGGER"]
+        jSX3["X3_PROPRI"] := jField["defaults"]["X3_PROPRI"]
+        jSX3["X3_BROWSE"] := iif( valType(jField["used_brw"])=="C", jField["used_brw"], iif( jField["used_brw"], "S", "N" ) )
+        jSX3["X3_VISUAL"] := jField["visual"]
+        jSX3["X3_CONTEXT"] := jField["context"]
+        jSX3["X3_OBRIGAT"] := iif( valType(jField["requisite"])=="C", jField["requisite"], iif( jField["requisite"], STR_X3OBRIGAT_S, STR_X3OBRIGAT_N ) )
+        jSX3["X3_VLDUSER"] := jField["vld_user"]
+        jSX3["X3_CBOX"] := jField["combo_box"]
+        jSX3["X3_CBOXSPA"] := iif( aScan(aNames, "combo_box_sp"), jField["combo_box_sp"], jField["combo_box"] )
+        jSX3["X3_CBOXENG"] := iif( aScan(aNames, "combo_box_eng"), jField["combo_box_eng"], jField["combo_box"] )
+        jSX3["X3_PICTVAR"] := jField["defaults"]["X3_PICTVAR"]
+        jSX3["X3_WHEN"] := iif( aScan(aNames, "when") > 0, jField["when"], STR_SPACE )
+        jSX3["X3_INIBRW"] := jField["init_brw"]
+        jSX3["X3_GRPSXG"] := jField["defaults"]["X3_GRPSXG"]
+        jSX3["X3_FOLDER"] := jField["folder"]
+        jSX3["X3_PYME"] := jField["defaults"]["X3_PYME"]
+        jSX3["X3_CONDSQL"] := jField["defaults"]["X3_CONDSQL"]
+        jSX3["X3_CHKSQL"] := jField["defaults"]["X3_CHKSQL"]
+        jSX3["X3_IDXSRV"] := jField["defaults"]["X3_IDXSRV"]
+        jSX3["X3_ORTOGRA"] := jField["defaults"]["X3_ORTOGRA"]
+        jSX3["X3_IDXFLD"] := jField["defaults"]["X3_IDXFLD"]
+        jSX3["X3_TELA"] := jField["defaults"]["X3_TELA"]
+        jSX3["X3_PICBRV"] := jField["defaults"]["X3_PICBRV"]
+        jSX3["X3_AGRUP"] := jField["defaults"]["X3_AGRUP"]
+        jSX3["X3_POSLGT"] := jField["defaults"]["X3_POSLGT"]
+        jSX3["X3_MODAL"] := jField["defaults"]["X3_MODAL"]
+
+    aAdd(::jMetaData["fields"], jSX3)
+
+Return
+
+/*/{Protheus.doc} GwMetaData::ValidField
+Método interno para validar o objeto candidato a ser adicionado à tabela de dicionário de dados SX3 (campos).
+@type method
+@version 12.1.2410
+@author Gworks - Giovani
+@since 8/4/2025
+@param jField, json, Objeto candidato a ser validado.
+@param jRetValid, json, Retorna validação do objeto conforme layout:
+    {
+        "exists" : logical,
+        "exception" : string,
+        "required" : string
+    }
+@return logical, Retorna .T. (true) caso a validação seja bem sucedida, ou .F. (false) caso contrário.
+/*/
+Method ValidField( jField as json, jRetValid as json ) as logical Class GwMetaData
+
+    Local aNames as array
+    Local cPrefix as character
+
+    Private cNames_ as character
+    Private cNotFound_ as character
+
+    jRetValid := JsonObject():New()
+        jRetValid["exists"] := .F.
+        jRetValid["exception"] := ""
+        jRetValid["required"] := { ;
+                                "alias",;
+                                "order",;
+                                "name",;
+                                "type",;
+                                "size",;
+                                "decimal",;
+                                "picture",;
+                                "context",;
+                                "visual",;
+                                "requisite",;
+                                "title",;
+                                "description",;
+                                "used",;
+                                "used_brw" }
+
+    aNames := jField:getNames()
+    aEval( aNames, {|x| cNames_ += (x+";") } )
+    aEval( jRetValid["required"], {|x| cNotFound_ += iif( !(x $ cNames_), x+";", "" ) } )
+    if !empty(cNotFound_)
+        jRetValid["exception"] := 'Parameters "' + cNotFound_ + '" are required.'
+    elseif !(FwIsInCallStack(upper("SetFieldBranch")))
+        do case
+            case len(jField["alias"]) != 3; jRetValid["exception"] := 'Parameter "alias" must be 3 characters.'
+            case len(jField["order"]) == 0; jRetValid["exception"] := 'Parameter "order" cannot be empty.'
+            case len(jField["name"]) == 0; jRetValid["exception"] := 'Parameter "name" cannot be empty.'
+            case !(::GetFieldPrefix( jField["alias"], @cPrefix )); jRetValid["exception"] := 'Invalid alias for field prefix.'
+            case !(cPrefix $ jField["name"]); jRetValid["exception"] := 'Parameter "name" must start with "' + cPrefix + '".'
+            case !( jField["type"] $ "C/N/L/D/M" ); jRetValid["exception"] := 'Parameter "type" must be "C/N/L/D/M".'
+            case valType(jField["size"]) != "N"; jRetValid["exception"] := 'Parameter "size" must be numeric.'
+            case valType(jField["decimal"]) != "N"; jRetValid["exception"] := 'Parameter "decimal" must be numeric.'
+            case jField["size"] <= 0; jRetValid["exception"] := 'Parameter "size" must be greater than 0.'
+            case jField["type"] == "N" .and. jField["decimal"] <= 0; jRetValid["exception"] := 'Parameter "decimal" must be greater than 0.'
+            case !( jField["context"] $ "R/V" ); jRetValid["exception"] := 'Parameter "context" must be "R" or "V".'
+            case !( jField["visual"] $ "A/V" ); jRetValid["exception"] := 'Parameter "visual" must be "A" or "V".'
+            case valType(jField["requisite"]) != "L"; jRetValid["exception"] := 'Parameter "requisite" must be logical.'
+            case empty(jField["title"]); jRetValid["exception"] := 'Parameter "title" cannot be empty.'
+            case empty(jField["description"]); jRetValid["exception"] := 'Parameter "description" cannot be empty.'
+            case valType(jField["used"]) != "L"; jRetValid["exception"] := 'Parameter "used" must be logical.'
+            case valType(jField["used_brw"]) != "L"; jRetValid["exception"] := 'Parameter "used_brw" must be logical.'
+        endcase
+    endif
+
+    if !empty( jRetValid["exception"] )
+        return .F.
+    endif
+
+    if ::SeekAttr( "fields", "X3_CAMPO", jField["name"] )
+        jRetValid["exists"] := .T.
+        jRetValid["exception"] := 'Parameter "name" already added in this metadata instance.'
+        return .F.
+    endif
+
+Return .T.
+
+/*/{Protheus.doc} GwMetaData::AddIndex
+Método para adicionar uma pasta/agrupador à tabela SIX (índices) do dicionário de dados do ERP.
+@type method
+@version 12.1.2410
+@author Gworks - Giovani
+@since 8/4/2025
+@param jField, json, Objeto referente aos metadados para gravação conforme layout:
+    {
+        "alias" : "string",
+        "order" : "string",
+        "key" : "string",
+        "name" : "string",
+        "name_sp" : "string",
+        "name_eng" : "string",
+        "nickname" : "string",
+        "show_seek" : "boolean"
+    }
+/*/
+Method AddIndex( jIndex as json ) Class GwMetaData
+
+    Default xDefaults := nil
+
+    Local jSIX as json
+    Local aNames := jIndex:getNames() as array
+    Local jValid as json
+
+    if!( ::ValidIndex( jIndex, @jValid ) )
+        UserException("GwMetaData:AddIndex - " + jValid["exception"])
+    endif
+
+    if jValid["exists"]
+        UserException("GwMetaData:AddIndex - " + jValid["exception"])
+    endif
+
+    jSIX := JsonObject():New()
+
+        jSIX["INDICE"] := jIndex["alias"]
+        jSIX["ORDEM"] := jIndex["order"]
+        jSIX["CHAVE"] := jIndex["key"]
+        jSIX["DESCRICAO"] := jIndex["name"]
+        jSIX["DESCSPA"] := iif( aScan( aNames, {|x| x=="name_sp" } ) > 0, jIndex["name_sp"], jIndex["name"] )
+        jSIX["DESCENG"] := iif( aScan( aNames, {|x| x=="name_eng" } ) > 0, jIndex["name_eng"], jIndex["name"] )
+        jSIX["PROPRI"] := "U"
+        jSIX["F3"] := STR_SPACE
+        jSIX["NICKNAME"] :=  iif( aScan( aNames, {|x| x=="nickname" } ) > 0, jIndex["nickname"], " " )
+        jSIX["SHOWPESQ"] := iif( aScan( aNames, {|x| x=="show_seek" } ) > 0 .and. jIndex["show_seek"], "S", "N" )
+        jSIX["IX_VIRTUAL"] := STR_SPACE
+        jSIX["IX_VIRCUST"] := STR_SPACE
+
+    aAdd(::jMetaData["fields"], jSIX)
+
+Return
+
+/*/{Protheus.doc} GwMetaData::ValidIndex
+Método interno para validar o objeto candidato a ser adicionado à tabela de dicionário de dados SIX (índices).
+@type method
+@version 12.1.2410
+@author Gworks - Giovani
+@since 8/4/2025
+@param jField, json, Objeto candidato a ser validado.
+@param jRetValid, json, Retorna validação do objeto conforme layout:
+    {
+        "exists" : logical,
+        "exception" : string,
+        "required" : string
+    }
+@return logical, Retorna .T. (true) caso a validação seja bem sucedida, ou .F. (false) caso contrário.
+/*/
+Method ValidIndex( jIndex as json, jRetValid as json ) as logical Class GwMetaData
+
+    Local aArea := GetArea() as array
+    Local aNames as array
+
+    Private cNames_ as character
+    Private cNotFound_ as character
+
+    jRetValid := JsonObject():New()
+        jRetValid["exists"] := .F.
+        jRetValid["exception"] := ""
+        jRetValid["required"] := { ;
+                                "alias",;
+                                "order",;
+                                "key",;
+                                "name" }
+
+    aNames := jIndex:getNames()
+    aEval( aNames, {|x| cNames_ += (x+";") } )
+    aEval( jRetValid["required"], {|x| cNotFound_ += iif( !(x $ cNames_), x+";", "" ) } )
+    if !empty(cNotFound_)
+        jRetValid["exception"] := 'Parameters "' + cNotFound_ + '" are required.'
+    else
+        do case
+            case len(jIndex["alias"]) != 3; jRetValid["exception"] := 'Parameter "alias" must be 3 characters.'
+            case len(jIndex["order"]) == 0; jRetValid["exception"] := 'Parameter "order" cannot be empty.'
+            case len(jIndex["key"]) == 0; jRetValid["exception"] := 'Parameter "key" cannot be empty.'
+            case len(jIndex["name"]) == 0; jRetValid["exception"] := 'Parameter "name" cannot be empty.'
+            case "name" $ cNames_ .and. valType(jIndex["name"]) != "C"; jRetValid["exception"] := 'Parameter "name" must be string.'
+            case "name_sp" $ cNames_ .and. valType(jIndex["name_sp"]) != "C"; jRetValid["exception"] := 'Parameter "name_sp" must be string.'
+            case "name_eng" $ cNames_ .and. valType(jIndex["name_eng"]) != "C"; jRetValid["exception"] := 'Parameter "name_eng" must be string.'
+            case "show_seek" $ cNames_ .and. valType(jIndex["show_seek"]) != "L"; jRetValid["exception"] := 'Parameter "show_seek" must be logical.'
+        endcase
+    endif
+
+    if !empty( jRetValid["exception"] )
+        return .F.
+    endif
+
+    if( ::SeekAttr( "folders", "INDICE", jIndex["alias"] ) .and. ;
+        ::SeekAttr( "folders", "ORDEM", jIndex["order"] ) .and. ;
+        ::SeekAttr( "folders", "CHAVE", jIndex["key"] ) )
+        jRetValid["exists"] := .T.
+        jRetValid["exception"] := 'Parameters "alias;order;key" already added in this metadata instance.'
+        return .F.
+    endif
+
+    // TODO: validar database...
+
+    RestArea(aArea)
+
+Return .T.
+
+/*/{Protheus.doc} GwMetaData::AddFolder
+Método para adicionar uma pasta/agrupador à tabela SXA (folders) do dicionário de dados do ERP.
+@type method
+@version 12.1.2410
+@author Gworks - Giovani
+@since 8/4/2025
+@param jField, json, Objeto referente aos metadados para gravação conforme layout:
+    {
+        "alias" : "string",
+        "order" : "string",
+        "name" : "string",
+        "name_sp" : "string",
+        "name_eng" : "string",
+        "mvc_group_code" : "string",
+        "mvc_group_type" : "string",
+    }
+/*/
+Method AddFolder( jFolder as json ) Class GwMetaData
+
+    Default xDefaults := nil
+
+    Local jSXA as json
+    Local aNames := jFolder:getNames() as array
+    Local jValid as json
+
+    if!( ::ValidFolder( jFolder, @jValid ) )
+        UserException("GwMetaData:AddFolder - " + jValid["exception"])
+    endif
+
+    if jValid["exists"]
+        UserException("GwMetaData:AddFolder - " + jValid["exception"])
+    endif
+
+    jSXA := JsonObject():New()
+
+        jSXA["XA_ALIAS"] := jFolder["alias"]
+        jSxA["XA_ORDEM"] := jFolder["order"]
+        jSxA["XA_DESCRIC"] := jFolder["name"]
+        jSxA["XA_DESCSPA"] := iif( aScan(aNames, "name_sp") > 0, jFolder["name_sp"], jFolder["name"] )
+        jSxA["XA_DESCENG"] := iif( aScan(aNames, "name_eng") > 0, jFolder["name_eng"], jFolder["name"] )
+        jSxA["XA_PROPRI"] := "U"
+        jSxA["XA_AGRUP"] := jFolder["mvc_group_code"]
+        jSxA["XA_TIPO"] := jFolder["mvc_group_type"]
+
+    aAdd(::jMetaData["fields"], jSXA)
+
+Return
+
+/*/{Protheus.doc} GwMetaData::ValidFolder
+Método interno para validar o objeto candidato a ser adicionado à tabela de dicionário de dados SXA (folders).
+@type method
+@version 12.1.2410
+@author Gworks - Giovani
+@since 8/4/2025
+@param jField, json, Objeto candidato a ser validado.
+@param jRetValid, json, Retorna validação do objeto conforme layout:
+    {
+        "exists" : logical,
+        "exception" : string,
+        "required" : string
+    }
+@return logical, Retorna .T. (true) caso a validação seja bem sucedida, ou .F. (false) caso contrário.
+/*/
+Method ValidFolder( jFolder as json, jRetValid as json ) as logical Class GwMetaData
+
+    Local aArea := GetArea() as array
+    Local aNames as array
+
+    Private cNames_ as character
+    Private cNotFound_ as character
+
+    jRetValid := JsonObject():New()
+        jRetValid["exists"] := .F.
+        jRetValid["exception"] := ""
+        jRetValid["required"] := { ;
+                                "alias",;
+                                "order",;
+                                "name" }
+
+    aNames := jFolder:getNames()
+    aEval( aNames, {|x| cNames_ += (x+";") } )
+    aEval( jRetValid["required"], {|x| cNotFound_ += iif( !(x $ cNames_), x+";", "" ) } )
+    if !empty(cNotFound_)
+        jRetValid["exception"] := 'Parameters "' + cNotFound_ + '" are required.'
+    else
+        do case
+            case len(jFolder["alias"]) != 3; jRetValid["exception"] := 'Parameter "alias" must be 3 characters.'
+            case len(jFolder["order"]) == 0; jRetValid["exception"] := 'Parameter "order" cannot be empty.'
+            case len(jFolder["name"]) == 0; jRetValid["exception"] := 'Parameter "name" cannot be empty.'
+            case "name" $ cNames_ .and. valType(jFolder["name"]) != "C"; jRetValid["exception"] := 'Parameter "name" must be a character.'
+            case "name_sp" $ cNames_ .and. valType(jFolder["name_sp"]) != "C"; jRetValid["exception"] := 'Parameter "name_sp" must be a character.'
+            case "name_eng" $ cNames_ .and. valType(jFolder["name_eng"]) != "C"; jRetValid["exception"] := 'Parameter "name_eng" must be a character.'
+            case "mvc_group_code" $ cNames_ .and. !("mvc_group_type" $ cNames_ ); jRetValid["exception"] := 'Parameter "mvc_group_type" not found.'
+            case "mvc_group_type" $ cNames_ .and. !("mvc_group_code" $ cNames_); jRetValid["exception"] := 'Parameter "mvc_group_code" not found.'
+        endcase
+    endif
+
+    if !empty( jRetValid["exception"] )
+        return .F.
+    endif
+
+    if( ::SeekAttr( "folders", "XA_ALIAS", jField["alias"] ) .and. ;
+        ::SeekAttr( "folders", "XA_ORDEM", jField["order"] ) .and. ;
+        ::SeekAttr( "folders", "XA_AGRUP", jField["mvc_group_code"] ) )
+        jRetValid["exists"] := .T.
+        jRetValid["exception"] := 'Parameters "alias;order;mvc_group_code" already added in this metadata instance.'
+        return .F.
+    endif
+
+    // TODO: validar database...
+
+    RestArea(aArea)
+
+Return .T.
