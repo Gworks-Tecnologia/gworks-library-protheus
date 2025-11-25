@@ -19,7 +19,7 @@ User Function GwCamelCase( cString as character )
     Local aString := {} as array
     Local nI := 0 as numeric
 
-    aString := StrToKarr(AllTrim(cString), " ")
+    aString := StrToKarr( AllTrim(cString), " " )
 
     for nI:=1 to Len(aString)
 
