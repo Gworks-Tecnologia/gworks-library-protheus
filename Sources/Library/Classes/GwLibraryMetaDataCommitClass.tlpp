@@ -1,69 +1,72 @@
 #include "tlpp-core.th"
 
+#define MODEL_OPERATION_INSERT 3
+#define MODEL_OPERATION_UPDATE 4
+
 using namespace Gworks.Library.Utils
 using namespace Gworks.library.Functions
 
 namespace Gworks.Library.Classes
 
-Static cSx2_Exc__ := ;
-                    "X2_CHAVE;" +;
-                    "X2_ARQUIVO;" +;
-                    "X2_NOME;" +;
-                    "X2_NOMESPA;" +;
-                    "X2_NOMEENG;" +;
-                    "X2_MODO;" +;
-                    "X2_MODOUN;" +;
-                    "X2_MODOEMP;" +;
-                    "X2_UNICO" as character
+// Campos obrigatórios (required) da SX2
+Static cSx2_Req_Fields__ := "X2_CHAVE;X2_ARQUIVO;X2_NOME;X2_NOMESPA;X2_NOMEENG;X2_MODO;X2_MODOUN;X2_MODOEMP;X2_UNICO;"
+
+// Campos que podem ser atualizados da SX2
+Static cSx2_Can_Update__ := "X2_NOME;X2_NOMESPA;X2_NOMEENG;"
+
+// Campos obrigatórios (required) da SX3
+Static cSx3_Req_Fields__ := "X3_ARQUIVO;X3_ORDEM;X3_CAMPO;X3_TIPO;X3_TAMANHO;X3_DECIMAL;X3_TITULO;X3_TITSPA;X3_TITENG;X3_DESCRIC;X3_DESCSPA;X3_DESCENG;X3_VISUAL;X3_CONTEXT;X3_OBRIGAT;"
+
+// Campos que podem ser atualizados na SX3
+Static cSx3_Can_Update__ := "X3_ORDEM;X3_TIPO;X3_TAMANHO;X3_DECIMAL;X3_TITULO;X3_TITSPA;X3_TITENG;X3_DESCRIC;X3_DESCSPA;X3_DESCENG;X3_PICTURE;X3_VALID;X3_USADO;X3_RELACAO;X3_F3;X3_NIVEL;X3_RESERV;X3_CHECK;X3_TRIGGER;X3_PROPRI;X3_BROWSE;X3_VISUAL;X3_OBRIGAT;X3_VLDUSER;X3_CBOX;X3_CBOXSPA;X3_CBOXENG;X3_PICTVAR;X3_WHEN;X3_INIBRW;X3_GRPSXG;X3_FOLDER;X3_AGRUP;"
+
+// Campos obrigatórios (required) da SIX
+Static cSix_Req_Fields__ := "INDICE;ORDEM;CHAVE;DESCRICAO;DESCSPA;DESCENG;PROPRI;"
+
+// Campos que podem ser atualizados na SIX
+Static cSix_Can_Update__ := "DESCRICAO;DESCSPA;DESCENG;NICKNAME;SHOWPESQ;"
 
 Class GwMetaDataCommit
 
-    Private Method jMetaData as json
+    Public Data jCommit as json
 
     Public Method New() Constructor
-    Public Method Clear()
-
+    Public Method SetData()
     Public Method VldData()
     Public Method CommitData()
 
-    Private Method Init()
-
 EndClass
 
-Method New( jMetaData as json ) Class GwMetaDataCommit
-
-    ::Init( jMetaData )
-
+Method New( jData as json ) Class GwMetaDataCommit
+    Default jData := nil
+    if valType(jData) == "J"
+        ::jCommit := jData
+    else
+        ::jCommit := jSonObject():New()
+    endif
 Return Self
 
-Method Init( jMetaData as json ) Class GwMetaDataCommit
-
-    ::jMetaData := jMetaData
-
-Return
-
-Method Clear() Class GwMetaDataCommit
-    ::Init()
+Method SetData( jData as json ) Class GwMetaDataCommit
+    ::jCommit := jData
 Return
 
 Method VldData() Class GwMetaDataCommit
 
     Local lResult as logical
 
+    Local jData as json
+    Local cError as character
     Local nI as integer
+
+    Local nOrder as integer
+    Local cSeek as character
+
     Local aTables as array
     Local aFields as array
     Local aIndexes as array
-    Local aTriggers as array
-    Local aFolders as array
-    Local aParameters as array
-
-    Local jTable as json
-    //Local jField as json
-    //Local jIndexe as json
-    //Local jTrigger as json
-    //Local jFolder as json
-    //Local jParameter as json
+    //Local aTriggers as array
+    //Local aFolders as array
+    //Local aParameters as array
 
     // tables
     // fields
@@ -73,21 +76,52 @@ Method VldData() Class GwMetaDataCommit
     // parameters
     BEGIN SEQUENCE
 
-        aTables := jMetaData["tables"]
-        aFields := jMetaData["fields"]
-        aIndexes := jMetaData["indexes"]
-        aTriggers := jMetaData["triggers"]
-        aFolders := jMetaData["folders"]
-        aParameters := jMetaData["parameters"]
+        aTables := ::jCommit["tables"]
+        aFields := ::jCommit["fields"]
+        aIndexes := ::jCommit["indexes"]
+        // aTriggers := ::jCommit["triggers"]
+        // aFolders := ::jCommit["folders"]
+        // aParameters := ::jCommit["parameters"]
 
         for nI:=1 to len(aTables)
-            jTable := aTables[nI]
-            if!(lResult := fGetTable(@jTable))
+            jData := aTables[nI]
+            nOrder := 2 // X2_ARQUIVO
+            cSeek := jData["X2_CHAVE"]+cEmpAnt
+            if!( lResult := fValid( "SX2", @jData, nOrder, cSeek) )
+                cError := iif( !jData["info"]["status"], jData["info"]["message"], "Unexpected error to valid SX2 table struct..." )
+                lResult := .F.
                 BREAK
             endif
         next
 
+        for nI:=1 to len(aFields)
+            jData := aFields[nI]
+            nOrder := 2 // X3_CAMPO
+            cSeek := jData["X3_CAMPO"]
+            if!( lResult := fValid( "SX3", @jData, nOrder, cSeek) )
+                cError := iif( !jData["info"]["status"], jData["info"]["message"], "Unexpected error to valid SX3 table struct..." )
+                lResult := .F.
+                BREAK
+            endif
+        next
+
+        for nI:=1 to len(aIndexes)
+            jData := aIndexes[nI]
+            nOrder := 1 // INDICE+ORDEM
+            cSeek := jData["INDICE"]+jData["ORDEM"]
+            if!( lResult := fValid( "SIX", @jData, nOrder, cSeek) )
+                cError := iif( !jData["info"]["status"], jData["info"]["message"], "Unexpected error to valid SIX table struct..." )
+                lResult := .F.
+                BREAK
+            endif
+        next
+
+
     END SEQUENCE
+
+    if !(lResult)
+        UserException("GwMetaDataCommit:VldData - " + cError )
+    endif
 
     // cAlias := "SX3"
     // dbSelectArea(cAlias)
@@ -101,39 +135,495 @@ Method VldData() Class GwMetaDataCommit
 
 Return lResult
 
+Method CommitData() Class GwMetaDataCommit
 
-Static Function fGetTable( jTable as json )
+    Local lResult as logical
 
-    Local cAlias as character
+    Local jData as json
+    Local cError as character
+    Local nI as integer
 
-    cAlias := "SX2"
-    dbSelectArea(cAlias)
-    (cAlias)->(dbSetOrder(2)) // X2_ARQUIVO
-    (cAlias)->(dbGoTop())
-    if (cAlias)->(msSeek(cTable+cEmpAnt))
-        jRetValid["exists"] := .T.
+    Local aTables as array
+    Local aFields as array
+    //Local aIndexes as array
+    //Local aTriggers as array
+    //Local aFolders as array
+    //Local aParameters as array
+
+    aTables := ::jCommit["tables"]
+    aFields := ::jCommit["fields"]
+    aIndexes := ::jCommit["indexes"]
+    // aTriggers := ::jCommit["triggers"]
+    // aFolders := ::jCommit["folders"]
+    // aParameters := ::jCommit["parameters"]
+
+    BEGIN TRANSACTION
+
+        for nI:=1 to len(aTables)
+            jData := aTables[nI]
+            if!( lResult := fCommit( "SX2", jData ) )
+                cError := iif( !jData["info"]["status"], jData["info"]["message"], "Unexpected error to commit SX2 data struct..." )
+                lResult := .F.
+                DisarmTransaction()
+                BREAK
+            endif
+        next
+
+        for nI:=1 to len(aFields)
+            jData := aFields[nI]
+            if!( lResult := fCommit( "SX3", jData ) )
+                cError := iif( !jData["info"]["status"], jData["info"]["message"], "Unexpected error to commit SX3 data struct..." )
+                lResult := .F.
+                DisarmTransaction()
+                BREAK
+            endif
+        next
+
+        for nI:=1 to len(aIndexes)
+            jData := aIndexes[nI]
+            if!( lResult := fCommit( "SIX", jData ) )
+                cError := iif( !jData["info"]["status"], jData["info"]["message"], "Unexpected error to commit SIX data struct..." )
+                lResult := .F.
+                DisarmTransaction()
+                BREAK
+            endif
+        next
+
+    END TRANSACTION
+
+    if !(lResult)
+        UserException("GwMetaDataCommit:CommitData - " + cError )
     endif
-    (cAlias)->(dbCloseArea())
 
-    jTable["commit_info"] := jSonObject():New()
-    jTable["commit_info"]["recno"] := iif( jRetValid["exists"], (cAlias)->(recno()), 0 )
-    jTable["commit_info"]["exists"] := ( jTable["recno"] > 0 )
-    jTable["commit_info"]["operation"] := iif( jTable["exists"], "UPDATE", "INSERT" )
-    jTable["commit_info"]["exclusive_fields"] := cSx2_Exc__
-    jTable["commit_info"]["changed_fields"] := array(0)
-    if jTable["exists"]
-        aAdd( jTable["changed_fields"], iif( allTrim((cAlias)->&("X2_CHAVE")) != allTrim(jTable["alias"]), "X2_CHAVE", "" ) )
-        aAdd( jTable["changed_fields"], iif( allTrim((cAlias)->&("X2_ARQUIVO")) != allTrim(jTable["alias"]+cEmpAnt), "X2_ARQUIVO", "" ) )
-        aAdd( jTable["changed_fields"], iif( allTrim((cAlias)->&("X2_NOME")) != allTrim(jTable["name"]), "X2_NOME", "" ) )
-        aAdd( jTable["changed_fields"], iif( allTrim((cAlias)->&("X2_NOMESPA")) != allTrim(jTable["name_sp"]), "X2_NOMESPA", "" ) )
-        aAdd( jTable["changed_fields"], iif( allTrim((cAlias)->&("X2_NOMEENG")) != allTrim(jTable["name_eng"]), "X2_NOMEENG", "" ) )
-        aAdd( jTable["changed_fields"], iif( allTrim((cAlias)->&("X2_MODO")) != allTrim(jTable["sharing_branch"]), "X2_MODO", "" ) )
-        aAdd( jTable["changed_fields"], iif( allTrim((cAlias)->&("X2_MODOUN")) != allTrim(jTable["sharing_unit"]), "X2_MODOUN", "" ) )
-        aAdd( jTable["changed_fields"], iif( allTrim((cAlias)->&("X2_MODOEMP")) != allTrim(jTable["sharing_company"]), "X2_MODOEMP", "" ) )
-        aAdd( jTable["changed_fields"], iif( allTrim((cAlias)->&("X2_UNICO")) != allTrim(jTable["unique_key"]), "X2_UNICO", "" ) )
-    endif
-    jTable["exclusive_access"] := aScan( jTable["changed_fields"], allTrim(x) $ jTable["commit_info"]["exclusive_fields"] ) //  "X2_CHAVE" jTable["changed_fields"]
+Return lResult
 
+Static Function fCommit( cAlias as character, jData as json )
+
+    Local aArea := getArea() as array
+    Local aAreaX := (cAlias)->(getArea()) as array
+
+    Local jInfo := jData["info"] as json
+    Local lInsert := jInfo["operation"] == MODEL_OPERATION_INSERT
+    Local lUpdate := jInfo["operation"] == MODEL_OPERATION_UPDATE
+
+    do case
+
+        case cAlias == "SX2"
+
+            if lInsert
+                recLock(cAlias, .T.)
+                    (cAlias)->&("X2_CHAVE"  ) := jData["X2_CHAVE"  ]
+                    (cAlias)->&("X2_PATH"   ) := jData["X2_PATH"   ]
+                    (cAlias)->&("X2_ARQUIVO") := jData["X2_ARQUIVO"]
+                    (cAlias)->&("X2_NOME"   ) := jData["X2_NOME"   ]
+                    (cAlias)->&("X2_NOMESPA") := jData["X2_NOMESPA"]
+                    (cAlias)->&("X2_NOMEENG") := jData["X2_NOMEENG"]
+                    (cAlias)->&("X2_ROTINA" ) := jData["X2_ROTINA" ]
+                    (cAlias)->&("X2_MODO"   ) := jData["X2_MODO"   ]
+                    (cAlias)->&("X2_MODOUN" ) := jData["X2_MODOUN" ]
+                    (cAlias)->&("X2_MODOEMP") := jData["X2_MODOEMP"]
+                    (cAlias)->&("X2_DELET"  ) := jData["X2_DELET"  ]
+                    (cAlias)->&("X2_TTS"    ) := jData["X2_TTS"    ]
+                    (cAlias)->&("X2_UNICO"  ) := jData["X2_UNICO"  ]
+                    (cAlias)->&("X2_PYME"   ) := jData["X2_PYME"   ]
+                    (cAlias)->&("X2_MODULO" ) := jData["X2_MODULO" ]
+                    (cAlias)->&("X2_DISPLAY") := jData["X2_DISPLAY"]
+                    (cAlias)->&("X2_SYSOBJ" ) := jData["X2_SYSOBJ" ]
+                    (cAlias)->&("X2_USROBJ" ) := jData["X2_USROBJ" ]
+                    (cAlias)->&("X2_POSLGT" ) := jData["X2_POSLGT" ]
+                    (cAlias)->&("X2_CLOB"   ) := jData["X2_CLOB"   ]
+                    (cAlias)->&("X2_AUTREC" ) := jData["X2_AUTREC" ]
+                    (cAlias)->&("X2_TAMFIL" ) := jData["X2_TAMFIL" ]
+                    (cAlias)->&("X2_TAMUN"  ) := jData["X2_TAMUN"  ]
+                    (cAlias)->&("X2_TAMEMP" ) := jData["X2_TAMEMP" ]
+                    (cAlias)->&("X2_STAMP"  ) := jData["X2_STAMP"  ]
+                    (cAlias)->&("X2_INSDT"  ) := jData["X2_INSDT"  ]
+                (cAlias)->(msUnLock())
+
+            elseif lUpdate
+                dbSelectArea(cAlias)
+                (cAlias)->(dbSetOrder(2)) // X2_ARQUIVO
+                (cAlias)->(dbGoTo(jInfo["recno"]))
+                if (cAlias)->(recno()) == jInfo["recno"]
+                    recLock(cAlias, .F.)
+                        cField := "X2_NOME"   ; iif( cField $ jInfo["changes"], (cAlias)->&(cField) := jData[cField], nil )
+                        cField := "X2_NOMESPA"; iif( cField $ jInfo["changes"], (cAlias)->&(cField) := jData[cField], nil )
+                        cField := "X2_NOMEENG"; iif( cField $ jInfo["changes"], (cAlias)->&(cField) := jData[cField], nil )
+                    (cAlias)->(msUnLock())
+                else
+                    jInfo["status"] := .F.
+                    jInfo["message"] := "fault to set SX2 table over recno " + allTrim(str(jInfo["recno"]))
+                endif
+
+            endif
+
+        case cAlias == "SX3"
+
+            if lInsert
+                recLock(cAlias, .T.)
+                    (cAlias)->&("X3_ARQUIVO") := jData["X3_ARQUIVO"]
+                    (cAlias)->&("X3_ORDEM"  ) := jData["X3_ORDEM"  ]
+                    (cAlias)->&("X3_CAMPO"  ) := jData["X3_CAMPO"  ]
+                    (cAlias)->&("X3_TIPO"   ) := jData["X3_TIPO"   ]
+                    (cAlias)->&("X3_TAMANHO") := jData["X3_TAMANHO"]
+                    (cAlias)->&("X3_DECIMAL") := jData["X3_DECIMAL"]
+                    (cAlias)->&("X3_TITULO" ) := jData["X3_TITULO" ]
+                    (cAlias)->&("X3_TITSPA" ) := jData["X3_TITSPA" ]
+                    (cAlias)->&("X3_TITENG" ) := jData["X3_TITENG" ]
+                    (cAlias)->&("X3_DESCRIC") := jData["X3_DESCRIC"]
+                    (cAlias)->&("X3_DESCSPA") := jData["X3_DESCSPA"]
+                    (cAlias)->&("X3_DESCENG") := jData["X3_DESCENG"]
+                    (cAlias)->&("X3_PICTURE") := jData["X3_PICTURE"]
+                    (cAlias)->&("X3_VALID"  ) := jData["X3_VALID"  ]
+                    (cAlias)->&("X3_USADO"  ) := jData["X3_USADO"  ]
+                    (cAlias)->&("X3_RELACAO") := jData["X3_RELACAO"]
+                    (cAlias)->&("X3_F3"     ) := jData["X3_F3"     ]
+                    (cAlias)->&("X3_NIVEL"  ) := jData["X3_NIVEL"  ]
+                    (cAlias)->&("X3_RESERV" ) := jData["X3_RESERV" ]
+                    (cAlias)->&("X3_CHECK"  ) := jData["X3_CHECK"  ]
+                    (cAlias)->&("X3_TRIGGER") := jData["X3_TRIGGER"]
+                    (cAlias)->&("X3_PROPRI" ) := jData["X3_PROPRI" ]
+                    (cAlias)->&("X3_BROWSE" ) := jData["X3_BROWSE" ]
+                    (cAlias)->&("X3_VISUAL" ) := jData["X3_VISUAL" ]
+                    (cAlias)->&("X3_CONTEXT") := jData["X3_CONTEXT"]
+                    (cAlias)->&("X3_OBRIGAT") := jData["X3_OBRIGAT"]
+                    (cAlias)->&("X3_VLDUSER") := jData["X3_VLDUSER"]
+                    (cAlias)->&("X3_CBOX"   ) := jData["X3_CBOX"   ]
+                    (cAlias)->&("X3_CBOXSPA") := jData["X3_CBOXSPA"]
+                    (cAlias)->&("X3_CBOXENG") := jData["X3_CBOXENG"]
+                    (cAlias)->&("X3_PICTVAR") := jData["X3_PICTVAR"]
+                    (cAlias)->&("X3_WHEN"   ) := jData["X3_WHEN"   ]
+                    (cAlias)->&("X3_INIBRW" ) := jData["X3_INIBRW" ]
+                    (cAlias)->&("X3_GRPSXG" ) := jData["X3_GRPSXG" ]
+                    (cAlias)->&("X3_FOLDER" ) := jData["X3_FOLDER" ]
+                    (cAlias)->&("X3_PYME"   ) := jData["X3_PYME"   ]
+                    (cAlias)->&("X3_CONDSQL") := jData["X3_CONDSQL"]
+                    (cAlias)->&("X3_CHKSQL" ) := jData["X3_CHKSQL" ]
+                    (cAlias)->&("X3_IDXSRV" ) := jData["X3_IDXSRV" ]
+                    (cAlias)->&("X3_ORTOGRA") := jData["X3_ORTOGRA"]
+                    (cAlias)->&("X3_IDXFLD" ) := jData["X3_IDXFLD" ]
+                    (cAlias)->&("X3_TELA"   ) := jData["X3_TELA"   ]
+                    (cAlias)->&("X3_PICBRV" ) := jData["X3_PICBRV" ]
+                    (cAlias)->&("X3_AGRUP"  ) := jData["X3_AGRUP"  ]
+                    (cAlias)->&("X3_POSLGT" ) := jData["X3_POSLGT" ]
+                    (cAlias)->&("X3_MODAL"  ) := jData["X3_MODAL"  ]
+                (cAlias)->(msUnLock())
+
+            elseif lUpdate
+                dbSelectArea(cAlias)
+                (cAlias)->(dbSetOrder(2)) // X2_ARQUIVO
+                (cAlias)->(dbGoTo(jInfo["recno"]))
+                if (cAlias)->(recno()) == jInfo["recno"]
+                    recLock(cAlias, .F.)
+                        cField := "X3_ORDEM"  ; iif( cField $ jInfo["changes"], (cAlias)->&(cField) := jData[cField], nil )
+                        cField := "X3_TIPO"   ; iif( cField $ jInfo["changes"], (cAlias)->&(cField) := jData[cField], nil )
+                        cField := "X3_TAMANHO"; iif( cField $ jInfo["changes"], (cAlias)->&(cField) := jData[cField], nil )
+                        cField := "X3_DECIMAL"; iif( cField $ jInfo["changes"], (cAlias)->&(cField) := jData[cField], nil )
+                        cField := "X3_TITULO" ; iif( cField $ jInfo["changes"], (cAlias)->&(cField) := jData[cField], nil )
+                        cField := "X3_TITSPA" ; iif( cField $ jInfo["changes"], (cAlias)->&(cField) := jData[cField], nil )
+                        cField := "X3_TITENG" ; iif( cField $ jInfo["changes"], (cAlias)->&(cField) := jData[cField], nil )
+                        cField := "X3_DESCRIC"; iif( cField $ jInfo["changes"], (cAlias)->&(cField) := jData[cField], nil )
+                        cField := "X3_DESCSPA"; iif( cField $ jInfo["changes"], (cAlias)->&(cField) := jData[cField], nil )
+                        cField := "X3_DESCENG"; iif( cField $ jInfo["changes"], (cAlias)->&(cField) := jData[cField], nil )
+                        cField := "X3_PICTURE"; iif( cField $ jInfo["changes"], (cAlias)->&(cField) := jData[cField], nil )
+                        cField := "X3_VALID"  ; iif( cField $ jInfo["changes"], (cAlias)->&(cField) := jData[cField], nil )
+                        cField := "X3_USADO"  ; iif( cField $ jInfo["changes"], (cAlias)->&(cField) := jData[cField], nil )
+                        cField := "X3_RELACAO"; iif( cField $ jInfo["changes"], (cAlias)->&(cField) := jData[cField], nil )
+                        cField := "X3_F3"     ; iif( cField $ jInfo["changes"], (cAlias)->&(cField) := jData[cField], nil )
+                        cField := "X3_NIVEL"  ; iif( cField $ jInfo["changes"], (cAlias)->&(cField) := jData[cField], nil )
+                        cField := "X3_RESERV" ; iif( cField $ jInfo["changes"], (cAlias)->&(cField) := jData[cField], nil )
+                        cField := "X3_CHECK"  ; iif( cField $ jInfo["changes"], (cAlias)->&(cField) := jData[cField], nil )
+                        cField := "X3_TRIGGER"; iif( cField $ jInfo["changes"], (cAlias)->&(cField) := jData[cField], nil )
+                        cField := "X3_PROPRI" ; iif( cField $ jInfo["changes"], (cAlias)->&(cField) := jData[cField], nil )
+                        cField := "X3_BROWSE" ; iif( cField $ jInfo["changes"], (cAlias)->&(cField) := jData[cField], nil )
+                        cField := "X3_VISUAL" ; iif( cField $ jInfo["changes"], (cAlias)->&(cField) := jData[cField], nil )
+                        cField := "X3_OBRIGAT"; iif( cField $ jInfo["changes"], (cAlias)->&(cField) := jData[cField], nil )
+                        cField := "X3_VLDUSER"; iif( cField $ jInfo["changes"], (cAlias)->&(cField) := jData[cField], nil )
+                        cField := "X3_CBOX"   ; iif( cField $ jInfo["changes"], (cAlias)->&(cField) := jData[cField], nil )
+                        cField := "X3_CBOXSPA"; iif( cField $ jInfo["changes"], (cAlias)->&(cField) := jData[cField], nil )
+                        cField := "X3_CBOXENG"; iif( cField $ jInfo["changes"], (cAlias)->&(cField) := jData[cField], nil )
+                        cField := "X3_PICTVAR"; iif( cField $ jInfo["changes"], (cAlias)->&(cField) := jData[cField], nil )
+                        cField := "X3_WHEN"   ; iif( cField $ jInfo["changes"], (cAlias)->&(cField) := jData[cField], nil )
+                        cField := "X3_INIBRW" ; iif( cField $ jInfo["changes"], (cAlias)->&(cField) := jData[cField], nil )
+                        cField := "X3_GRPSXG" ; iif( cField $ jInfo["changes"], (cAlias)->&(cField) := jData[cField], nil )
+                        cField := "X3_FOLDER" ; iif( cField $ jInfo["changes"], (cAlias)->&(cField) := jData[cField], nil )
+                        cField := "X3_AGRUP"  ; iif( cField $ jInfo["changes"], (cAlias)->&(cField) := jData[cField], nil )
+                    (cAlias)->(msUnLock())
+                else
+                    jInfo["status"] := .F.
+                    jInfo["message"] := "fault to set SIX table over recno " + allTrim(str(jInfo["recno"]))
+                endif
+
+            endif
+
+        case cAlias == "SIX"
+
+            if lInsert
+                recLock(cAlias, .T.)
+                    (cAlias)->&("INDICE"    ) := jData["INDICE"    ]
+                    (cAlias)->&("ORDEM"     ) := jData["ORDEM"     ]
+                    (cAlias)->&("CHAVE"     ) := jData["CHAVE"     ]
+                    (cAlias)->&("DESCRICAO" ) := jData["DESCRICAO" ]
+                    (cAlias)->&("DESCSPA"   ) := jData["DESCSPA"   ]
+                    (cAlias)->&("DESCENG"   ) := jData["DESCENG"   ]
+                    (cAlias)->&("PROPRI"    ) := jData["PROPRI"    ]
+                    (cAlias)->&("F3"        ) := jData["F3"        ]
+                    (cAlias)->&("NICKNAME"  ) := jData["NICKNAME"  ]
+                    (cAlias)->&("SHOWPESQ"  ) := jData["SHOWPESQ"  ]
+                    (cAlias)->&("IX_VIRTUAL") := jData["IX_VIRTUAL"]
+                    (cAlias)->&("IX_VIRCUST") := jData["IX_VIRCUST"]
+                (cAlias)->(msUnLock())
+
+            elseif lUpdate
+                dbSelectArea(cAlias)
+                (cAlias)->(dbSetOrder(1)) // INDICE+ORDEM
+                (cAlias)->(dbGoTo(jInfo["recno"]))
+                if (cAlias)->(recno()) == jInfo["recno"]
+                    recLock(cAlias, .F.)
+                        cField := "DESCRICAO"; iif( cField $ jInfo["changes"], (cAlias)->&(cField) := jData[cField], nil )
+                        cField := "DESCSPA"  ; iif( cField $ jInfo["changes"], (cAlias)->&(cField) := jData[cField], nil )
+                        cField := "DESCENG"  ; iif( cField $ jInfo["changes"], (cAlias)->&(cField) := jData[cField], nil )
+                        cField := "NICKNAME" ; iif( cField $ jInfo["changes"], (cAlias)->&(cField) := jData[cField], nil )
+                        cField := "SHOWPESQ" ; iif( cField $ jInfo["changes"], (cAlias)->&(cField) := jData[cField], nil )
+                    (cAlias)->(msUnLock())
+                else
+                    jInfo["status"] := .F.
+                    jInfo["message"] := "fault to set SIX table over recno " + allTrim(str(jInfo["recno"]))
+                endif
+
+            endif
+
+    endcase
+
+    RestArea(aAreaX)
     RestArea(aArea)
 
-Return .T.
+Return jInfo["status"]
+
+Static Function fValid( cAlias as character, jData as json, nOrder as integer, cSeek as character )
+
+    Local aArea := getArea() as array
+    LOcal aAreaX := (cAlias)->(getArea()) as array
+
+    Local jInfo := jSonObject():New() as json
+    Local lExists := .F. as logical
+    Local cInvalidFields as character
+
+    dbSelectArea(cAlias)
+    (cAlias)->(dbSetOrder(nOrder))
+    (cAlias)->(dbGoTop())
+    if (cAlias)->(msSeek(cSeek))
+        lExists := .T.
+    endif
+    jInfo["exists"] := lExists
+    jInfo["recno"] := iif( lExists, (cAlias)->(recno()), 0 )
+    jInfo["operation"] := iif( lExists, MODEL_OPERATION_UPDATE, MODEL_OPERATION_INSERT )
+    jInfo["ignore"] := ( cAlias == "SX3" .and. jInfo["operation"] == MODEL_OPERATION_UPDATE .and. "_FILIAL" $ jData["X3_CAMPO"] )
+    jInfo["changes"] := ""
+
+    do case
+
+        case cAlias == "SX2"
+            jInfo["changes"] += fGetChange( cAlias, jInfo["operation"], "X2_CHAVE"  , jData["X2_CHAVE"  ] )
+            jInfo["changes"] += fGetChange( cAlias, jInfo["operation"], "X2_PATH"   , jData["X2_PATH"   ] )
+            jInfo["changes"] += fGetChange( cAlias, jInfo["operation"], "X2_ARQUIVO", jData["X2_ARQUIVO"] )
+            jInfo["changes"] += fGetChange( cAlias, jInfo["operation"], "X2_NOME"   , jData["X2_NOME"   ] )
+            jInfo["changes"] += fGetChange( cAlias, jInfo["operation"], "X2_NOMESPA", jData["X2_NOMESPA"] )
+            jInfo["changes"] += fGetChange( cAlias, jInfo["operation"], "X2_NOMEENG", jData["X2_NOMEENG"] )
+            jInfo["changes"] += fGetChange( cAlias, jInfo["operation"], "X2_ROTINA" , jData["X2_ROTINA" ] )
+            jInfo["changes"] += fGetChange( cAlias, jInfo["operation"], "X2_MODO"   , jData["X2_MODO"   ] )
+            jInfo["changes"] += fGetChange( cAlias, jInfo["operation"], "X2_MODOUN" , jData["X2_MODOUN" ] )
+            jInfo["changes"] += fGetChange( cAlias, jInfo["operation"], "X2_MODOEMP", jData["X2_MODOEMP"] )
+            jInfo["changes"] += fGetChange( cAlias, jInfo["operation"], "X2_DELET"  , jData["X2_DELET"  ] )
+            jInfo["changes"] += fGetChange( cAlias, jInfo["operation"], "X2_TTS"    , jData["X2_TTS"    ] )
+            jInfo["changes"] += fGetChange( cAlias, jInfo["operation"], "X2_UNICO"  , jData["X2_UNICO"  ] )
+            jInfo["changes"] += fGetChange( cAlias, jInfo["operation"], "X2_PYME"   , jData["X2_PYME"   ] )
+            jInfo["changes"] += fGetChange( cAlias, jInfo["operation"], "X2_MODULO" , jData["X2_MODULO" ] )
+            jInfo["changes"] += fGetChange( cAlias, jInfo["operation"], "X2_DISPLAY", jData["X2_DISPLAY"] )
+            jInfo["changes"] += fGetChange( cAlias, jInfo["operation"], "X2_SYSOBJ" , jData["X2_SYSOBJ" ] )
+            jInfo["changes"] += fGetChange( cAlias, jInfo["operation"], "X2_USROBJ" , jData["X2_USROBJ" ] )
+            jInfo["changes"] += fGetChange( cAlias, jInfo["operation"], "X2_POSLGT" , jData["X2_POSLGT" ] )
+            jInfo["changes"] += fGetChange( cAlias, jInfo["operation"], "X2_CLOB"   , jData["X2_CLOB"   ] )
+            jInfo["changes"] += fGetChange( cAlias, jInfo["operation"], "X2_AUTREC" , jData["X2_AUTREC" ] )
+            jInfo["changes"] += fGetChange( cAlias, jInfo["operation"], "X2_TAMFIL" , jData["X2_TAMFIL" ] )
+            jInfo["changes"] += fGetChange( cAlias, jInfo["operation"], "X2_TAMUN"  , jData["X2_TAMUN"  ] )
+            jInfo["changes"] += fGetChange( cAlias, jInfo["operation"], "X2_TAMEMP" , jData["X2_TAMEMP" ] )
+            jInfo["changes"] += fGetChange( cAlias, jInfo["operation"], "X2_STAMP"  , jData["X2_STAMP"  ] )
+            jInfo["changes"] += fGetChange( cAlias, jInfo["operation"], "X2_INSDT"  , jData["X2_INSDT"  ] )
+
+        case cAlias == "SX3" .and. !jInfo["ignore"]
+            jInfo["changes"] += fGetChange( cAlias, jInfo["operation"], "X3_ARQUIVO", jData["X3_ARQUIVO"] )
+            jInfo["changes"] += fGetChange( cAlias, jInfo["operation"], "X3_ORDEM"  , jData["X3_ORDEM"  ] )
+            jInfo["changes"] += fGetChange( cAlias, jInfo["operation"], "X3_CAMPO"  , jData["X3_CAMPO"  ] )
+            jInfo["changes"] += fGetChange( cAlias, jInfo["operation"], "X3_TIPO"   , jData["X3_TIPO"   ] )
+            jInfo["changes"] += fGetChange( cAlias, jInfo["operation"], "X3_TAMANHO", jData["X3_TAMANHO"] )
+            jInfo["changes"] += fGetChange( cAlias, jInfo["operation"], "X3_DECIMAL", jData["X3_DECIMAL"] )
+            jInfo["changes"] += fGetChange( cAlias, jInfo["operation"], "X3_TITULO" , jData["X3_TITULO" ] )
+            jInfo["changes"] += fGetChange( cAlias, jInfo["operation"], "X3_TITSPA" , jData["X3_TITSPA" ] )
+            jInfo["changes"] += fGetChange( cAlias, jInfo["operation"], "X3_TITENG" , jData["X3_TITENG" ] )
+            jInfo["changes"] += fGetChange( cAlias, jInfo["operation"], "X3_DESCRIC", jData["X3_DESCRIC"] )
+            jInfo["changes"] += fGetChange( cAlias, jInfo["operation"], "X3_DESCSPA", jData["X3_DESCSPA"] )
+            jInfo["changes"] += fGetChange( cAlias, jInfo["operation"], "X3_DESCENG", jData["X3_DESCENG"] )
+            jInfo["changes"] += fGetChange( cAlias, jInfo["operation"], "X3_PICTURE", jData["X3_PICTURE"] )
+            jInfo["changes"] += fGetChange( cAlias, jInfo["operation"], "X3_VALID"  , jData["X3_VALID"  ] )
+            jInfo["changes"] += fGetChange( cAlias, jInfo["operation"], "X3_USADO"  , jData["X3_USADO"  ] )
+            jInfo["changes"] += fGetChange( cAlias, jInfo["operation"], "X3_RELACAO", jData["X3_RELACAO"] )
+            jInfo["changes"] += fGetChange( cAlias, jInfo["operation"], "X3_F3"     , jData["X3_F3"     ] )
+            jInfo["changes"] += fGetChange( cAlias, jInfo["operation"], "X3_NIVEL"  , jData["X3_NIVEL"  ] )
+            jInfo["changes"] += fGetChange( cAlias, jInfo["operation"], "X3_RESERV" , jData["X3_RESERV" ] )
+            jInfo["changes"] += fGetChange( cAlias, jInfo["operation"], "X3_CHECK"  , jData["X3_CHECK"  ] )
+            jInfo["changes"] += fGetChange( cAlias, jInfo["operation"], "X3_TRIGGER", jData["X3_TRIGGER"] )
+            jInfo["changes"] += fGetChange( cAlias, jInfo["operation"], "X3_PROPRI" , jData["X3_PROPRI" ] )
+            jInfo["changes"] += fGetChange( cAlias, jInfo["operation"], "X3_BROWSE" , jData["X3_BROWSE" ] )
+            jInfo["changes"] += fGetChange( cAlias, jInfo["operation"], "X3_VISUAL" , jData["X3_VISUAL" ] )
+            jInfo["changes"] += fGetChange( cAlias, jInfo["operation"], "X3_CONTEXT", jData["X3_CONTEXT"] )
+            jInfo["changes"] += fGetChange( cAlias, jInfo["operation"], "X3_OBRIGAT", jData["X3_OBRIGAT"] )
+            jInfo["changes"] += fGetChange( cAlias, jInfo["operation"], "X3_VLDUSER", jData["X3_VLDUSER"] )
+            jInfo["changes"] += fGetChange( cAlias, jInfo["operation"], "X3_CBOX"   , jData["X3_CBOX"   ] )
+            jInfo["changes"] += fGetChange( cAlias, jInfo["operation"], "X3_CBOXSPA", jData["X3_CBOXSPA"] )
+            jInfo["changes"] += fGetChange( cAlias, jInfo["operation"], "X3_CBOXENG", jData["X3_CBOXENG"] )
+            jInfo["changes"] += fGetChange( cAlias, jInfo["operation"], "X3_PICTVAR", jData["X3_PICTVAR"] )
+            jInfo["changes"] += fGetChange( cAlias, jInfo["operation"], "X3_WHEN"   , jData["X3_WHEN"   ] )
+            jInfo["changes"] += fGetChange( cAlias, jInfo["operation"], "X3_INIBRW" , jData["X3_INIBRW" ] )
+            jInfo["changes"] += fGetChange( cAlias, jInfo["operation"], "X3_GRPSXG" , jData["X3_GRPSXG" ] )
+            jInfo["changes"] += fGetChange( cAlias, jInfo["operation"], "X3_FOLDER" , jData["X3_FOLDER" ] )
+            jInfo["changes"] += fGetChange( cAlias, jInfo["operation"], "X3_PYME"   , jData["X3_PYME"   ] )
+            jInfo["changes"] += fGetChange( cAlias, jInfo["operation"], "X3_CONDSQL", jData["X3_CONDSQL"] )
+            jInfo["changes"] += fGetChange( cAlias, jInfo["operation"], "X3_CHKSQL" , jData["X3_CHKSQL" ] )
+            jInfo["changes"] += fGetChange( cAlias, jInfo["operation"], "X3_IDXSRV" , jData["X3_IDXSRV" ] )
+            jInfo["changes"] += fGetChange( cAlias, jInfo["operation"], "X3_ORTOGRA", jData["X3_ORTOGRA"] )
+            jInfo["changes"] += fGetChange( cAlias, jInfo["operation"], "X3_IDXFLD" , jData["X3_IDXFLD" ] )
+            jInfo["changes"] += fGetChange( cAlias, jInfo["operation"], "X3_TELA"   , jData["X3_TELA"   ] )
+            jInfo["changes"] += fGetChange( cAlias, jInfo["operation"], "X3_PICBRV" , jData["X3_PICBRV" ] )
+            jInfo["changes"] += fGetChange( cAlias, jInfo["operation"], "X3_AGRUP"  , jData["X3_AGRUP"  ] )
+            jInfo["changes"] += fGetChange( cAlias, jInfo["operation"], "X3_POSLGT" , jData["X3_POSLGT" ] )
+            jInfo["changes"] += fGetChange( cAlias, jInfo["operation"], "X3_MODAL"  , jData["X3_MODAL"  ] )
+
+        case cAlias == "SIX"
+            jInfo["changes"] += fGetChange( cAlias, jInfo["operation"], "INDICE"    , jData["INDICE"    ] )
+            jInfo["changes"] += fGetChange( cAlias, jInfo["operation"], "ORDEM"     , jData["ORDEM"     ] )
+            jInfo["changes"] += fGetChange( cAlias, jInfo["operation"], "CHAVE"     , jData["CHAVE"     ] )
+            jInfo["changes"] += fGetChange( cAlias, jInfo["operation"], "DESCRICAO" , jData["DESCRICAO" ] )
+            jInfo["changes"] += fGetChange( cAlias, jInfo["operation"], "DESCSPA"   , jData["DESCSPA"   ] )
+            jInfo["changes"] += fGetChange( cAlias, jInfo["operation"], "DESCENG"   , jData["DESCENG"   ] )
+            jInfo["changes"] += fGetChange( cAlias, jInfo["operation"], "PROPRI"    , jData["PROPRI"    ] )
+            jInfo["changes"] += fGetChange( cAlias, jInfo["operation"], "F3"        , jData["F3"        ] )
+            jInfo["changes"] += fGetChange( cAlias, jInfo["operation"], "NICKNAME"  , jData["NICKNAME"  ] )
+            jInfo["changes"] += fGetChange( cAlias, jInfo["operation"], "SHOWPESQ"  , jData["SHOWPESQ"  ] )
+            jInfo["changes"] += fGetChange( cAlias, jInfo["operation"], "IX_VIRTUAL", jData["IX_VIRTUAL"] )
+            jInfo["changes"] += fGetChange( cAlias, jInfo["operation"], "IX_VIRCUST", jData["IX_VIRCUST"] )
+
+    endcase
+
+    jInfo["status"] := fValidOperation( cAlias, jInfo["operation"], jInfo["changes"], @cInvalidFields)
+    jInfo["message"] := fGetMessage( cAlias, jInfo["operation"], cInvalidFields )
+    jData["info"] := jInfo
+
+    RestArea(aAreaX)
+    RestArea(aArea)
+
+Return jInfo["status"]
+
+Static Function fGetChange( cAlias as character, nOperation as integer, cFieldName as character, xNewContent as variant)
+
+    Local cResult as character
+    Local xOldContent := (cAlias)->&(cFieldName) as variant
+
+    if( valType(xNewContent) == "C" )
+        xNewContent := allTrim(xNewContent)
+    endif
+
+    if( valType(xOldContent) == "C" )
+        xOldContent := allTrim(xOldContent)
+    endif
+
+    do case
+        case nOperation == MODEL_OPERATION_INSERT
+            cResult := cFieldName
+
+        case nOperation == MODEL_OPERATION_UPDATE
+            cResult := iif( xOldContent != xNewContent, cFieldName, "" )
+
+    endcase
+
+Return( iif( !empty(cResult), cResult+";", "" ) )
+
+Static Function fValidOperation( ;
+                                cAlias as character,;
+                                nOperation as integer,;
+                                cChanges as character,;
+                                cRetInvalidFields as character )
+    Local lResult as logical
+    Local nI as integer
+
+    Local aRequired as array
+    Local cRequiredField as character
+    Local cFieldsToBeRequired as character
+
+    Local aChanges as array
+    Local cChangedField as character
+    Local cFieldsAllowedToUpdated as character
+
+    do case
+
+        case nOperation == MODEL_OPERATION_INSERT
+            do case
+                case cAlias == "SX2"; cFieldsToBeRequired := cSx2_Req_Fields__
+                case cAlias == "SX3"; cFieldsToBeRequired := cSx3_Req_Fields__
+                case cAlias == "SIX"; cFieldsToBeRequired := cSix_Req_Fields__
+                case cAlias == "SX7"; cFieldsToBeRequired := cSx7_Req_Fields__
+                case cAlias == "SXA"; cFieldsToBeRequired := cSxa_Req_Fields__
+                case cAlias == "SX6"; cFieldsToBeRequired := cSx6_Req_Fields__
+            endcase
+            aRequired := strToKarr(cFieldsToBeRequired,";")
+            cRetInvalidFields := ""
+            for nI:=1 to len(aRequired)
+                cRequiredField := aRequired[nI]
+                if !( cRequiredField $ cChanges )
+                    if !empty(cRetInvalidFields)
+                        cRetInvalidFields += ";"
+                    endif
+                    cRetInvalidFields += cRequiredField
+                endif
+            next
+            lResult := empty(cRetInvalidFields)
+
+        case nOperation == MODEL_OPERATION_UPDATE
+            do case
+                case cAlias == "SX2"; cFieldsAllowedToUpdated := cSx2_Can_Update__
+                case cAlias == "SX3"; cFieldsAllowedToUpdated := cSx3_Can_Update__
+                case cAlias == "SIX"; cFieldsAllowedToUpdated := cSix_Can_Update__
+                case cAlias == "SX7"; cFieldsAllowedToUpdated := cSx7_Can_Update__
+                case cAlias == "SXA"; cFieldsAllowedToUpdated := cSxa_Can_Update__
+                case cAlias == "SX6"; cFieldsAllowedToUpdated := cSx6_Can_Update__
+            endcase
+            aChanges := strToKarr(cChanges,";")
+            cRetInvalidFields := ""
+            for nI:=1 to len(aChanges)
+                cChangedField := aChanges[nI]
+                if !( cChangedField $ cFieldsAllowedToUpdated )
+                    if !empty(cRetInvalidFields)
+                        cRetInvalidFields += ";"
+                    endif
+                    cRetInvalidFields += cChangedField
+                endif
+            next
+            lResult := empty(cRetInvalidFields)
+    endcase
+
+Return lResult
+
+Static Function fGetMessage( cAlias as character, nOperation as integer, cInvalidFields as character )
+
+    Local cResult as character
+
+    if empty(cInvalidFields)
+        return ""
+    endif
+
+    do case
+        case cAlias $ "SX2;SX3" .and. nOperation == MODEL_OPERATION_INSERT ; cResult := 'Required fields not found. These fields are: "'+ cInvalidFields +'"'
+        case cAlias $ "SX2;SX3" .and. nOperation == MODEL_OPERATION_UPDATE ; cResult := 'There are fields that cannot be changed automatically. These fields are: "'+ cInvalidFields +'"'
+    endcase
+
+Return cResult

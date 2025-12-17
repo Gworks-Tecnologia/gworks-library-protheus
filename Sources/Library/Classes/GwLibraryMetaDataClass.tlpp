@@ -66,6 +66,8 @@ Method New() Class GwMetaData
 
     ::Init()
 
+    _Super:New()
+
 Return Self
 
 /*/{Protheus.doc} GwMetaData::Init
@@ -90,12 +92,6 @@ Method Init() Class GwMetaData
         ::jMetaData["triggers"] := {} // sx7
         ::jMetaData["folders"] := {} // sxa
         ::jMetaData["parameters"] := {} // sx6
-
-    if!( ::lCommitInit )
-        _Super:New( ::jMetaData ) ; ::lCommitInit := .T. // cria nova instância
-    else
-        _Super:Clear() // recicla a instância
-    endif
 
 Return
 
@@ -180,7 +176,7 @@ Method SetFieldBranch( cAlias as character ) Class GwMetaData
         jBranch["used"] := STR_X3USADO_N
         jBranch["init"] := STR_SPACE
         jBranch["dataset"] := STR_SPACE
-        jBranch["level"] := "1"
+        jBranch["level"] := 1
         jBranch["used_brw"] := "N"
         jBranch["visual"] := STR_SPACE
         jBranch["context"] := STR_SPACE
@@ -223,8 +219,9 @@ Method CommitData() Class GwMetaData
 
     Local lResult as logical
 
+    _Super:SetData(::jMetaData)
     if( lResult := _Super:VldData())
-        _Super:CommitData( ::jMetaData )
+        _Super:CommitData()
     endif
 
 Return lResult
@@ -272,11 +269,11 @@ Method AddTable( jTable as json ) Class GwMetaData
         jSX2["X2_MODO"] := jTable["sharing_branch"]
         jSX2["X2_MODOUN"] := jTable["sharing_unit"]
         jSX2["X2_MODOEMP"] := jTable["sharing_company"]
-        jSX2["X2_DELET"] := "0"
+        jSX2["X2_DELET"] := 0
         jSX2["X2_TTS"] := STR_SPACE
         jSX2["X2_UNICO"] := iif( aScan(aNames, "unique_key") > 0, jTable["unique_key"], "" )
         jSX2["X2_PYME"] := STR_SPACE
-        jSX2["X2_MODULO"] := "0"
+        jSX2["X2_MODULO"] := 0
         jSX2["X2_DISPLAY"] := STR_SPACE
         jSX2["X2_SYSOBJ"] := STR_SPACE
         jSX2["X2_USROBJ"] := STR_SPACE
@@ -284,7 +281,7 @@ Method AddTable( jTable as json ) Class GwMetaData
         jSX2["X2_CLOB"] := STR_SPACE
         jSX2["X2_AUTREC"] := STR_SPACE
         jSX2["X2_TAMFIL"] := ::nLenBranch
-        jSX2["X2_TAMUN"] := "0"
+        jSX2["X2_TAMUN"] := 0
         jSX2["X2_TAMEMP"] := ::nLenCompay
         jSX2["X2_STAMP"] := STR_SPACE
         jSX2["X2_INSDT"] := STR_SPACE
@@ -458,7 +455,7 @@ Method AddField( jField as json, xDefaults as variant ) Class GwMetaData
         jSX3["X3_USADO"] := iif( valType(jField["used"])=="C", jField["used"], iif( jField["used"], STR_X3USADO_S, STR_X3USADO_N ) )
         jSX3["X3_RELACAO"] := jField["init"]
         jSX3["X3_F3"] := jField["dataset"]
-        jSX3["X3_NIVEL"] := iif( aScan(aNames, "level" ) > 0, jField["level"], "0" )
+        jSX3["X3_NIVEL"] := iif( aScan(aNames, "level" ) > 0, jField["level"], 0 )
         jSX3["X3_RESERV"] := jField["defaults"]["X3_RESERV"]
         jSX3["X3_CHECK"] := jField["defaults"]["X3_CHECK"]
         jSX3["X3_TRIGGER"] := jField["defaults"]["X3_TRIGGER"]
@@ -622,7 +619,7 @@ Method AddIndex( jIndex as json ) Class GwMetaData
         jSIX["IX_VIRTUAL"] := STR_SPACE
         jSIX["IX_VIRCUST"] := STR_SPACE
 
-    aAdd(::jMetaData["fields"], jSIX)
+    aAdd(::jMetaData["indexes"], jSIX)
 
 Return
 
