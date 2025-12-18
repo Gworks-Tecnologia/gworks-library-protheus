@@ -35,6 +35,7 @@ Class GwGetFile
     Public Method SetDialogMultiFile( lOption as logical )
     Public Method SetDialogDirectory( lOption as logical )
     Public Method OpenDialog() as logical
+    Public Method GetResult() as variant
 
     // Métodos públicos para operação entre diretórios (pastas)
     // Obs.: permite operação cega (sem interface gráfica)
@@ -304,3 +305,16 @@ Method OpenDialog() as logical Class GwGetFile
     endif
 
 Return lResult
+
+Method GetResult() Class GwGetFile
+
+    Local xResult as variant
+
+    do case
+        case ::xDialogOpeningMode == GETF_MULTISELECT  ; xResult := ::aSelectedFiles // vários arquivos
+        case ::xDialogOpeningMode == GETF_RETDIRECTORY ; xResult := ::cSelectedDiretory // diretório
+        otherwise
+            xResult := ::cSelectedFile // único arquivo
+    endcase
+
+Return xResult
