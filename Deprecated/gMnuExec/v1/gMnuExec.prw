@@ -1,4 +1,7 @@
 #include "totvs.ch"
+#include "tbiconn.ch"
+
+#define CRLF chr(13) + chr(10)
 
 /*/{Protheus.doc} GMNUEXEC
 Executar rotinas sem a necessidade de login pelo SIGAMDI/SIGAADV.
@@ -28,11 +31,11 @@ Executar rotinas sem a necessidade de login pelo SIGAMDI/SIGAADV.
     2. Chamada via linha de comando:
         smartclient.exe -q -p=U_GMNUEXEC -a=01;0101;SIGACOM;MATA010 -c=tcp -e=environment -m -l
 /*/
-User Function gMnuExec( _cParms, _cAuthFile, _cTables )
+User Function gMnuExec( _cParms, _cAuthFile, _cTables ) // U_GMNUEXEC
 
     Default _cParms := "99;01;SIGACOM;MATA010"
     Default _cAuthFile := "NO_AUTH"
-    Default _cTables := ""
+    Default _cTables := nil
 
     // Parâmetros referente à rotina desejada para execução
     Local aParms
@@ -41,7 +44,6 @@ User Function gMnuExec( _cParms, _cAuthFile, _cTables )
     Local cMod // módulo, ex.: "COM"
     Local cModName // módulo com sigla, ex.: "SIGACOM"
     Local cRotina // nome da rotina, ex.: "MATA010"
-    Local cTables
 
     // Usuário e senha para login
     Local cFileContent
@@ -49,14 +51,11 @@ User Function gMnuExec( _cParms, _cAuthFile, _cTables )
     Local cUser
     Local cPassword
 
-    Local cEnvDef as character
-    Local cInit as character
-    Local bInit as clodeblock
-    Local oApp
+    // Lista de tabelas a serem abertas na preparação do ambiente
+    Local aTables
 
-    Private __lInternet
-    Private __cInternet
-    Private lMsFinalAuto
+    // Bloco de código para execução da rotina
+    Local bWindowInit
 
     _cParms := upper(_cParms)
     aParms := StrTokArr(_cParms,';')
@@ -64,9 +63,7 @@ User Function gMnuExec( _cParms, _cAuthFile, _cTables )
     cEmp := aParms[1]
     cFil := aParms[2]
     cModName := aParms[3]
-    cMod := replace(cModName,"SIGA","")
     cRotina := aParms[4]
-    cTables := fStringifyTables(_cTables)
 
     if _cAuthFile == "NO_AUTH"
         cUser := nil
@@ -86,73 +83,79 @@ User Function gMnuExec( _cParms, _cAuthFile, _cTables )
         endif
     endif
 
-    cEnvDef := '{|| RpcSetEnv( '+;
-                                '"'+cEmp +'", '+;
-                                '"'+cFil +'", '+;
-                                '"'+cUser +'", '+;
-                                '"'+cPassword +'", '+;
-                                '"'+cMod +'", '+;
-                                '"'+cRotina +'", '+;
-                                cTables +' ) }'
+    if !empty(_cTables)
+        aTables := StrTokArr(_cTables,';')
+    endif
 
-    cInit := '{|| fwMsgRun( nil, '+cEnvDef+', "Inicializando ambiente...", "Aguarde..." ), U_gMnuEnv(), '+cRotina+'(), Final("debug closed") }'
-    bInit := &(cInit)
-    oApp := MsApp():New(cModName)
+    SetModulo( @cModName, @cMod )
 
-        oApp:CreateEnv()
-        oAPp:cInternet := nil
-        oApp:bMainInit := bInit
-        oApp:lMessageBar := .T.
-        oApp:cModDesc := cModName
+    RPCSetEnv(;
+        cEmp,; // cRpcEmp
+        cFil,; // cRpcFil
+        cUser,; // cEnvUser
+        cPassword,; // cEnvPass
+        cMod,; // cEnvMod
+        cRotina,; // cFunName
+        aTables; // aTables
+    )
 
-        ptSetTheme("STANDARD")
+    InitPublic()
 
-    oApp:Activate()
+    SetsDefault()
 
-Return
+    SetModulo( @cModName, @cMod )
 
-/*/{Protheus.doc} gMnuEnv
-Inicializa variáveis de ambiente
-@type function
-@version 12.1.2410
-@author Gworks - Giovani
-@since 8/22/2025
-/*/
-User Function gMnuEnv()
+    bWindowInit := &( "{ || __Execute( "+cRotina+"(), 'xxxxxxxxxxxxxxxxxxxx' , "+cRotina+", "+cModName+", "+cModName+", 1, .T. ) }" )
 
-    __lInternet := .F.
-    __cInternet := "MANUAL"
+    DEFINE WINDOW oMainWnd FROM 001,001 TO 400,500 TITLE OemToAnsi( FunName() )
 
-    lMsFinalAuto := .F.
+    ACTIVATE WINDOW oMainWnd MAXIMIZED ;
+        ON INIT ( Eval( bWindowInit ), oMainWnd:End() )
+
+    RpcClearEnv()
 
 Return
 
-/*/{Protheus.doc} fStringifyTables
-Retorna todas as tabelas informadas via argumento em uma string no formato array.
+/*/{Protheus.doc} SetModulo
+Setar o Modulo desejado para execução.
 @type function
 @version 12.1.2310
-@author Gworks - Giovani
-@since 8/22/2025
-@param _cTables, character, String contendo as tabelas, conforme exemplo: "SB1;SB5;SBZ"
-@return character, String formatada conforme exemplo: "{ SB1, SB5, SBZ }"
+@author Marinaldo de Jesus
+@since 1/28/2025
+@param cModName, character, Módulo com sigla, ex.: "SIGACOM".
+@param cMod, character, Retorna o código do módulo, ex.: "COM".
 /*/
-Static function fStringifyTables( _cTables )
+Static Function SetModulo( cModName, cMod )
 
-    Local cResult as character
-    Local cName as character
-    Local nI as numeric
-    Local aTables := StrTokArr(_cTables,";")
+    Local aRetModName := RetModName( .T. )
 
-    cResult := ""
-    for nI:=1 to len(aTables)
-        cName := '"'+aTables[nI]+'"'
-        if !empty(cResult)
-            cResult += ','
+    Local cSvcModulo
+    Local nSvnModulo
+
+    if ( type("nModulo") == "U" )
+        _SetOwnerPrvt( "nModulo" , 0 )
+    else
+        nSvnModulo := nModulo
+    endif
+
+    cModName := Upper( AllTrim( cModName ) )
+    if ( nModulo <> aScan( aRetModName , { |x| Upper( AllTrim( x[2] ) ) == cModName } ) )
+        nModulo := aScan( aRetModName , { |x| Upper( AllTrim( x[2] ) ) == cModName } )
+        if ( nModulo == 0 )
+            cModName := "SIGAFAT"
+            nModulo  := aScan( aRetModName , { |x| Upper( AllTrim( x[2] ) ) == cModName } )
         endif
-        cResult += cName
-    next
+    endif
 
-    cResult := '{'+cResult+'}'
+    if ( type("cModulo") == "U" )
+        _SetOwnerPrvt( "cModulo" , "" )
+    else
+        cSvcModulo := cModulo
+    endif
 
-Return cResult
+    cMod := SubStr( cModName , 5 )
+    if ( cModulo <> cMod )
+        cModulo := cMod
+    endif
 
+Return // { cSvcModulo , nSvnModulo  }
