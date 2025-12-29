@@ -5,6 +5,9 @@
 #define TYPE_PASSWORD 8
 #define TYPE_MEMO 11
 
+#define OPC_COMBO_RESULT_DESCRIPTION 1
+#define OPC_COMBO_RESULT_POSITION 2
+
 namespace Gworks.Library.Classes
 
 /*/{Protheus.doc} GwParamBox
@@ -28,6 +31,7 @@ Class GwParamBox
     Private Data bDialogValid as codeblock
     Private Data lDialogCanSave as logical
     Private Data lDialogUserSave as logical
+    Private Data nComboResult as integer
 
     // Métodos construtores
     Public Method New() Constructor
@@ -38,6 +42,7 @@ Class GwParamBox
     Public Method SetDialogTitle( cTitle as character )
     Public Method SetDialogValid( bValid as codeblock )
     Public Method SetDialogSave( lSave as logical )
+    Public Method SetComboResult( cOption as character )
 
     Public Method AddParam( cType as character, cProperty as character )
     Public Method SetProperty( cName as character, cProperty as character, xValue as variant )
@@ -117,7 +122,7 @@ Method GetTemplate( cType as character ) as json Class GwParamBox
         case cType == "combo"
             jReturn["nType"] := TYPE_COMBO
             jReturn["cDescription"]  := ""
-            jReturn["nInit"] := 0
+            jReturn["nInit"] := nil
             jReturn["aOptions"] := {}
             jReturn["nSize"] := 30
             jReturn["cValidation"] := ".T."
@@ -303,6 +308,45 @@ Method SetDialogSave( lSave as logical ) Class GwParamBox
 
 Return
 
+/*/{Protheus.doc} GwParamBox::SetComboResult
+Define o tipo de retorno do campo combo
+@type method
+@version 12.1.2410
+@author Gworks - Giovani
+@since 12/27/2025
+@param xOption, variant, Opção desejada entre:
+    - 1 ou "Description" - Retorna a descrição (string) da posição do combo selecionada;
+    - 2 ou "Position" - Retorna a posição (integer) da posição do combo selecionada;
+/*/
+Method SetComboResult( xOption as variant ) Class GwParamBox
+
+    Default xOption := nil
+    Local cValType := valType(xOption) as character
+
+    if!( cValType $ "N/C" )
+        UserException("GwParamBox:AddParam - Parameter xOption must be integer or character...")
+    endif
+
+    do case
+
+        case cValType == "N" .and. xOption == OPC_COMBO_RESULT_DESCRIPTION
+            ::nComboResult := OPC_COMBO_RESULT_DESCRIPTION
+
+        case cValType == "N" .and. xOption == OPC_COMBO_RESULT_POSITION
+            ::nComboResult := OPC_COMBO_RESULT_POSITION
+
+        case cValType == "C" .and. upper(allTrim(xOption)) == upper("Description")
+            ::nComboResult := OPC_COMBO_RESULT_DESCRIPTION
+
+        case cValType == "C" .and. upper(allTrim(xOption)) == upper("Position")
+            ::nComboResult := OPC_COMBO_RESULT_POSITION
+
+    otherwise
+        UserException("GwParamBox:AddParam - Ivalid parameter xOption...")
+    endcase
+
+Return
+
 /*/{Protheus.doc} GwParamBox::AddParam
 Adiciona um novo parâmetro que deverá ser exibido na janela de diálogo.
 @type method
@@ -359,6 +403,9 @@ Method SetProperty( cName as character, cProperty as character, xValue as varian
 
         case valType(xValue) == "A"
             ::jParam[cName][cProperty] := aClone(xValue)
+
+        case valType(xValue) == "N" .and. ::jParam[cName]["nType"] == TYPE_COMBO .and. cProperty == "nInit"
+            ::jParam[cName][cProperty] := iif(xValue == 0, nil, xValue)
 
         otherwise
             ::jParam[cName][cProperty] :=  xValue
@@ -442,6 +489,8 @@ Method GetValue( cName as character ) Class GwParamBox
     Local aNamesParam as array
     Local aOptions as array
 
+    Local cCombo as character
+
     aNamesParam := ::jParam:getNames()
     if aScan( aNamesParam, cName ) == 0
         UserException("GwParamBox:GetValue - Ivalid parameter cName...")
@@ -454,7 +503,17 @@ Method GetValue( cName as character ) Class GwParamBox
 
         aOptions := ::jParam[cName]["aOptions"]
 
-        xResult := iif( valType(xResult) == 'C', xResult, aOptions[xResult] )
+        cCombo := iif( valType(xResult) == 'C', xResult, aOptions[xResult] )
+
+        do case
+
+            case ::nComboResult == OPC_COMBO_RESULT_DESCRIPTION
+                xResult := cCombo
+
+            case ::nComboResult == OPC_COMBO_RESULT_POSITION
+                xResult := aScan( aOptions, {|x| upper(allTrim(x)) == upper(allTrim(cCombo))} )
+
+        endcase
 
     endif
 
