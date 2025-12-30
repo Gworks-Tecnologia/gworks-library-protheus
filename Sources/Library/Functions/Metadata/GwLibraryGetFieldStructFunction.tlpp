@@ -14,7 +14,7 @@ Obtem a estrutura do dicionário de dados de um ou mais campos conforme argumento
 @param cField, character, Campo(s) a obter a estrutura de dicionário.
 @return array, Estrutura do(s) campos(s) conforme dicionário SX3.
 /*/
-User Function GwGetFieldStruct(cField as character)
+User Function GwGetFieldStruct( cField as character )
 
     Local oStruct as object
     Local oFields as object

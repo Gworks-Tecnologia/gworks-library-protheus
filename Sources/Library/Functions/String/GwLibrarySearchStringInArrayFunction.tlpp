@@ -1,0 +1,51 @@
+#include "totvs.ch"
+
+using namespace Gworks.Library.Classes
+using namespace Gworks.Library.Utils
+
+namespace Gworks.Library.Functions
+
+/*/{Protheus.doc} GwSearchStringInArray
+Pesquisa em um array de strings por um determinado texto.
+@type function
+@version 12.1.33
+@author Gworks - Giovani Soares
+@since 12/30/2025
+@param aArray, array, Array de strings
+@param cSearch, character, Texto a ser localizado.
+@param cIgnore, character, Texto a ser ignorado.
+@param nRetResult, numeric, Se o texto for localizado, retorna a posição do array em que o mesmo foi encontrado.
+@return variant, Retorna .T. (true) para indicar que o texto foi localizado e .F. (false) caso contrário.
+/*/
+User Function GwSearchStringInArray( aArray as array, cSearch as character, cIgnore as character, nRetResult as numeric )
+
+	Default cIgnore := ""
+
+    Local lResult := .F. as logical
+	Local oError as object
+
+    oError := GwError():Create()
+    oError:cError := "Erro ao pesquisar por string em array de elementos."
+    oError:cSuggestion := "Verifique se existe elemento(s) do array que não seja string ou entre em contato com o suporte técnico."
+    oError:cTitleError := "GwSearchStringInArray"
+    oError:lError := .F.
+
+    TRY
+		cSearch := AllTrim(cSearch)
+		nRetResult := 0
+		nRetResult := Ascan(aArray, { |x| Upper(x) == cSearch })
+		If nRetResult > 0
+			lResult := .T.
+		EndIf
+		If lResult;
+			.And. !Empty(cIgnore);
+			.And. AllTrim(aArray[nRetResult]) $ cIgnore
+			lResult := .F.
+		EndIf
+
+	CATCH oError
+		oError:ShowError()
+
+	ENDTRY
+
+Return lResult

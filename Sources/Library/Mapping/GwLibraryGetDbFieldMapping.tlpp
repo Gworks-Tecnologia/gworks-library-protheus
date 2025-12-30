@@ -1,7 +1,6 @@
 #include 'tlpp-core.th'
 
 using namespace Gworks.Library.Classes
-using namespace Gworks.Library.Utils
 using namespace Gworks.Library.Functions
 
 namespace Gworks.Library.Mapping

@@ -5,7 +5,16 @@ using namespace Gworks.Library.Utils
 
 namespace Gworks.Library.Functions
 
-User Function GwGetFieldArray(cAlias)
+/*/{Protheus.doc} GwGetFieldArray
+Retorna lista de campos de um determinado alias do ERP.
+@type function
+@version 12 1.2410
+@author Gworks - Giovani Soares
+@since 12/30/2025
+@param cAlias, character, Alias desejado.
+@return variant, Lista de campos.
+/*/
+User Function GwGetFieldArray( cAlias as character )
 
     Local aFields as array
     Local oError as object
@@ -36,16 +45,18 @@ User Function GwGetFieldArray(cAlias)
 
         aFields := {}
         While !X3DIC->(EOF()) .And. X3DIC->X3_ARQUIVO == cAlias
-            aAdd(aFields,AllTrim(X3DIC->&("X3_CAMPO")))
+            aAdd(aFields,allTrim(X3DIC->&("X3_CAMPO")))
             X3DIC->(DbSkip())
         EndDo
 
     CATCH oError
         oError:ShowError()
+
     FINALLY
         If Select("X3DIC")
             X3DIC->(DbCloseArea())
         EndIf
+
     ENDTRY
 
 Return aFields

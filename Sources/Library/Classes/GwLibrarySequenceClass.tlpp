@@ -7,7 +7,7 @@ using namespace Gworks.library.Functions
 namespace Gworks.Library.Classes
 
 /*/{Protheus.doc} GwSequence
-Classe para numeração sequêncial.
+Classe para geração de numeração sequêncial.
 @type class
 @version 12.1.2310
 @author Gworks - Giovani Soares
