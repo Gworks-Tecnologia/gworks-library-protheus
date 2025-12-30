@@ -1,0 +1,64 @@
+#include "totvs.ch"
+
+namespace Gworks.Library.Utils
+
+/*/{Protheus.doc} GwTReportStruct
+Função utilitária para retornar
+@type function
+@version 12.1.2410
+@author Gworks - Giovani
+@since 12/29/2025
+@param jRetFields, json, Retorna metadados do campo conforme o seguinte formato json:
+    {
+        "type": <string>,
+        "length": <numeric>,
+        "decimal": <numeric>,
+        "picture": <string>
+    }
+@param cField, character, Nome do campo a ser considerado.
+@param nOpc, numeric, Opção entre:
+    1 - Retorna a máscara do campo a ser considerada pela classe TReport().
+    2 - Retorna o tamanho de caracteres a ser considerado pela classe TReport().
+@return variant, Retorno conforme argumento nOpc.
+/*/
+User Function GwTReportStruct( jRetFields as json, cField as character, nOpc as integer )
+
+    Default jRetFields := nil
+    Default cField := ""
+
+    Local xResult as variant
+    Local cAliasStr := "SX3" as character
+
+    if jRetFields == nil
+        UserException("GwTReportStruct - Invalid parameter jRetFields...")
+    endif
+
+    if valType(jRetFields[cField]) == "U"
+        dbSelectArea(cAliasStr)
+        (cAliasStr)->(dbSetOrder(2)) // X3_CAMPO
+        (cAliasStr)->(dbGoTop())
+        if (cAliasStr)->(msSeek(cField))
+            jRetFields[cField] := jSonObject():New()
+            jRetFields[cField]["type"]    := (cAliasStr)->&("X3_TIPO")
+            jRetFields[cField]["length"]  := (cAliasStr)->&("X3_TAMANHO")
+            jRetFields[cField]["decimal"] := (cAliasStr)->&("X3_DECIMAL")
+            jRetFields[cField]["picture"] := allTrim((cAliasStr)->&("X3_PICTURE"))
+        else
+            UserException("GwTReportStruct - Invalid field name: "+allTrim(cField))
+        endif
+    endif
+
+    do case
+
+        case nOpc == 1
+            xResult := jRetFields[cField]["picture"]
+            xResult := iif(!empty(xResult), xResult, nil)
+
+        case nOpc == 2
+            xResult := iif(xResult==nil .and. jRetFields[cField]["type"]=="C", jRetFields[cField]["length"], xResult)
+            xResult := iif(xResult==nil .and. jRetFields[cField]["type"]=="D", 10, xResult)
+            xResult := iif(xResult==nil .and. jRetFields[cField]["type"]=="N", len(allTrim(jRetFields[cField]["picture"])), xResult)
+
+    endcase
+
+Return xResult

@@ -1,0 +1,45 @@
+#include "totvs.ch"
+
+using namespace Gworks.Library.Classes
+
+namespace Gworks.Library.Utils
+
+Static oSequence__ := nil as object
+
+/*/{Protheus.doc} GwGetSequence
+Função para criar números sequênciais com possibilidade de fazer o controle sequêncial por prefixos.
+@type function
+@author Giovani
+@since 17/03/2021
+@param cCampo, character, campo chave para o controle financeiro, ex.: "B1_COD"
+@param cPrefixo, character, prefixo a ser considerado para o controle (opcional), ex.: "CHAPA"
+@param cFamilia, character, nome da família do sequêncial (opcional), ex.: "ROCHAS"
+@param lReboot, logical, indica se deve reiniciar o controle sequêncial com base no banco de dados, padrão .T.
+@param lEmpCode, logical, indica se deve concaternar o código da Empresa na Família.
+@return character, variável que será retornado o sequêncial gerado, ex.: "CHAPA0000000001"
+@obs o parâmetro cSequen deve ser passado por referência "@"
+@example
+    - GwGetSequence("B1_COD", "CHAPA", "ROCHAS", .T.) // "CHAPA0000000001"
+    - GwGetSequence("B1_COD", "BLOCO", "ROCHAS", .T.) // "BLOCO0000000001"
+    - GwGetSequence("B1_COD", "", "ESCRIT", .T.) // "000000000000001"
+    - GwGetSequence("ZX_DOCPRD", "P2103", "", .T.) // "P21030001"
+/*/
+User Function GwGetSequence( cCampo as character, cPrefixo as character, cFamilia as character, lReboot as logical, lEmpCode as logical )
+
+    Default cCampo := ""
+    Default cPrefixo := ""
+    Default cFamilia := ""
+    Default lReboot := .T.
+    Default lEmpCode := .T.
+
+    Local xRet as variant
+
+    if lEmpCode
+        cFamilia := cEmpAnt+AllTrim(cFamilia)
+    endif
+
+    oSequence__ := GwSequence():New( cCampo, cPrefixo, cFamilia, lReboot )
+
+    xRet := oSequence__:GetSequence()
+
+Return xRet

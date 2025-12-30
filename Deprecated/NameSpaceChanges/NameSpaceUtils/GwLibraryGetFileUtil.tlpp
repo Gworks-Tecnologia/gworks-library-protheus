@@ -1,0 +1,62 @@
+#include "totvs.ch"
+
+using namespace Gworks.Library.Classes
+
+namespace Gworks.Library.Utils
+
+/*/{Protheus.doc} GwGetFile
+Função para seleção de arquivo no Sistema Operacional.
+@type function
+@version 12.1.33
+@author Gworks - Giovani Soares
+@since 12/30/2025
+@param xFileType, variant, Tipo de arquivo a ser considerado, ex.: "Arquivos de texto|*.txt|Bitmaps|*.bmp" (opcional).
+@param lSaveDialog, logical, Se será um SaveDialog (.T.) ou um OpenDialog (.F.).
+@param lMemoRead, logical, Se irá carregar e retornar o conteúdo do arquivo arquivo (.T.), ou não (.F.).
+@param cDirectory, character, Diretório inicial do Sistema Operacional a ser considerado na janela de diálogo de seleção.
+@return character, Caso:
+    lMemoRead == .F. - retorna o caminho absoluto do arquivo selecionado
+    lMemoRead == .T. - retorna o conteúdo do arquivo
+/*/
+User Function GwGetFile( xFileType as variant, lSaveDialog as logical, lMemoRead as logical, cDirectory as character )
+
+    Local cFile as character
+    Local oError as object
+
+    Default xFileType := nil
+    Default lSaveDialog := .F.
+    Default lMemoRead := .F.
+    Default cDirectory := "C:\"
+
+    oError := GwError():Create()
+    oError:cError := "Erro ao tentar selecionar arquivo(s)."
+    oError:cSuggestion := "Tente novamente em instantes ou entre em contato com suporte técnico."
+    oError:cTitleError := "GwGetFile"
+    oError:lError := .F.
+
+    TRY
+        While Empty(cFile)
+            cFile := cGetFile(  xFileType,; // cMascara
+                                "Selecionar arquivo",; // cTitulo
+                                0,; // nMascpadrao
+                                cDirectory,; // cDirinicial
+                                lSaveDialog,; // lSalvar
+                                nOR(GETF_LOCALHARD, GETF_NETWORKDRIVE),; // nOpcoes
+                                .F.,; // lArvore
+                                .T. ) // lKeepCase
+            If Empty(cFile)
+                If MsgYesNo("Deseja cancelar a seleção do arquivo?","Cancelar!?")
+                    cFile := ""
+                    Exit // abandona laço while
+                EndIf
+            EndIf
+        EndDo
+    CATCH oError
+        oError:ShowError()
+    ENDTRY
+
+    If lMemoRead
+        cFile := MemoRead( cFile, /*lChangeCase*/ .F.) // TODO: testar...
+    EndIf
+
+Return cFile

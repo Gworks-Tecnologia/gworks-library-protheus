@@ -1,0 +1,89 @@
+#include "tlpp-core.th"
+
+using namespace Gworks.Library.Classes
+
+namespace Gworks.Library.Utils
+
+Static lBlind__ := ( isBlind() .or. type("CFILANT") == 'U' ) as logical
+
+/*/{Protheus.doc} GwSetMessage
+Função auxiliar para definir o output da mensagem entre error, log ou ambos.
+@type function
+@version  12.1.2310
+@author Gworks - Giovani Soares
+@since 29/10/2024
+@param oError, object, Objeto GwError().
+@param oLog, object, Object GwConsoleLog().
+@param jMessage, json, Mensagens no formato:
+        {
+            "cState" : 'string',
+            "cError" : 'string',
+            "cSuggestion" : 'string',
+            "cTitle" : 'string',
+            "cStyle : 'string',
+            "lError" : 'logical',
+            "cDetails" : 'string'
+        }
+@param cOpc, character, Modo de operação, entre:
+    - auto:
+        - define a mensagem como erro se for execução com interface
+        - define a mensagem como log se for execução sem interface
+    - error: define a mensagem como erro
+    - log: define a mensagem como log
+/*/
+User Function GwSetMessage( oError as object, oLog as object, jMessage as json )
+
+    Local cStyle as character
+    Local aNames := jMessage:GetNames() as array
+
+    if valType(jMessage) != 'J'
+        UserException("GwSetMessage - Parâmetro jMessage não é Json!")
+    endif
+
+    if( aScan(aNames, "cState" ) == 0 .or.;
+        aScan(aNames, "cError" ) == 0 .or.;
+        aScan(aNames, "cSuggestion" ) == 0 .or.;
+        aScan(aNames, "cTitle" ) == 0 .or.;
+        aScan(aNames, "lError" ) == 0 .or.;
+        aScan(aNames, "cDetails" ) == 0 )
+
+        UserException("GwSetMessage - Parâmetro jMessage inválido!")
+    endif
+
+    if valType(oError) != 'O'
+        oError := GwError():New()
+    endif
+
+    if valType(oLog) != 'O'
+        oLog := GwConsoleLog():New()
+    endif
+
+    oError:SetError( ;
+                jMessage['cError'],;
+                jMessage['cSuggestion'],;
+                jMessage['cTitle'],;
+                jMessage['lError'] )
+
+    oLog:SetState(upper(jMessage['cState']))
+    oLog:SetMessage(upper(fwNoAccent(jMessage['cError'])), .T., .F.)
+
+    if !empty(jMessage['cDetails'])
+
+        oError:SetAutoGRLog( jMessage['cDetails'] )
+
+        oLog:SetMessage(jMessage['cDetails'], .T., .F. )
+
+    endif
+
+    if !lBlind__
+
+        cStyle := iif( aScan( aNames, "cStyle" ) > 0, jMessage["cStyle"], "" )
+        if empty(cStyle)
+            cStyle := "HELP"
+        endif
+
+        oError:ShowError(cStyle)
+
+    endif
+
+Return

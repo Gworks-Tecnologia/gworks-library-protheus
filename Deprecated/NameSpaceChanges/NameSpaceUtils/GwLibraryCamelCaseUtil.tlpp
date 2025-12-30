@@ -1,0 +1,32 @@
+#include "totvs.ch"
+
+namespace Gworks.Library.Utils
+
+/*/{Protheus.doc} GwCamelCase
+Converte uma string para o patrão CamelCase.
+@type function
+@version 12.22010
+@author Gworks - Giovani Soares
+@since 5/5/2023
+@param cString, character, String desejada.
+@return character, String formatada.
+/*/
+User Function GwCamelCase( cString as character )
+
+    Local cResult    := "" as character
+    Local cCamelCase := "" as character
+
+    Local aString := {} as array
+    Local nI := 0 as numeric
+
+    aString := StrToKarr( AllTrim(cString), " " )
+
+    for nI:=1 to Len(aString)
+
+        cCamelCase := Upper(Left(aString[nI],1)) + Lower(Right(aString[nI], Len(aString[nI])-1))
+
+        cResult += cCamelCase
+
+    next
+
+Return cResult

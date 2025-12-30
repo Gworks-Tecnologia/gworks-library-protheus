@@ -1,0 +1,67 @@
+#include "tlpp-core.th"
+
+namespace Gworks.Library.Utils
+
+/*/{Protheus.doc} GWRemoteType
+Função para verificar a versão do Sistema Operacional (SO) em uso pelo Protheus.
+@type function
+@version 12.1.2210
+@author Gworks - Giovani Soares
+@since 10/25/2023
+@param nOpc, numeric, 1 para avaliação via LIB e 2 avaliação tradicional.
+@return character, Retorna uma string com o nome do Sistema operacional, onde:
+    - JOB
+    - WINDOWS
+    - LINUX
+    - MAC
+    - UNIX
+/*/
+User Function GwRemoteType( nOpc as numeric )
+
+    Local nType    as numeric
+    Local lSrvUnix as logical
+    Local cLib     as character
+    Local cResult  as character
+
+    // Se não especificado, realiza avaliação do SO pela LIB do Protheus
+    // por ser possível diferenciar sistemas os sistemas Unix entre Linux e MacOs.
+    Default nOpc := 1
+
+    nType := GetRemoteType(@cLib)
+
+    if nType == -1 // execução cega via job/api
+
+        lSrvUnix := IsSrvUnix()
+
+        do case
+            case  ( lSrvUnix ) ; cLib := "LINUX"
+            case !( lSrvUnix ) ; cLib := "WINDOWS"
+        endcase
+
+    endif
+
+    // Avaliação do SO feita pela lib
+    if nOpc == 1
+
+        do case
+            case ( "WIN"   $ Upper(cLib) ) ; cResult := "WINDOWS"
+            case ( "LINUX" $ Upper(cLib) ) ; cResult := "LINUX"
+            case ( "MAC"   $ Upper(cLib) ) ; cResult := "MAC"
+            otherwise
+                USerException( "GetRemoteType: não foi possível determinar o Sistema Operacional (SO) em execução." )
+        endcase
+
+    // Avaliação do SO feita da forma tradicional
+    elseif nOpc == 2
+
+        do case
+            case ( nType == -1 ) ; cResult := "JOB" // Job, Web ou Working Thread (sem interface)
+            case ( nType ==  1 ) ; cResult := "WINDOWS"
+            case ( nType ==  2 ) ; cResult := "UNIX" // Não distingue entre Linux e Mac (ambos são sistemas Unix)
+            otherwise
+                USerException( "GetRemoteType: não foi possível determinar o Sistema Operacional (SO) em execução." )
+        endcase
+
+    endif
+
+Return cResult

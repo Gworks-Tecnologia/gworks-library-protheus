@@ -1,0 +1,80 @@
+#include "totvs.ch"
+
+namespace Gworks.Library.Utils
+
+/*/{Protheus.doc} GwGetArea
+Salva a área de uma lista alias informados.
+@type function
+@version 12.1.33
+@author Gworks - Giovani Soares
+@since 12/30/2025
+@param aAlias, array, Lista de alias, ex.: {"SB1","SB5","SC5","SC6"}.
+@param lCurrentAlias, logical, Se .T. (true), irá salvar também a área do alias atualmente em uso.
+@return variant, Retorna lista de alias salvas e seus respectivos id's RECNO e o alias princial.
+/*/
+User Function GwGetArea( aAlias as array, lCurrentAlias as logical )
+
+    Default lCurrentAlias := .T.
+
+    Local aAreas as array
+    Local cAlias as character
+    Local cCurrentAlias as character
+    Local nI as numeric
+    Local nPos as numeric
+
+    aAreas := {}
+    For nI:=1 To Len(aAlias)
+        cAlias := aAlias[nI]
+        aAdd(aAreas,(cAlias)->(GetArea()))
+    Next
+
+    if lCurrentAlias
+        nPos := aScan(aAreas, {|x| x[1] == GetArea()[1]}) // verifica se o alias selecionado já não foi passado via parâmetro aAlias
+        if nPos > 0 // se sim
+            cCurrentAlias := aAreas[nPos,1] // sinaliza que o Alias em questão é principal
+        else
+            aAdd(aAreas,GetArea())
+            cCurrentAlias := aAreas[Len(aAreas),1]
+        endif
+    else
+        cCurrentAlias := ""
+    endif
+
+Return( {aAreas,cCurrentAlias} )
+
+/*/{Protheus.doc} GwRestArea
+Restaura as áreas conforme retorno de U_GwGetArea().
+@type function
+@version 12.1.33
+@author Gworks - Giovani Soares
+@since 12/30/2025
+@param aAreas, array, Lista de áreas a serem restauradas.
+@param cIgnore, character, Alias a serem ignorados, ex.: "SB1;SB5".
+/*/
+User Function GwRestArea( aAreas as array, cIgnore as character )
+
+    Default cIgnore := ""
+
+    Local aArea as array
+    Local cCurrentAlias as character
+    Local nAliasPrincipal as numeric
+    Local nI as numeric
+
+
+    cCurrentAlias := aAreas[2]
+    for nI:=1 To Len(aAreas[1])
+        aArea := aAreas[1,nI]
+        if aArea[1] != cCurrentAlias .And. !(aArea[1] $ cIgnore)
+            RestArea(aArea)
+        else
+            nAliasPrincipal := nI // identifica a posicao do alias principal
+        endif
+    next
+    if nAliasPrincipal > 0
+        aArea := aAreas[1,nAliasPrincipal]
+        if !(aArea[1] $ cIgnore)
+            RestArea(aArea) // se houver, restaura o alias principal por último para garantir a integridade do posicionamento
+        endif
+    endif
+
+Return

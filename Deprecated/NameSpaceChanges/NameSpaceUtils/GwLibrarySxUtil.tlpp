@@ -1,0 +1,80 @@
+#include "totvs.ch"
+
+using namespace Gworks.Library.Utils
+
+namespace Gworks.Library.Utils
+
+/*/{Protheus.doc} SxUtilGetAliasByFieldName
+Retorna o Alias de uma tabela com base no nome de um determinado campo.
+@type function
+@version 12.1.22.10
+@author Gworks - Giovani Soares
+@since 5/22/2023
+@param cField, character, Nome do campo, conforme dicionário SX3.
+@return character, Alias da tabela conforme parâmetros de entrada.
+/*/
+User Function SxUtilGetAliasByFieldName( cField as character )
+
+    Local cResult := "" as character
+
+    Default cField
+
+    aField := StrToKarr(cField,"_")
+
+    cResult := aField[1]
+
+    if Len(cResult) == 2
+        cResult := ( "S" + cResult )
+    endif
+
+Return cResult
+
+/*/{Protheus.doc} SxUtilGetFieldPrefixByAlias
+Retorna o prefixo dos campos do dicionário SX3 conforme sua respectiva tabela.
+@type function
+@version 12.1.22.10
+@author Gworks - Giovani Soares
+@since 5/22/2023
+@param cAlias, character, Alias da tabela desejada.
+@return character, Prefixo conforme parâmetros de entrada.
+@example U_SxUtilGetFieldPrefixByAlias("SB1") = "B1_"
+/*/
+User Function SxUtilGetFieldPrefixByAlias( cAlias as character, lUnderline as logical )
+
+    Local cResult := "" as character
+
+    Default cAlias := ""
+    Default lUnderline := .T.
+
+    if Empty(cAlias)
+        Return ""
+    endif
+
+    if Left(cAlias,1) == "S"
+        cResult := Right(cAlias,2)
+    else
+        cResult := cAlias
+    endif
+
+    if lUnderline
+        cResult += "_"
+    endif
+
+Return cResult
+
+/*/{Protheus.doc} SxUtilGetFilialFieldName
+Retorna o nome do campo "_FILIAL" de uma determinada tabela.
+@type function
+@version 12.1.22.10
+@author Gworks - Giovani Soares
+@since 5/22/2023
+@param cAlias, character, Alias da tabela desejada.
+@return character, Nome do campo.
+/*/
+User Function SxUtilGetFilialFieldName( cAlias as character )
+
+    Local cResult := "" as character
+
+    cResult := U_SxUtilGetFieldPrefixByAlias(cAlias) + "FILIAL"
+
+Return cResult

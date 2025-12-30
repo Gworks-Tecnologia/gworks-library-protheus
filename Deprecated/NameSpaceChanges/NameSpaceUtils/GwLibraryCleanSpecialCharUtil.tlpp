@@ -1,0 +1,80 @@
+#include "totvs.ch"
+
+namespace Gworks.Library.Utils
+
+/*/{Protheus.doc} GwCleanSpecialChar
+Remove caracteres especiais de uma string.
+@type function
+@version 12.22010
+@author Gworks - Giovani Soares
+@since 5/4/2023
+@param cString, character, String desejada.
+@param lSpaces, logical, Se .T., indica que espaços devem ser removidos.
+@param lAcentos, logical, Se .T., indica que deve remover acentos.
+@param lAddress, logical, Se .T., indica que é endereço comercial/residêncial.
+@return variant, String formatada.
+/*/
+User Function GwCleanSpecialChar( cString as character, lSpaces as logical, lAcentos as logical, lAddress as logical )
+
+    Local nI := 0 as numeric
+    Local cChar := "" as character
+
+    Local cResult := "" as character
+
+    Default cString  := ""
+    Default lSpaces  := .T.
+    Default lAcentos := .T.
+    Default lAddress := .F.
+    Default aSpecial := { "'" ,;
+                          "#" ,;
+                          "%" ,;
+                          "*" ,;
+                          "&" ,;
+                          ">" ,;
+                          "<" ,;
+                          "!" ,;
+                          "@" ,;
+                          "$" ,;
+                          "(" ,;
+                          ")" ,;
+                          "_" ,;
+                          "=" ,;
+                          "+" ,;
+                          "{" ,;
+                          "}" ,;
+                          "[" ,;
+                          "]" ,;
+                          "/" ,;
+                          "?" ,;
+                          "." ,;
+                          "\" ,;
+                          "|" ,;
+                          ":" ,;
+                          ";" ,;
+                          '"' ,;
+                          '°' ,;
+                          'ª' }
+    if lSpaces
+        aAdd(aSpecial, " ")
+    endif
+
+    if !lAddress
+        aAdd(aSpecial, ",")
+        aAdd(aSpecial, "-")
+    endif
+
+    cResult := cString
+
+    for nI:=1 to Len(aSpecial)
+
+        cChar := aSpecial[nI]
+
+        cResult := StrTran(cResult, cChar, "")
+
+    next
+
+    if lAcentos
+        cResult := FwNoAccent(cResult)
+    endif
+
+Return cResult
