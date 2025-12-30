@@ -1,6 +1,6 @@
 #include "totvs.ch"
 
-/*/{Protheus.doc} LegacyNameSpaceCall
+/*/{Protheus.doc} UtilNameSpaceCall
 Permite a chamada de funções pelo antigo namespace Gworks.Library.Utils que foram migradas para o namespace Gworks.Library.Functions.
 @type function
 @version 12.1.2310
