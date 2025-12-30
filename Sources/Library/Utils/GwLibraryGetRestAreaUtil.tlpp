@@ -1,50 +1,80 @@
 #include "totvs.ch"
 
-namespace Gworks.Library.Utils
+namespace Gworks.Library.Functions
 
-User Function GwGetArea(aAlias,lAliasPrincipal)
+/*/{Protheus.doc} GwGetArea
+Salva a área de uma lista alias informados.
+@type function
+@version 12.1.33
+@author Gworks - Giovani Soares
+@since 12/30/2025
+@param aAlias, array, Lista de alias, ex.: {"SB1","SB5","SC5","SC6"}.
+@param lCurrentAlias, logical, Se .T. (true), irá salvar também a área do alias atualmente em uso.
+@return variant, Retorna lista de alias salvas e seus respectivos id's RECNO e o alias princial.
+/*/
+User Function GwGetArea( aAlias as array, lCurrentAlias as logical )
+
+    Default lCurrentAlias := .T.
+
     Local aAreas as array
     Local cAlias as character
-    Local cAliasPrincipal as character
+    Local cCurrentAlias as character
     Local nI as numeric
     Local nPos as numeric
+
     aAreas := {}
     For nI:=1 To Len(aAlias)
         cAlias := aAlias[nI]
         aAdd(aAreas,(cAlias)->(GetArea()))
     Next
-    If lAliasPrincipal
-        nPos := aScan(aAreas, {|x| x[1] == GetArea()[1]}) // verifica se o alias selecionado já não foi passado via parâmetro aAlias
-        If nPos > 0 // se sim
-            cAliasPrincipal := aAreas[nPos,1] // sinaliza que o Alias em questão é principal
-        Else
-            aAdd(aAreas,GetArea())
-            cAliasPrincipal := aAreas[Len(aAreas),1]
-        EndIf
-    Else
-        cAliasPrincipal := ""
-    EndIf
-Return {aAreas,/*cAliasPrincipal*/cAliasPrincipal}
 
-User Function GwRestArea(aAreas,cIgnore)
+    if lCurrentAlias
+        nPos := aScan(aAreas, {|x| x[1] == GetArea()[1]}) // verifica se o alias selecionado já não foi passado via parâmetro aAlias
+        if nPos > 0 // se sim
+            cCurrentAlias := aAreas[nPos,1] // sinaliza que o Alias em questão é principal
+        else
+            aAdd(aAreas,GetArea())
+            cCurrentAlias := aAreas[Len(aAreas),1]
+        endif
+    else
+        cCurrentAlias := ""
+    endif
+
+Return( {aAreas,cCurrentAlias} )
+
+/*/{Protheus.doc} GwRestArea
+Restaura as áreas conforme retorno de U_GwGetArea().
+@type function
+@version 12.1.33
+@author Gworks - Giovani Soares
+@since 12/30/2025
+@param aAreas, array, Lista de áreas a serem restauradas.
+@param cIgnore, character, Alias a serem ignorados, ex.: "SB1;SB5".
+/*/
+User Function GwRestArea( aAreas as array, cIgnore as character )
+
+    Default cIgnore := ""
+
     Local aArea as array
-    Local cAliasPrincipal as character
+    Local cCurrentAlias as character
     Local nAliasPrincipal as numeric
     Local nI as numeric
-    Default cIgnore := ""
-    cAliasPrincipal := aAreas[2]
-    For nI:=1 To Len(aAreas[1])
+
+
+    cCurrentAlias := aAreas[2]
+    for nI:=1 To Len(aAreas[1])
         aArea := aAreas[1,nI]
-        If aArea[1] != cAliasPrincipal .And. !(aArea[1] $ cIgnore)
+        if aArea[1] != cCurrentAlias .And. !(aArea[1] $ cIgnore)
             RestArea(aArea)
-        Else
+        else
             nAliasPrincipal := nI // identifica a posicao do alias principal
-        EndIf
-    Next
-    If nAliasPrincipal > 0
+        endif
+    next
+    if nAliasPrincipal > 0
         aArea := aAreas[1,nAliasPrincipal]
-        If !(aArea[1] $ cIgnore)
+        if !(aArea[1] $ cIgnore)
             RestArea(aArea) // se houver, restaura o alias principal por último para garantir a integridade do posicionamento
-        EndIf
-    EndIf
+        endif
+    endif
+
 Return

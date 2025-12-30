@@ -1,6 +1,6 @@
-#include "TOTVS.ch"
+#include "totvs.ch"
 
-namespace Gworks.Library.Utils
+namespace Gworks.Library.Functions
 
 /*/{Protheus.doc} GwConfirmNumbering
 Confirma a numeração obtida.

@@ -1,6 +1,6 @@
 #include "totvs.ch"
 
-namespace Gworks.Library.Utils
+namespace Gworks.Library.Functions
 
 /*/{Protheus.doc} GwTReportStruct
 Função utilitária para retornar
@@ -21,7 +21,7 @@ Função utilitária para retornar
     2 - Retorna o tamanho de caracteres a ser considerado pela classe TReport().
 @return variant, Retorno conforme argumento nOpc.
 /*/
-User Function GwTReportStruct( jRetFields as json, cField as character, nOpc as integer)
+User Function GwTReportStruct( jRetFields as json, cField as character, nOpc as integer )
 
     Default jRetFields := nil
     Default cField := ""

@@ -2,7 +2,7 @@
 
 using namespace Gworks.Library.Classes
 
-namespace Gworks.Library.Utils
+namespace Gworks.Library.Functions
 
 Static lBlind__ := ( isBlind() .or. type("CFILANT") == 'U' ) as logical
 
@@ -31,10 +31,7 @@ Função auxiliar para definir o output da mensagem entre error, log ou ambos.
     - error: define a mensagem como erro
     - log: define a mensagem como log
 /*/
-User Function GwSetMessage(;
-                    oError as object,;
-                    oLog as object,;
-                    jMessage as json )
+User Function GwSetMessage( oError as object, oLog as object, jMessage as json )
 
     Local cStyle as character
     Local aNames := jMessage:GetNames() as array

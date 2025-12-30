@@ -2,9 +2,23 @@
 
 using namespace Gworks.Library.Classes
 
-namespace Gworks.Library.Utils
+namespace Gworks.Library.Functions
 
-User Function GwGetFile(xFileType,lSaveDialog,lMemoRead,cDirectory)
+/*/{Protheus.doc} GwGetFile
+Função para seleção de arquivo no Sistema Operacional.
+@type function
+@version 12.1.33
+@author Gworks - Giovani Soares
+@since 12/30/2025
+@param xFileType, variant, Tipo de arquivo a ser considerado, ex.: "Arquivos de texto|*.txt|Bitmaps|*.bmp" (opcional).
+@param lSaveDialog, logical, Se será um SaveDialog (.T.) ou um OpenDialog (.F.).
+@param lMemoRead, logical, Se irá carregar e retornar o conteúdo do arquivo arquivo (.T.), ou não (.F.).
+@param cDirectory, character, Diretório inicial do Sistema Operacional a ser considerado na janela de diálogo de seleção.
+@return character, Caso:
+    lMemoRead == .F. - retorna o caminho absoluto do arquivo selecionado
+    lMemoRead == .T. - retorna o conteúdo do arquivo
+/*/
+User Function GwGetFile( xFileType as variant, lSaveDialog as logical, lMemoRead as logical, cDirectory as character )
 
     Local cFile as character
     Local oError as object
@@ -46,12 +60,3 @@ User Function GwGetFile(xFileType,lSaveDialog,lMemoRead,cDirectory)
     EndIf
 
 Return cFile
-
-
-
-
-
-
-
-
-

@@ -1,6 +1,6 @@
 #include 'totvs.ch'
 
-namespace Gworks.Library.Utils
+namespace Gworks.Library.Functions
 
 /*/{Protheus.doc} fHelp
 Implementação da função Help para exibição de notificações ao usuário com tratativa para uso em rotinas MVC.
@@ -13,7 +13,7 @@ Implementação da função Help para exibição de notificações ao usuário com tratat
 @param oModel, object, modelo de dados (opcional)
 @obs a função help() já trata automaticamente chamadas realizadas por webservice rest no modelo MVC.
 /*/
-User Function GwHelp(cTit,cErro,cSolucao,oModel)
+User Function GwHelp( cTit as character, cErro as character, cSolucao as character, oModel as object )
     Default cTit     := ""
     Default cErro    := ""
     Default cSolucao := ""

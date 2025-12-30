@@ -1,6 +1,6 @@
-#include "TOTVS.ch"
+#include "totvs.ch"
 
-namespace Gworks.Library.Utils
+namespace Gworks.Library.Functions
 
 /*/{Protheus.doc} GwCleanSpecialChar
 Remove caracteres especiais de uma string.
@@ -14,10 +14,7 @@ Remove caracteres especiais de uma string.
 @param lAddress, logical, Se .T., indica que é endereço comercial/residêncial.
 @return variant, String formatada.
 /*/
-User Function GwCleanSpecialChar( cString as character,;
-                                  lSpaces as logical,;
-                                  lAcentos as logical,;
-                                  lAddress as logical )
+User Function GwCleanSpecialChar( cString as character, lSpaces as logical, lAcentos as logical, lAddress as logical )
 
     Local nI := 0 as numeric
     Local cChar := "" as character

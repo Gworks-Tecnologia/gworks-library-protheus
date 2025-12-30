@@ -1,6 +1,6 @@
 #include "tlpp-core.th"
 
-namespace Gworks.Library.Utils
+namespace Gworks.Library.Functions
 
 /*/{Protheus.doc} GwGetMessage
 Monta uma variável de mensagens de maneira estruturada.

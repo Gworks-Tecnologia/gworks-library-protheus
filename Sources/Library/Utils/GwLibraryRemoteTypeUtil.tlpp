@@ -1,6 +1,6 @@
-#include "TLPP-Core.th"
+#include "tlpp-core.th"
 
-namespace Gworks.Library.Utils
+namespace Gworks.Library.Functions
 
 /*/{Protheus.doc} GWRemoteType
 Função para verificar a versão do Sistema Operacional (SO) em uso pelo Protheus.
@@ -16,7 +16,7 @@ Função para verificar a versão do Sistema Operacional (SO) em uso pelo Protheus.
     - MAC
     - UNIX
 /*/
-User Function GwRemoteType(nOpc as numeric)
+User Function GwRemoteType( nOpc as numeric )
 
     Local nType    as numeric
     Local lSrvUnix as logical

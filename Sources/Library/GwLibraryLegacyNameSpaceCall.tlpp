@@ -1,0 +1,111 @@
+#include "totvs.ch"
+
+/*/{Protheus.doc} LegacyNameSpaceCall
+Permite a chamada de funções pelo antigo namespace Gworks.Library.Utils que foram migradas para o namespace Gworks.Library.Functions.
+@type function
+@version 12.1.2310
+@author Gworks - Giovani Soares
+@since 12/30/2025
+/*/
+
+namespace Gworks.Library.Utils
+
+User Function GwCamelCase( cString as character )
+    Local xResult as variant
+    xResult := Gworks.Library.Functions.U_GwCamelCase( cString )
+Return xResult
+
+User Function GwCleanSpecialChar( cString as character, lSpaces as logical, lAcentos as logical, lAddress as logical )
+    Local xResult as variant
+    xResult := Gworks.Library.Functions.U_GwCleanSpecialChar( cString, lSpaces, lAcentos, lAddress )
+Return xResult
+
+User Function GwDbInsertFromArray( cAlias as character, aData as array )
+    Local xResult as variant
+    xResult := Gworks.Library.Functions.U_GwDbInsertFromArray( cAlias, aData )
+Return xResult
+
+User Function GwGetFileNameFromFullPath( cFullPath as character, cToken as character )
+    Local xResult as variant
+    xResult := Gworks.Library.Functions.U_GwGetFileNameFromFullPath( cFullPath, cToken )
+Return xResult
+
+User Function GwGetFile( xFileType as variant, lSaveDialog as logical, lMemoRead as logical, cDirectory as character )
+    Local xResult as variant
+    xResult := Gworks.Library.Functions.U_GwGetFile( xFileType, lSaveDialog, lMemoRead, cDirectory )
+Return xResult
+
+User Function GwGetMessage()
+    Local xResult as variant
+    xResult := Gworks.Library.Functions.U_GwGetMessage()
+Return xResult
+
+User Function GwGetNumbering( cAlias as character, cField as character, cAliasSxe as character, nOrdem as numeric, lRunAsJob as logical, cJobEmpresa as character, cJobFilial as character )
+    Local xResult as variant
+    xResult := Gworks.Library.Functions.U_GwGetNumbering( cAlias, cField, cAliasSxe, nOrdem, lRunAsJob, cJobEmpresa, cJobFilial )
+Return xResult
+
+User Function GwGetArea( aAlias as array, lCurrentAlias as logical )
+    Local xResult as variant
+    xResult := Gworks.Library.Functions.U_GwGetArea( aAlias, lCurrentAlias )
+Return xResult
+
+User Function GwRestArea( aAreas as array, cIgnore as character )
+    Local xResult as variant
+    xResult := Gworks.Library.Functions.U_GwRestArea( aAreas, cIgnore )
+Return xResult
+
+User Function GwHelp( cTit as character, cErro as character, cSolucao as character, oModel as object )
+    Local xResult as variant
+    xResult := Gworks.Library.Functions.U_GwHelp( cTit, cErro, cSolucao, oModel )
+Return xResult
+
+User Function MGetEval( xContent as variant )
+    Local xResult as variant
+    xResult := Gworks.Library.Functions.U_MGetEval( xContent )
+Return xResult
+
+User Function GwOpenDictionary( cDictionary as character, cAlias as character )
+    Local xResult as variant
+    xResult := Gworks.Library.Functions.U_GwOpenDictionary( cDictionary, cAlias )
+Return xResult
+
+User Function GwRemoteType( nOpc as numeric )
+    Local xResult as variant
+    xResult := Gworks.Library.Functions.U_GwRemoteType( nOpc )
+Return xResult
+
+User Function GwRunExecAuto( aData as array, nOperation as variant, cExecAuto as character, cSuccessExpression as character, lRunAsJob as logical, cJobEmpresa as character, cJobFilial as character, cJobModule as character, cJobName as character, aJobTables as array )
+    Local xResult as variant
+    xResult := Gworks.Library.Functions.U_GwRunExecAuto( aData, nOperation, cExecAuto, cSuccessExpression, lRunAsJob, cJobEmpresa, cJobFilial, cJobModule, cJobName, aJobTables )
+Return xResult
+
+User Function GwGetSequence( cCampo as character, cPrefixo as character, cFamilia as character, lReboot as logical, lEmpCode as logical )
+    Local xResult as variant
+    xResult := Gworks.Library.Functions.U_GwGetSequence( cCampo, cPrefixo, cFamilia, lReboot, lEmpCode )
+Return xResult
+
+User Function GwSetMessage( oError as object, oLog as object, jMessage as json )
+    Local xResult as variant
+    xResult := Gworks.Library.Functions.U_GwSetMessage( oError, oLog, jMessage )
+Return xResult
+
+User Function SxUtilGetAliasByFieldName( cField as character )
+    Local xResult as variant
+    xResult := Gworks.Library.Functions.U_SxUtilGetAliasByFieldName( cField )
+Return xResult
+
+User Function SxUtilGetFieldPrefixByAlias( cAlias as character, lUnderline as logical )
+    Local xResult as variant
+    xResult := Gworks.Library.Functions.U_SxUtilGetFieldPrefixByAlias( cAlias, lUnderline )
+Return xResult
+
+User Function SxUtilGetFilialFieldName( cAlias as character )
+    Local xResult as variant
+    xResult := Gworks.Library.Functions.U_SxUtilGetFilialFieldName( cAlias )
+Return xResult
+
+User Function GwTReportStruct( jRetFields as json, cField as character, nOpc as integer )
+    Local xResult as variant
+    xResult := Gworks.Library.Functions.U_GwTReportStruct( jRetFields, cField, nOpc )
+Return xResult

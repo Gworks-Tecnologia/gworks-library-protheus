@@ -1,8 +1,8 @@
-#include "TOTVS.ch"
+#include "totvs.ch"
 
-using namespace Gworks.Library.Utils
+using namespace Gworks.Library.Functions
 
-namespace Gworks.Library.Utils
+namespace Gworks.Library.Functions
 
 /*/{Protheus.doc} SxUtilGetAliasByFieldName
 Retorna o Alias de uma tabela com base no nome de um determinado campo.

@@ -8,7 +8,7 @@
 #define FIELD_NAME 1
 #define FIELD_CONTENT 2
 
-namespace Gworks.Library.Utils
+namespace Gworks.Library.Functions
 
 /*/{Protheus.doc} GwDbInsertFromArray
 Insere registros em uma tabela do banco de dados
@@ -20,7 +20,7 @@ Insere registros em uma tabela do banco de dados
 @param aData, array, array de elementos no formato {{"NOME_COLUNA","CONTEUDO"}}, ex.: {{"CT1_FILIAL","0101"},{"CT1_CONTA","1321548112"}}
 @return logical, se .T. rotina executada com sucesso, se .F. com falhas
 /*/
-User Function GwDbInsertFromArray(cAlias,aData)
+User Function GwDbInsertFromArray( cAlias as character, aData as array )
 
     Local aArea as array
     Local nI as numeric

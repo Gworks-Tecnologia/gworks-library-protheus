@@ -1,6 +1,6 @@
-#include "TOTVS.ch"
+#include "totvs.ch"
 
-namespace Gworks.Library.Utils
+namespace Gworks.Library.Functions
 
 /*/{Protheus.doc} MGetEval
 Função auxiliar para permitir selecionar vários registros
@@ -12,7 +12,7 @@ separados por ";" (ponto e vírgula) em consultas padrões do sistema.
 @param xContent, variant, conteúdo retornardo pela consulta padrão
 @return variant, conteúdo contatenado com ;
 /*/
-User Function MGetEval(xContent as variant)
+User Function MGetEval( xContent as variant )
 
     Local _xRet as variant
 

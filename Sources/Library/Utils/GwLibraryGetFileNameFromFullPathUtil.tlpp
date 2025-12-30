@@ -1,8 +1,8 @@
-#include "TOTVS.ch"
+#include "totvs.ch"
 
 Static cToken__ := "" as character // melhoria de performance
 
-namespace Gworks.Library.Utils
+namespace Gworks.Library.Functions
 
 /*/{Protheus.doc} GwGetFileNameFromFullPath
 Retorna o nome de um arquivo com base em um diretório absoluto.

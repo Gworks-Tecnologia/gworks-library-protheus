@@ -1,14 +1,13 @@
-#include "protheus.ch"
+#include "totvs.ch"
 
 using namespace Gworks.Library.Classes
 
-namespace Gworks.Library.Utils
+namespace Gworks.Library.Functions
 
 Static oSequence__ := nil as object
 
 /*/{Protheus.doc} GwGetSequence
-Função para criar números sequênciais com possibilidade de fazer o controle
-sequêncial por prefixos.
+Função para criar números sequênciais com possibilidade de fazer o controle sequêncial por prefixos.
 @type function
 @author Giovani
 @since 17/03/2021
