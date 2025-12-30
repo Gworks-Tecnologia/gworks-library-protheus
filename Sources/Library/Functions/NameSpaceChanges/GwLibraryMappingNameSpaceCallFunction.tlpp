@@ -1,0 +1,21 @@
+#include "totvs.ch"
+
+/*/{Protheus.doc} MappingNameSpaceCallFunction
+Permite a chamada de funções pelo antigo namespace Gworks.Library.Mapping que foram migradas para o namespace Gworks.Library.Functions.
+@type function
+@version 12.1.2310
+@author Gworks - Giovani Soares
+@since 12/30/2025
+/*/
+
+namespace Gworks.Library.Mapping
+
+User Function GwGetDbFieldMapping( aTabelas as array, cLang as character, cDtFields as character, lInvert as logical )
+    Local xResult as variant
+    xResult := Gworks.Library.Functions.U_GwGetDbFieldMapping( aTabelas, cLang, cDtFields, lInvert )
+Return xResult
+
+User Function User Function GwGetDbTableMapping(aTabelas as array, cLang as character, lInvert as logical)
+    Local xResult as variant
+    xResult := Gworks.Library.Functions.U_GwGetDbTableMapping(aTabelas, cLang, lInvert)
+Return xResult
