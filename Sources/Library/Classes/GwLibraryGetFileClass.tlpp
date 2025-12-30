@@ -306,6 +306,14 @@ Method OpenDialog() as logical Class GwGetFile
 
 Return lResult
 
+/*/{Protheus.doc} GwGetFile::GetResult
+Método para retornar o resultado da seleção de arquivo(s) conforme OpenDialog().
+@type method
+@version 12.1.2410
+@author Gworks - Giovani Soares
+@since 12/30/2025
+@return variant, Retorna o diretório do arquivo ou array de diretórios.
+/*/
 Method GetResult() Class GwGetFile
 
     Local xResult as variant
