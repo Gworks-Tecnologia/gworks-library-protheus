@@ -1,4 +1,4 @@
-#include "TLPP-Core.th"
+#include "tlpp-core.th"
 
 namespace Gworks.Library.Functions
 

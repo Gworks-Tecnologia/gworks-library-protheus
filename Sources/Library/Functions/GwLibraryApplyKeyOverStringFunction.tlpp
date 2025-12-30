@@ -1,4 +1,4 @@
-#include "TOTVS.ch"
+#include "totvs.ch"
 
 namespace Gworks.Library.Functions
 
