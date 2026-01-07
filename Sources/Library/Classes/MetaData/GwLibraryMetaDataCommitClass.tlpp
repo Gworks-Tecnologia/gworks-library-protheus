@@ -18,7 +18,7 @@ Static cSx2_Can_Update__ := "X2_NOME;X2_NOMESPA;X2_NOMEENG;"
 Static cSx3_Req_Fields__ := "X3_ARQUIVO;X3_ORDEM;X3_CAMPO;X3_TIPO;X3_TAMANHO;X3_DECIMAL;X3_TITULO;X3_TITSPA;X3_TITENG;X3_DESCRIC;X3_DESCSPA;X3_DESCENG;X3_VISUAL;X3_CONTEXT;X3_OBRIGAT;"
 
 // Campos que podem ser atualizados na SX3
-Static cSx3_Can_Update__ := "X3_ORDEM;X3_TIPO;X3_TAMANHO;X3_DECIMAL;X3_TITULO;X3_TITSPA;X3_TITENG;X3_DESCRIC;X3_DESCSPA;X3_DESCENG;X3_PICTURE;X3_VALID;X3_USADO;X3_RELACAO;X3_F3;X3_NIVEL;X3_RESERV;X3_CHECK;X3_TRIGGER;X3_PROPRI;X3_BROWSE;X3_VISUAL;X3_OBRIGAT;X3_VLDUSER;X3_CBOX;X3_CBOXSPA;X3_CBOXENG;X3_PICTVAR;X3_WHEN;X3_INIBRW;X3_GRPSXG;X3_FOLDER;X3_AGRUP;"
+Static cSx3_Can_Update__ := "X3_ORDEM;X3_TITULO;X3_TITSPA;X3_TITENG;X3_DESCRIC;X3_DESCSPA;X3_DESCENG;X3_PICTURE;X3_VALID;X3_USADO;X3_RELACAO;X3_F3;X3_NIVEL;X3_RESERV;X3_CHECK;X3_TRIGGER;X3_PROPRI;X3_BROWSE;X3_VISUAL;X3_OBRIGAT;X3_VLDUSER;X3_CBOX;X3_CBOXSPA;X3_CBOXENG;X3_PICTVAR;X3_WHEN;X3_INIBRW;X3_GRPSXG;X3_FOLDER;X3_AGRUP;"
 
 // Campos obrigatórios (required) da SIX
 Static cSix_Req_Fields__ := "INDICE;ORDEM;CHAVE;DESCRICAO;DESCSPA;DESCENG;PROPRI;"
@@ -26,6 +26,13 @@ Static cSix_Req_Fields__ := "INDICE;ORDEM;CHAVE;DESCRICAO;DESCSPA;DESCENG;PROPRI
 // Campos que podem ser atualizados na SIX
 Static cSix_Can_Update__ := "DESCRICAO;DESCSPA;DESCENG;NICKNAME;SHOWPESQ;"
 
+/*/{Protheus.doc} GwMetaDataCommit
+Classe auxiliar à classe GwMetaData() para definição dos métodos de persistência em base de dados.
+@type class
+@version 12.1.2410
+@author Gworks - Giovani
+@since 12/18/2025
+/*/
 Class GwMetaDataCommit
 
     Public Data jCommit as json
@@ -86,7 +93,7 @@ Method VldData() Class GwMetaDataCommit
         for nI:=1 to len(aTables)
             jData := aTables[nI]
             nOrder := 2 // X2_ARQUIVO
-            cSeek := jData["X2_CHAVE"]+cEmpAnt
+            cSeek := jData["X2_ARQUIVO"]
             if!( lResult := fValid( "SX2", @jData, nOrder, cSeek) )
                 cError := iif( !jData["info"]["status"], jData["info"]["message"], "Unexpected error to valid SX2 table struct..." )
                 lResult := .F.
@@ -115,7 +122,6 @@ Method VldData() Class GwMetaDataCommit
                 BREAK
             endif
         next
-
 
     END SEQUENCE
 
@@ -622,8 +628,8 @@ Static Function fGetMessage( cAlias as character, nOperation as integer, cInvali
     endif
 
     do case
-        case cAlias $ "SX2;SX3" .and. nOperation == MODEL_OPERATION_INSERT ; cResult := 'Required fields not found. These fields are: "'+ cInvalidFields +'"'
-        case cAlias $ "SX2;SX3" .and. nOperation == MODEL_OPERATION_UPDATE ; cResult := 'There are fields that cannot be changed automatically. These fields are: "'+ cInvalidFields +'"'
+        case cAlias $ "SX2/SX3/SIX" .and. nOperation == MODEL_OPERATION_INSERT ; cResult := 'Required fields not found. These fields are: "'+ cInvalidFields +'"'
+        case cAlias $ "SX2/SX3/SIX" .and. nOperation == MODEL_OPERATION_UPDATE ; cResult := 'There are fields that cannot be changed automatically. These fields are: "'+ cInvalidFields +'"'
     endcase
 
 Return cResult

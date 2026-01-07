@@ -261,7 +261,7 @@ Method AddTable( jTable as json ) Class GwMetaData
     jSX2 := JsonObject():New()
         jSX2["X2_CHAVE"] := jTable["alias"]
         jSX2["X2_PATH"] := STR_SPACE
-        jSX2["X2_ARQUIVO"] := jTable["alias"]+cEmpAnt
+        jSX2["X2_ARQUIVO"] := jTable["alias"]+cEmpAnt+"0"
         jSX2["X2_NOME"] := jTable["name"]
         jSX2["X2_NOMESPA"] := iif( aScan(aNames, "name_sp") > 0, jTable["name_sp"], jTable["name"] )
         jSX2["X2_NOMEENG"] := iif( aScan(aNames, "name_eng") > 0, jTable["name_eng"], jTable["name"] )
