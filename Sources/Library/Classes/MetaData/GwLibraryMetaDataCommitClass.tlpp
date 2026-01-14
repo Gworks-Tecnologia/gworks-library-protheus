@@ -771,7 +771,11 @@ Static Function fGetChange( cAlias as character, nOperation as integer, cFieldNa
             cResult := cFieldName
 
         case nOperation == MODEL_OPERATION_UPDATE
-            cResult := iif( xOldContent != xNewContent, cFieldName, "" )
+            if valType(xOldContent) == valType(xNewContent)
+                cResult := iif( xOldContent != xNewContent, cFieldName, "" )
+            else
+                UserException("GwMetaDataCommit:fGetChange - Incompatible data types between old and new cont for field" + cFieldName + ".")
+            endif
 
     endcase
 
