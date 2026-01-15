@@ -1,0 +1,82 @@
+#include "totvs.ch"
+
+namespace Gworks.Library.Functions
+
+Static cAliases__ := "" as character
+
+/*/{Protheus.doc} GwPosicione
+Posiciona em uma tabela conforme chave de busca desejada.
+@type function
+@version 12.1.2410
+@author Gworks - Giovani Soares
+@since 1/15/2026
+@param cAlias, character, Alias da tabela a ser considerada.
+@param nOrder, numeric, Ordem do índice de busca.
+@param cSeek, character, Chave de busca desejada.
+@param bBlock, codeblock, Bloco de código a ser executado caso a busca tenha sido realizada com sucesso.
+@param lAutoFil, logical, Se .T. (true) irá concatenar automaticamente o código da filial na chave de busca.
+@param lForceSeek, logical,
+    Determina entre:
+        - Se .T. (true) não irá avaliar o registro atualmente posicionado com a chave de busca;
+        - Se .F. (false) irá avaliar o registro atualmente posicionado com a chave de busca;
+    Obs.:
+        1. Argumento opcional com valor padrão definido em .F.;
+        2. Para maior performance, deixe em .F., considerando é um custo de I/O menor comparar
+           o registro posicionado com a chave de busca do que proceder com uma nova busca avaliando
+           toda a tabela novamente.
+
+@return variant, Retorno lógico (true/false) conforme resutlado da busca ou o valor da execução de bBlock (se informado).
+/*/
+User Function GwPosicione( cAlias as character,;
+                           nOrder as numeric,;
+                           cSeek as character,;
+                           bBlock as codeblock,;
+                           lAutoFil as logical,;
+                           lForceSeek as logical )
+
+    Default bBlock := nil
+    Default lAutoFil := .T.
+    Default lForceSeek := .F.
+
+    Local xResult as variant
+    Local lSeek as logical
+
+    // Abandona execução se cSeek estiver vazio
+    if empty(cSeek)
+        return .F.
+    endif
+
+    // Seleciona a tabelas conforme Alias informado
+    if (cAlias $ cAliases__)
+        cAliases__ += (cAlias+";")
+        if( select(cAlias) == 0 )
+            dbSelectArea(cAlias)
+        endif
+    endif
+
+    // Define o índice de busca
+    if( IndexOrd() != nOrder )
+        (cAlias)->(dbSetOrder(nOrder))
+        (cAlias)->(dbGoTop())
+    endif
+
+    // Obtem a chave do índice
+    cIndexKey := (cAlias)->(IndexKey(nOrder))
+
+    // Avalia se deve concatenar o código de filial na chave de busca
+    cSeek := iif(lAutoFil, xFilial(cAlias)+cSeek, "")
+
+    if( lForceSeek .or. ( (cAlias)->&(cIndexKey) != cSeek ) ) // comparar o registro posicionado com a chave de busca desejada
+        lSeek := (cAlias)->(msSeek(cSeek)) // ...realiza a busca conforme cSeek
+    else
+        lSeek := .T. // ...entende que já está posicionado no registro correto e não realiza nova busca
+    endif
+
+    // Avalia necessidade de execução de bBlock
+    if( lSeek .and. bBlock != nil )
+        xResult := eval(bBlock,lSeek)
+    else
+        xResult := lSeek
+    endif
+
+Return xResult
