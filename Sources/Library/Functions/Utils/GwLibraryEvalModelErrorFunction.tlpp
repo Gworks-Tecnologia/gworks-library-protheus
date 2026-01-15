@@ -1,0 +1,53 @@
+#include "totvs.ch"
+
+namespace Gworks.Library.Functions
+
+/*/{Protheus.doc} GwEvalModelError
+Função para avaliar se o estado de erro de um determinado modelo de dados MVC.
+@type function
+@version 12.1.2410
+@author Gworks - Giovani Soares
+@since 1/15/2026
+@param oModel, object, Modelo de dados MVC a ser considerado.
+@param cStyle, character, Tipo da mensagem de erro a ser exibida, entre:
+    - INFO....: FwAlertInfo()
+    - STOP....: FwAlertError()
+    - ALERT...: FwAlertWarning()
+@param cTitle, character, Título da mensagem de erro.
+@return logical, Se .T. (true) indica que o modelo não possui erros e .F. caso contrário.
+/*/
+User Function GwEvalModelError( oModel as object, cStyle as character, cTitle as character )
+
+    Default cTitle := nil
+    Default cStyle := "ALERT"
+    Default cDefault := ""
+
+    Local lResult as logical
+    Local aMessage as array
+    Local cMessage as character
+    Local cDetalhe as character
+
+    aMessage := oModel:GetErrorMessage(.T./*lClear*/)
+    do case
+        case !empty(aMessage[6]) .and.  empty(aMessage[7]) ; cMessage := aMessage[6]
+        case !empty(aMessage[6]) .and. !empty(aMessage[7]) ; cMessage := aMessage[6]+CRLF+aMessage[7]
+    endcase
+
+    cDetalhe := ""
+    cDetalhe += iif( !empty(aMessage[3]), CRLF+"ID Submodelo: " + aMessage[3], "" )
+    cDetalhe += iif( !empty(aMessage[4]), CRLF+"Campo: " + aMessage[4], "" )
+    cDetalhe += iif( !empty(aMessage[5]), CRLF+"ID: " + aMessage[5], "" )
+    cMessage += iif( !empty(cDetalhe)   , CRLF+cDetalhe, "" )
+
+    if !empty(cMessage)
+        do case
+            case allTrim(upper(cStyle)) == "INFO" ; FwAlertInfo(cMessage,cTitle)
+            case allTrim(upper(cStyle)) == "STOP" ; FwAlertError(cMessage,cTitle)
+            case allTrim(upper(cStyle)) == "ALERT"; FwAlertWarning(cMessage,cTitle)
+        endcase
+        lResult := .F.
+    else
+        lResult := .T.
+    endif
+
+Return lResult
