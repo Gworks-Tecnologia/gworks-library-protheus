@@ -833,8 +833,9 @@ Static Function fGetOperationStatus( cAlias as character, jData as json, jRetInf
         cObjectAlias := left(cObjectName,3)
         if( TCObject( cObjectName, @cObjectType ) )
             dbSelectArea(cObjectAlias)
+            (cObjectAlias)->(dbGoTop())
                 lObjectExist := .T. // objeto existe na base de dados
-                lObjectEmpty := ( (cObjectAlias)->(LastRec()) == 0 ) // o objeto está vazio
+                lObjectEmpty := (cObjectAlias)->(eof()) // o objeto está vazio
             (cObjectAlias)->(dbCloseArea())
         else
             lObjectExist := .F. // objeto nao existe na base de dados
