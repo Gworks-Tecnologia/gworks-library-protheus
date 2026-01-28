@@ -282,7 +282,7 @@ Method AddTable( jTable as json ) Class GwMetaData
         jSX2["X2_AUTREC"] := STR_SPACE
         jSX2["X2_TAMFIL"] := ::nLenBranch
         jSX2["X2_TAMUN"] := 0
-        jSX2["X2_TAMEMP"] := ::nLenCompay
+        jSX2["X2_TAMEMP"] := 0 // ::nLenCompay
         jSX2["X2_STAMP"] := STR_SPACE
         jSX2["X2_INSDT"] := STR_SPACE
 
