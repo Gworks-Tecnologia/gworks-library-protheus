@@ -17,8 +17,8 @@ Posiciona em uma tabela conforme chave de busca desejada.
 @param lAutoFil, logical, Se .T. (true) irá concatenar automaticamente o código da filial na chave de busca.
 @param lForceSeek, logical,
     Determina entre:
-        - Se .T. (true) não irá avaliar o registro atualmente posicionado com a chave de busca;
-        - Se .F. (false) irá avaliar o registro atualmente posicionado com a chave de busca;
+        - Se .T. (true) sempre irá realizar uma nova busca;
+        - Se .F. (false) antes de realizar nova busca, avalia se o registro atualmente posicionado já não corresponde com a chave a ser localizada.
     Obs.:
         1. Argumento opcional com valor padrão definido em .F.;
         2. Para maior performance, deixe em .F., considerando é um custo de I/O menor comparar
