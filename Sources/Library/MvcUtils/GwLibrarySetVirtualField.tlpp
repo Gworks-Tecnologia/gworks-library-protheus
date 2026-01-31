@@ -1,0 +1,153 @@
+#include "totvs.ch"
+#define OPC_MODEL 1
+#define OPC_VIEW 2
+
+using namespace Gworks.Library.Functions
+
+namespace Gworks.Library.MvcUtils
+
+/*/{Protheus.doc} GwSetVirtualField
+Função para simplificar e normatizar a criação de campos virtuais em formulários do framework MVC.
+@type function
+@version 12.1.2410
+@author Gworks - Giovani
+@since 1/31/2026
+@param nOpc, numeric, Opção entre:
+    1 - Cria campo para o model conforme FwFormModelStruct();
+    2 - Cria campo para a view conforme FwFormViewStruct().
+@param oStr, object, Objeto FwFormModelStruct() ou FwFormViewStruct().
+@param jField, json, Estrutura em jSon do campo a ser criado, conforme:
+    {
+        "cReference": <character>,
+        "cName": <character>,
+        "cSeq": <character>,
+        "bValid": <codeBlock>,
+        "bWhen": <codeBlock>,
+        "bInit": <codeBlock>,
+        "cTitle": <character>,
+        "cTooltip": <character>,
+        "cType": <character>,
+        "nLen": <character>,
+        "nDecimal": <integer>,
+        "lRequired": <logical>,
+        "lCanChange": <logical>,
+        "aCombo": <array>
+    }
+@obs É recomendada a passagem do argumento oStr via referência de memória.
+@return logical, Retorna .T. (true) para sucesso na operação e .F. (false) em falhas.
+/*/
+User Function GwSetVirtualField( nOpc as integer, oStr as object, jField as json )
+
+    Default oStr := nil
+    Default jField := JsonObject():New()
+
+	Local cObj := "" as character
+	Local aCampos := {} as array
+
+	Local bInit := {||} as codeblock
+	Local nI := 0 as numeric
+
+    Local cArgs as character
+    Local lArgs as logical
+    Local lRef as logical
+    Local cCombo as character
+    Local aCombo as array
+
+    cArgs := +;
+        "cReference" +;
+        "cName" +;
+        "cSeq" +;
+        "bValid" +;
+        "bWhen" +;
+        "bInit" +;
+        "cTitle" +;
+        "cTooltip" +;
+        "cType" +;
+        "nLen" +;
+        "nDecimal" +;
+        "lRequired" +;
+        "lCanChange" +;
+        "aCombo"
+
+    aNames := jField:getNames()
+    aEval( aNames, {|cName| lArgs := iif( !allTrim(upper(cName)) $ cArgs, .F., lArgs ) } )
+    if!( lArgs )
+        return .F.
+    endif
+
+    lRef := .F.
+    if !(GwOpenDictionary("SX3","SX3DIC"))
+		return .F.
+	endif
+	DbSelectArea("SX3DIC")
+	SX3DIC->(DbSetOrder(2)) // X3_CAMPO
+    SX3DIC->(DbGoTop())
+    if( SX3DIC->(msSeek(jField["cReference"])) )
+        lRef := .T.
+    endif
+
+	do case
+
+        case nOpc == 1 // Model
+
+            jModel := JsonObject():New()
+            jModel["cTitulo"] := iif( lRef, (SX3DIC)->&("X3_TITULO"), jField["cTitle"] )
+            jModel["cToolTip"] := iif( lRef, (SX3DIC)->&("X3_DESCRIC"), jField["cToolTip"] )
+            jModel["cNome"] := jField["cName"]
+            jModel["cTipo"] := iif( lRef, (SX3DIC)->&("X3_TIPO"), jField["cType"] )
+            jModel["nTamanho"] := iif( lRef, (SX3DIC)->&("X3_TAMANHO"), jField["nLen"] )
+            jModel["nDecimal"] := iif( lRef, (SX3DIC)->&("X3_DECIMAL"), jField["nDecimal"] )
+            jModel["bValidação"] := jField["bValid"]
+            jModel["bWhen"] := jField["bWhen"]
+            jModel["aCombo"] := nil // necessãrio ser tratado apenas pela View
+            jModel["lObrigat"] := jField["lRequired"]
+            jModel["bInit"] := jField["bInit"]
+            jModel["lKey"] := .F.
+            jModel["lNoUpd"] := .F. //!jField["lCanChange"]
+            jModel["lVirtual"] := .T.
+            jModel["cValid"] := ""
+
+            oStr:AddField( ;
+                jModel["cTitulo"],jModel["cToolTip"],jModel["cNome"],;
+                jModel["cTipo"],jModel["nTamanho"],jModel["nDecimal"],;
+                jModel["bValidação"],jModel["bWhen"],jModel["aCombo"],;
+                jModel["lObrigat"],jModel["bInit"],jModel["lKey"],;
+                jModel["lNoUpd"],jModel["lVirtual"],jModel["cValid"]
+            )
+
+		case nOpc == 2 // View
+
+            cCombo := iif( lRef, allTrim(SX3DIC->X3_CBOX), jField["aCombo"] )
+            aCombo := iif( !empty(allTrim(cCombo)), strToKarr(allTrim(cCombo),";"), {} )
+
+            jView["cNome"] := jField["cName"]
+            jView["cOrdem"] := jField["cSeq"]
+            jView["cTitulo"] := iif( lRef, SX3DIC->&("X3_TITULO"), jField["cTitle"] )
+            jView["cTooltip"] := iif( lRef, SX3DIC->&("X3_DESCRIC"), jField["cToolTip"] )
+            jView["aHelp"] := {""}
+            jView["cTipo"] := SX3DIC->&("X3_TIPO")
+            jView["cPicture"] := SX3DIC->&("X3_PICTURE")
+            jView["bPictureVar"] := nil
+            jView["cF3"] := SX3DIC->&("X3_F3")
+            jView["lCanChange"] := jField["lCanChange"]
+            jView["cFolder"] := ""
+            jView["cAgrupamento"] := ""
+            jView["aCombo"] := aCombo
+            jView["nMaxCombo"] := nil
+            jView["cIniBrow"] :=
+            jView["lVirtual"] := .T.
+            jView["cPictVar"] := nil
+            jView["lInsertLine"] := .F.
+            jView["nWidth"] := nil
+
+            oStr:AddField(;
+                jView["cOrdem"],jView["cTitulo"],jView["cTooltip"],jView["aHelp"],;
+                jView["cTipo"],jView["cPicture"],jView["bPictureVar"],jView["cF3"],;
+                jView["lCanChange"],jView["cFolder"],jView["cAgrupamento"],;
+                jView["aCombo"],jView["nMaxCombo"],jView["cIniBrow"],jView["lVirtual"],;
+                jView["cPictVar"],jView["lInsertLine"],jView["nWidth"]
+            )
+
+		endcase
+
+Return .T.
