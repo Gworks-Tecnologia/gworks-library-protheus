@@ -1,0 +1,109 @@
+#include "totvs.ch"
+
+#define OPC_MODEL 1
+#define OPC_VIEW 2
+
+namespace Gworks.Library.MvcUtils
+
+/*/{Protheus.doc} GwSetGridCaption
+Função para simplificar a criação de campos do tipo legenda em uma Grid do Framework MVC.
+@type function
+@version 12.1.2410
+@author Gworks - Giovani
+@since 1/31/2026
+@param nOpc, numeric, Opção entre:
+    1 - Cria campo para o model conforme FwFormModelStruct();
+    2 - Cria campo para a view conforme FwFormViewStruct().
+@param cName, character, Nome do Campo, ex.: "Z01_STATUS".
+@param cOrder, character, Ordem de exibição do campo na Grid, se não informado assume a ordem "00".
+@param bInit, codeblock, Bloco de código de inicialização do campo.
+@param oStr, object, Objeto FwFormModelStruct() ou FwFormViewStruct().
+@obs Informar o argumento oStr via referência de memória.
+@return logical, Retorna .T. (true) para sucesso na operação e .F. (false) em falhas.
+/*/
+User Function GwSetGridCaption( nOpc as integer, cName as character, cOrder as character, bInit as codeblock, oStr as object )
+
+    Default nOpc := 0
+    Default cName := ""
+    Default cOrder := "00"
+    Default oStr := nil
+
+    Local jModel as json
+    Local jView as json
+
+    if( alltrim(str(nOpc)) $ "1/2" )
+        return .F.
+    endif
+
+    if( type(oStr) != "O" )
+        return .F.
+    endif
+
+    if( empty(cName) )
+        return .F.
+    endif
+
+    do case
+
+        case nOpc == OPC_MODEL
+
+            jModel := JsonObject():New()
+            jModel["cTitulo"] := ""
+            jModel["cToolTip"] := ""
+            jModel["cNome"] := cName
+            jModel["cTipo"] := "C"
+            jModel["nTamanho"] := 0
+            jModel["nDecimal"] := 0
+            jModel["bValid"] := {||.T.}
+            jModel["bWhen"] := {||.F.}
+            jModel["aCombo"] := nil
+            jModel["lObrigat"] := .F.
+            jModel["bInit"] := bInit
+            jModel["lKey"] := .F.
+            jModel["lNoUpd"] := .F.
+            jModel["lVirtual"] := .T.
+            jModel["cValid"] := ""
+
+            oStr:AddField( ;
+                jModel["cTitulo"],jModel["cToolTip"],jModel["cNome"],;
+                jModel["cTipo"],jModel["nTamanho"],jModel["nDecimal"],;
+                jModel["bValid"],jModel["bWhen"],jModel["aCombo"],;
+                jModel["lObrigat"],jModel["bInit"],jModel["lKey"],;
+                jModel["lNoUpd"],jModel["lVirtual"],jModel["cValid"]
+            )
+
+        case nOpc == OPC_VIEW
+
+            jView := JsonObject():New()
+            jView["cNome"] := cName
+            jView["cOrdem"] := "00"
+            jView["cTitulo"] := ""
+            jView["cTooltip"] := ""
+            jView["aHelp"] := {""}
+            jView["cTipo"] := "C"
+            jView["cPicture"] := "@BMP"
+            jView["bPictureVar"] := nil
+            jView["cF3"] := ""
+            jView["lCanChange"] := .F.
+            jView["cFolder"] := ""
+            jView["cAgrupamento"] := ""
+            jView["aCombo"] := {}
+            jView["nMaxCombo"] := nil
+            jView["cIniBrow"] := ""
+            jView["lVirtual"] := .T.
+            jView["cPictVar"] := nil
+            jView["lInsertLine"] := .F.
+            jView["nWidth"] := nil
+
+            oStr:AddField(;
+                jView["cOrdem"],jView["cTitulo"],jView["cTooltip"],jView["aHelp"],;
+                jView["cTipo"],jView["cPicture"],jView["bPictureVar"],jView["cF3"],;
+                jView["lCanChange"],jView["cFolder"],jView["cAgrupamento"],;
+                jView["aCombo"],jView["nMaxCombo"],jView["cIniBrow"],jView["lVirtual"],;
+                jView["cPictVar"],jView["lInsertLine"],jView["nWidth"]
+            )
+
+
+    endcase
+
+Return .T.
