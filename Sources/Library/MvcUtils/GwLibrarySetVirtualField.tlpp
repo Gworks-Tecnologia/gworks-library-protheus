@@ -15,7 +15,6 @@ Função para simplificar e normatizar a criação de campos virtuais em formulários
 @param nOpc, numeric, Opção entre:
     1 - Cria campo para o model conforme FwFormModelStruct();
     2 - Cria campo para a view conforme FwFormViewStruct().
-@param oStr, object, Objeto FwFormModelStruct() ou FwFormViewStruct().
 @param jField, json, Estrutura em jSon do campo a ser criado, conforme:
     {
         "cReference": <character>,
@@ -33,25 +32,30 @@ Função para simplificar e normatizar a criação de campos virtuais em formulários
         "lCanChange": <logical>,
         "aCombo": <array>
     }
-@obs É recomendada a passagem do argumento oStr via referência de memória.
+@param oStr, object, Objeto FwFormModelStruct() ou FwFormViewStruct().
+@obs Informar o argumento oStr via referência de memória.
 @return logical, Retorna .T. (true) para sucesso na operação e .F. (false) em falhas.
 /*/
-User Function GwSetVirtualField( nOpc as integer, oStr as object, jField as json )
+User Function GwSetVirtualField( nOpc as integer, jField as json, oStr as object )
 
+    Default jField := JsonObject():New() as json
     Default oStr := nil
-    Default jField := JsonObject():New()
 
-	Local cObj := "" as character
-	Local aCampos := {} as array
-
-	Local bInit := {||} as codeblock
-	Local nI := 0 as numeric
-
+    Local jModel as json
+    Local jView as json
     Local cArgs as character
     Local lArgs as logical
     Local lRef as logical
     Local cCombo as character
     Local aCombo as array
+
+    if( alltrim(str(nOpc)) $ "1/2" )
+        return .F.
+    endif
+
+    if( type(oStr) != "O" )
+        return .F.
+    endif
 
     cArgs := +;
         "cReference" +;
@@ -68,7 +72,6 @@ User Function GwSetVirtualField( nOpc as integer, oStr as object, jField as json
         "lRequired" +;
         "lCanChange" +;
         "aCombo"
-
     aNames := jField:getNames()
     aEval( aNames, {|cName| lArgs := iif( !allTrim(upper(cName)) $ cArgs, .F., lArgs ) } )
     if!( lArgs )
@@ -97,7 +100,7 @@ User Function GwSetVirtualField( nOpc as integer, oStr as object, jField as json
             jModel["cTipo"] := iif( lRef, (SX3DIC)->&("X3_TIPO"), jField["cType"] )
             jModel["nTamanho"] := iif( lRef, (SX3DIC)->&("X3_TAMANHO"), jField["nLen"] )
             jModel["nDecimal"] := iif( lRef, (SX3DIC)->&("X3_DECIMAL"), jField["nDecimal"] )
-            jModel["bValidação"] := jField["bValid"]
+            jModel["bValid"] := jField["bValid"]
             jModel["bWhen"] := jField["bWhen"]
             jModel["aCombo"] := nil // necessãrio ser tratado apenas pela View
             jModel["lObrigat"] := jField["lRequired"]
@@ -106,11 +109,10 @@ User Function GwSetVirtualField( nOpc as integer, oStr as object, jField as json
             jModel["lNoUpd"] := .F. //!jField["lCanChange"]
             jModel["lVirtual"] := .T.
             jModel["cValid"] := ""
-
             oStr:AddField( ;
                 jModel["cTitulo"],jModel["cToolTip"],jModel["cNome"],;
                 jModel["cTipo"],jModel["nTamanho"],jModel["nDecimal"],;
-                jModel["bValidação"],jModel["bWhen"],jModel["aCombo"],;
+                jModel["bValid"],jModel["bWhen"],jModel["aCombo"],;
                 jModel["lObrigat"],jModel["bInit"],jModel["lKey"],;
                 jModel["lNoUpd"],jModel["lVirtual"],jModel["cValid"]
             )
@@ -120,6 +122,7 @@ User Function GwSetVirtualField( nOpc as integer, oStr as object, jField as json
             cCombo := iif( lRef, allTrim(SX3DIC->X3_CBOX), jField["aCombo"] )
             aCombo := iif( !empty(allTrim(cCombo)), strToKarr(allTrim(cCombo),";"), {} )
 
+            jView := JsonObject():New()
             jView["cNome"] := jField["cName"]
             jView["cOrdem"] := jField["cSeq"]
             jView["cTitulo"] := iif( lRef, SX3DIC->&("X3_TITULO"), jField["cTitle"] )
@@ -139,7 +142,6 @@ User Function GwSetVirtualField( nOpc as integer, oStr as object, jField as json
             jView["cPictVar"] := nil
             jView["lInsertLine"] := .F.
             jView["nWidth"] := nil
-
             oStr:AddField(;
                 jView["cOrdem"],jView["cTitulo"],jView["cTooltip"],jView["aHelp"],;
                 jView["cTipo"],jView["cPicture"],jView["bPictureVar"],jView["cF3"],;
@@ -148,6 +150,6 @@ User Function GwSetVirtualField( nOpc as integer, oStr as object, jField as json
                 jView["cPictVar"],jView["lInsertLine"],jView["nWidth"]
             )
 
-		endcase
+    endcase
 
 Return .T.
