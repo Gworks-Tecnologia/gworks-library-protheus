@@ -1,4 +1,5 @@
 #include "totvs.ch"
+
 #define OPC_MODEL 1
 #define OPC_VIEW 2
 
@@ -38,7 +39,7 @@ Função para simplificar e normatizar a criação de campos virtuais em formulários
 /*/
 User Function GwSetVirtualField( nOpc as integer, jField as json, oStr as object )
 
-    Default jField := JsonObject():New() as json
+    Default jField := JsonObject():New()
     Default oStr := nil
 
     Local jModel as json
@@ -57,7 +58,7 @@ User Function GwSetVirtualField( nOpc as integer, jField as json, oStr as object
         return .F.
     endif
 
-    cArgs := +;
+    cArgs := ;
         "cReference" +;
         "cName" +;
         "cSeq" +;
@@ -114,7 +115,7 @@ User Function GwSetVirtualField( nOpc as integer, jField as json, oStr as object
                 jModel["cTipo"],jModel["nTamanho"],jModel["nDecimal"],;
                 jModel["bValid"],jModel["bWhen"],jModel["aCombo"],;
                 jModel["lObrigat"],jModel["bInit"],jModel["lKey"],;
-                jModel["lNoUpd"],jModel["lVirtual"],jModel["cValid"]
+                jModel["lNoUpd"],jModel["lVirtual"],jModel["cValid"];
             )
 
 		case nOpc == 2 // View
@@ -137,7 +138,7 @@ User Function GwSetVirtualField( nOpc as integer, jField as json, oStr as object
             jView["cAgrupamento"] := ""
             jView["aCombo"] := aCombo
             jView["nMaxCombo"] := nil
-            jView["cIniBrow"] :=
+            jView["cIniBrow"] := ""
             jView["lVirtual"] := .T.
             jView["cPictVar"] := nil
             jView["lInsertLine"] := .F.
@@ -147,7 +148,7 @@ User Function GwSetVirtualField( nOpc as integer, jField as json, oStr as object
                 jView["cTipo"],jView["cPicture"],jView["bPictureVar"],jView["cF3"],;
                 jView["lCanChange"],jView["cFolder"],jView["cAgrupamento"],;
                 jView["aCombo"],jView["nMaxCombo"],jView["cIniBrow"],jView["lVirtual"],;
-                jView["cPictVar"],jView["lInsertLine"],jView["nWidth"]
+                jView["cPictVar"],jView["lInsertLine"],jView["nWidth"];
             )
 
     endcase

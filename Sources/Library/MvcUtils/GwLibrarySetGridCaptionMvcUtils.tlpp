@@ -52,7 +52,7 @@ User Function GwSetGridCaption( nOpc as integer, cName as character, cOrder as c
             jModel["cToolTip"] := ""
             jModel["cNome"] := cName
             jModel["cTipo"] := "C"
-            jModel["nTamanho"] := 0
+            jModel["nTamanho"] := 50
             jModel["nDecimal"] := 0
             jModel["bValid"] := {||.T.}
             jModel["bWhen"] := {||.F.}
@@ -69,7 +69,7 @@ User Function GwSetGridCaption( nOpc as integer, cName as character, cOrder as c
                 jModel["cTipo"],jModel["nTamanho"],jModel["nDecimal"],;
                 jModel["bValid"],jModel["bWhen"],jModel["aCombo"],;
                 jModel["lObrigat"],jModel["bInit"],jModel["lKey"],;
-                jModel["lNoUpd"],jModel["lVirtual"],jModel["cValid"]
+                jModel["lNoUpd"],jModel["lVirtual"],jModel["cValid"];
             )
 
         case nOpc == OPC_VIEW
@@ -100,7 +100,7 @@ User Function GwSetGridCaption( nOpc as integer, cName as character, cOrder as c
                 jView["cTipo"],jView["cPicture"],jView["bPictureVar"],jView["cF3"],;
                 jView["lCanChange"],jView["cFolder"],jView["cAgrupamento"],;
                 jView["aCombo"],jView["nMaxCombo"],jView["cIniBrow"],jView["lVirtual"],;
-                jView["cPictVar"],jView["lInsertLine"],jView["nWidth"]
+                jView["cPictVar"],jView["lInsertLine"],jView["nWidth"];
             )
 
 
