@@ -44,35 +44,38 @@ User Function GwSetVirtualField( nOpc as integer, jField as json, oStr as object
 
     Local jModel as json
     Local jView as json
+    Local aNames as array
     Local cArgs as character
     Local lArgs as logical
     Local lRef as logical
     Local cCombo as character
     Local aCombo as array
 
-    if( alltrim(str(nOpc)) $ "1/2" )
+    if!( alltrim(str(nOpc)) $ "1/2" )
         return .F.
     endif
 
-    if( type(oStr) != "O" )
+    if( valType(oStr) != "O" )
         return .F.
     endif
 
     cArgs := ;
-        "cReference" +;
-        "cName" +;
-        "cSeq" +;
-        "bValid" +;
-        "bWhen" +;
-        "bInit" +;
-        "cTitle" +;
-        "cTooltip" +;
-        "cType" +;
-        "nLen" +;
-        "nDecimal" +;
-        "lRequired" +;
-        "lCanChange" +;
-        "aCombo"
+        "cReference;" +;
+        "cName;" +;
+        "cSeq;" +;
+        "bValid;" +;
+        "bWhen;" +;
+        "bInit;" +;
+        "cTitle;" +;
+        "cTooltip;" +;
+        "cType;" +;
+        "nLen;" +;
+        "nDecimal;" +;
+        "lRequired;" +;
+        "lCanChange;" +;
+        "aCombo;"
+    cArgs := upper(cArgs)
+    lArgs := .T.
     aNames := jField:getNames()
     aEval( aNames, {|cName| lArgs := iif( !allTrim(upper(cName)) $ cArgs, .F., lArgs ) } )
     if!( lArgs )
@@ -95,27 +98,37 @@ User Function GwSetVirtualField( nOpc as integer, jField as json, oStr as object
         case nOpc == 1 // Model
 
             jModel := JsonObject():New()
-            jModel["cTitulo"] := iif( lRef, (SX3DIC)->&("X3_TITULO"), jField["cTitle"] )
+            jModel["cTitle"] := iif( lRef, (SX3DIC)->&("X3_TITULO"), jField["cTitle"] )
             jModel["cToolTip"] := iif( lRef, (SX3DIC)->&("X3_DESCRIC"), jField["cToolTip"] )
-            jModel["cNome"] := jField["cName"]
-            jModel["cTipo"] := iif( lRef, (SX3DIC)->&("X3_TIPO"), jField["cType"] )
-            jModel["nTamanho"] := iif( lRef, (SX3DIC)->&("X3_TAMANHO"), jField["nLen"] )
+            jModel["cName"] := jField["cName"]
+            jModel["cType"] := iif( lRef, (SX3DIC)->&("X3_TIPO"), jField["cType"] )
+            jModel["nLen"] := iif( lRef, (SX3DIC)->&("X3_TAMANHO"), jField["nLen"] )
             jModel["nDecimal"] := iif( lRef, (SX3DIC)->&("X3_DECIMAL"), jField["nDecimal"] )
             jModel["bValid"] := jField["bValid"]
             jModel["bWhen"] := jField["bWhen"]
             jModel["aCombo"] := nil // necessãrio ser tratado apenas pela View
-            jModel["lObrigat"] := jField["lRequired"]
+            jModel["lRequired"] := jField["lRequired"]
             jModel["bInit"] := jField["bInit"]
             jModel["lKey"] := .F.
             jModel["lNoUpd"] := .F. //!jField["lCanChange"]
             jModel["lVirtual"] := .T.
             jModel["cValid"] := ""
             oStr:AddField( ;
-                jModel["cTitulo"],jModel["cToolTip"],jModel["cNome"],;
-                jModel["cTipo"],jModel["nTamanho"],jModel["nDecimal"],;
-                jModel["bValid"],jModel["bWhen"],jModel["aCombo"],;
-                jModel["lObrigat"],jModel["bInit"],jModel["lKey"],;
-                jModel["lNoUpd"],jModel["lVirtual"],jModel["cValid"];
+                jModel["cTitle"],;
+                jModel["cToolTip"],;
+                jModel["cName"],;
+                jModel["cType"],;
+                jModel["nLen"],;
+                jModel["nDecimal"],;
+                jModel["bValid"],;
+                jModel["bWhen"],;
+                jModel["aCombo"],;
+                jModel["lRequired"],;
+                jModel["bInit"],;
+                jModel["lKey"],;
+                jModel["lNoUpd"],;
+                jModel["lVirtual"],;
+                jModel["cValid"];
             )
 
 		case nOpc == 2 // View
@@ -124,12 +137,12 @@ User Function GwSetVirtualField( nOpc as integer, jField as json, oStr as object
             aCombo := iif( !empty(allTrim(cCombo)), strToKarr(allTrim(cCombo),";"), {} )
 
             jView := JsonObject():New()
-            jView["cNome"] := jField["cName"]
-            jView["cOrdem"] := jField["cSeq"]
-            jView["cTitulo"] := iif( lRef, SX3DIC->&("X3_TITULO"), jField["cTitle"] )
+            jView["cName"] := jField["cName"]
+            jView["cSeq"] := jField["cSeq"]
+            jView["cTitle"] := iif( lRef, SX3DIC->&("X3_TITULO"), jField["cTitle"] )
             jView["cTooltip"] := iif( lRef, SX3DIC->&("X3_DESCRIC"), jField["cToolTip"] )
             jView["aHelp"] := {""}
-            jView["cTipo"] := SX3DIC->&("X3_TIPO")
+            jView["cType"] := SX3DIC->&("X3_TIPO")
             jView["cPicture"] := SX3DIC->&("X3_PICTURE")
             jView["bPictureVar"] := nil
             jView["cF3"] := SX3DIC->&("X3_F3")
@@ -144,11 +157,25 @@ User Function GwSetVirtualField( nOpc as integer, jField as json, oStr as object
             jView["lInsertLine"] := .F.
             jView["nWidth"] := nil
             oStr:AddField(;
-                jView["cOrdem"],jView["cTitulo"],jView["cTooltip"],jView["aHelp"],;
-                jView["cTipo"],jView["cPicture"],jView["bPictureVar"],jView["cF3"],;
-                jView["lCanChange"],jView["cFolder"],jView["cAgrupamento"],;
-                jView["aCombo"],jView["nMaxCombo"],jView["cIniBrow"],jView["lVirtual"],;
-                jView["cPictVar"],jView["lInsertLine"],jView["nWidth"];
+                jView["cName"],;
+                jView["cSeq"],;
+                jView["cTitle"],;
+                jView["cTooltip"],;
+                jView["aHelp"],;
+                jView["cType"],;
+                jView["cPicture"],;
+                jView["bPictureVar"],;
+                jView["cF3"],;
+                jView["lCanChange"],;
+                jView["cFolder"],;
+                jView["cAgrupamento"],;
+                jView["aCombo"],;
+                jView["nMaxCombo"],;
+                jView["cIniBrow"],;
+                jView["lVirtual"],;
+                jView["cPictVar"],;
+                jView["lInsertLine"],;
+                jView["nWidth"];
             )
 
     endcase

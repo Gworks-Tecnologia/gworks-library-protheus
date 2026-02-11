@@ -21,25 +21,31 @@ Função para simplificar a criação de campos do tipo legenda em uma Grid do Frame
 @obs Informar o argumento oStr via referência de memória.
 @return logical, Retorna .T. (true) para sucesso na operação e .F. (false) em falhas.
 /*/
-User Function GwSetGridCaption( nOpc as integer, cName as character, cOrder as character, bInit as codeblock, oStr as object )
+User Function GwSetGridCaption( nOpc as integer, jParam as json, oStr as object )
 
     Default nOpc := 0
-    Default cName := ""
-    Default cOrder := "00"
+    Default jParam := JsonObject():New()
     Default oStr := nil
 
     Local jModel as json
     Local jView as json
+    Local aNames as array
+    Local cArgs as character
+    Local lArgs as logical
 
-    if( alltrim(str(nOpc)) $ "1/2" )
+    if!( alltrim(str(nOpc)) $ "1/2" )
         return .F.
     endif
 
-    if( type(oStr) != "O" )
+    if( valType(oStr) != "O" )
         return .F.
     endif
 
-    if( empty(cName) )
+    cArgs := upper("cName;cOrder;bInit;cTitle;cToolTip;")
+    lArgs := .T.
+    aNames := jParam:getNames()
+    aEval( aNames, {|cName| lArgs := iif( !allTrim(upper(cName)) $ cArgs, .F., lArgs ) } )
+    if!( lArgs )
         return .F.
     endif
 
@@ -48,9 +54,9 @@ User Function GwSetGridCaption( nOpc as integer, cName as character, cOrder as c
         case nOpc == OPC_MODEL
 
             jModel := JsonObject():New()
-            jModel["cTitulo"] := ""
-            jModel["cToolTip"] := ""
-            jModel["cNome"] := cName
+            jModel["cTitle"] := jParam["cTitle"]
+            jModel["cToolTip"] := jParam["cToolTip"]
+            jModel["cName"] := jParam["cName"]
             jModel["cTipo"] := "C"
             jModel["nTamanho"] := 50
             jModel["nDecimal"] := 0
@@ -58,27 +64,36 @@ User Function GwSetGridCaption( nOpc as integer, cName as character, cOrder as c
             jModel["bWhen"] := {||.F.}
             jModel["aCombo"] := nil
             jModel["lObrigat"] := .F.
-            jModel["bInit"] := bInit
+            jModel["bInit"] := jParam["bInit"]
             jModel["lKey"] := .F.
             jModel["lNoUpd"] := .F.
             jModel["lVirtual"] := .T.
             jModel["cValid"] := ""
-
             oStr:AddField( ;
-                jModel["cTitulo"],jModel["cToolTip"],jModel["cNome"],;
-                jModel["cTipo"],jModel["nTamanho"],jModel["nDecimal"],;
-                jModel["bValid"],jModel["bWhen"],jModel["aCombo"],;
-                jModel["lObrigat"],jModel["bInit"],jModel["lKey"],;
-                jModel["lNoUpd"],jModel["lVirtual"],jModel["cValid"];
+                jModel["cTitle"],;
+                jModel["cToolTip"],;
+                jModel["cName"],;
+                jModel["cTipo"],;
+                jModel["nTamanho"],;
+                jModel["nDecimal"],;
+                jModel["bValid"],;
+                jModel["bWhen"],;
+                jModel["aCombo"],;
+                jModel["lObrigat"],;
+                jModel["bInit"],;
+                jModel["lKey"],;
+                jModel["lNoUpd"],;
+                jModel["lVirtual"],;
+                jModel["cValid"];
             )
 
         case nOpc == OPC_VIEW
 
             jView := JsonObject():New()
-            jView["cNome"] := cName
-            jView["cOrdem"] := "00"
-            jView["cTitulo"] := ""
-            jView["cTooltip"] := ""
+            jView["cName"] := jParam["cName"]
+            jView["cOrder"] := jParam["cOrder"]
+            jView["cTitle"] := jParam["cTitle"]
+            jView["cTooltip"] := jParam["cToolTip"]
             jView["aHelp"] := {""}
             jView["cTipo"] := "C"
             jView["cPicture"] := "@BMP"
@@ -94,15 +109,27 @@ User Function GwSetGridCaption( nOpc as integer, cName as character, cOrder as c
             jView["cPictVar"] := nil
             jView["lInsertLine"] := .F.
             jView["nWidth"] := nil
-
             oStr:AddField(;
-                jView["cOrdem"],jView["cTitulo"],jView["cTooltip"],jView["aHelp"],;
-                jView["cTipo"],jView["cPicture"],jView["bPictureVar"],jView["cF3"],;
-                jView["lCanChange"],jView["cFolder"],jView["cAgrupamento"],;
-                jView["aCombo"],jView["nMaxCombo"],jView["cIniBrow"],jView["lVirtual"],;
-                jView["cPictVar"],jView["lInsertLine"],jView["nWidth"];
+                jView["cName"],;
+                jView["cOrder"],;
+                jView["cTitle"],;
+                jView["cTooltip"],;
+                jView["aHelp"],;
+                jView["cTipo"],;
+                jView["cPicture"],;
+                jView["bPictureVar"],;
+                jView["cF3"],;
+                jView["lCanChange"],;
+                jView["cFolder"],;
+                jView["cAgrupamento"],;
+                jView["aCombo"],;
+                jView["nMaxCombo"],;
+                jView["cIniBrow"],;
+                jView["lVirtual"],;
+                jView["cPictVar"],;
+                jView["lInsertLine"],;
+                jView["nWidth"];
             )
-
 
     endcase
 
