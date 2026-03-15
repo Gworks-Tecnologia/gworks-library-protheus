@@ -278,6 +278,10 @@ Method SetProperty( cProperty as character, xValue as variant ) Class GwMessagin
         endif
     endif
 
+    if( cProperty == "error_state" )
+        ::oError:DefineWithError( xValue )
+    endif
+
     if( ::lAutoLogMessage ;
         .and. cProperty == "error_message" )
 
