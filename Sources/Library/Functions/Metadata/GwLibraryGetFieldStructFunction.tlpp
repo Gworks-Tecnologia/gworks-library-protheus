@@ -27,7 +27,7 @@ Função para retornar a estrutura do dicionário de dados de um determinado campo.
 @author Gworks - Giovani Soares
 @since 26/02/2024
 @history 16/03/2026, Gworks - Giovani Soares,
-    Função refatorada, a função legada foi mantida no namespace "Gworks.Library.Legacy.Functions".
+    Função refatorada, a função legada foi mantida no namespace "Gworks.Library.Legacy.Functions.ref01".
 @param cField, character, Nome do campo do dicionário de dados a ser retornado.
 @return variant, Retorno possíveis:
     1. se cProperty não for informado, retorna toda a estrutura em json conforme formato a seguir:
