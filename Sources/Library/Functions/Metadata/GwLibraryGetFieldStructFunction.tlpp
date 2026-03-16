@@ -5,79 +5,106 @@ using namespace Gworks.Library.Utils
 
 namespace Gworks.Library.Functions
 
+Static aFields__ := JsonObject():New() as json
+Static cProps__ :=  "X3_ARQUIVO;" +;
+                    "X3_ORDEM;" +;
+                    "X3_CAMPO;" +;
+                    "X3_TIPO;" +;
+                    "X3_TAMANHO;" +;
+                    "X3_DECIMAL;" +;
+                    "X3_TITULO;" +;
+                    "X3_DESCRIC;" +;
+                    "X3_PICTURE;" +;
+                    "X3_NIVEL;" +;
+                    "X3_CONTEXT;" +;
+                    "X3_VISUAL;" +;
+                    "X3_OBRIGAT;" as character
+
 /*/{Protheus.doc} GwGetFieldStruct
-Obtem a estrutura do dicionário de dados de um ou mais campos conforme argumento.
+Função para retornar a estrutura do dicionário de dados de um determinado campo.
 @type function
 @version 12.1.2210
 @author Gworks - Giovani Soares
 @since 26/02/2024
-@param cField, character, Campo(s) a obter a estrutura de dicionário.
-@return array, Estrutura do(s) campos(s) conforme dicionário SX3.
+@history 16/03/2026, Gworks - Giovani Soares,
+    Função refatorada, a função legada foi mantida no namespace "Gworks.Library.Legacy.Functions".
+@param cField, character, Nome do campo do dicionário de dados a ser retornado.
+@return variant, Retorno possíveis:
+    1. se cProperty não for informado, retorna toda a estrutura em json conforme formato a seguir:
+        {
+            "X3_ARQUIVO": string,
+            "X3_ORDEM": string,
+            "X3_CAMPO": string,
+            "X3_TIPO": string,
+            "X3_TAMANHO": string,
+            "X3_DECIMAL": string,
+            "X3_TITULO": string,
+            "X3_DESCRIC": string,
+            "X3_PICTURE": string,
+            "X3_NIVEL": string,
+            "X3_CONTEXT": string,
+            "X3_VISUAL": string,
+            "X3_OBRIGAT": string
+        }
+    2. se cProperty for informado, apenas retorna o conteúdo referente a mesma.
 /*/
-User Function GwGetFieldStruct( cField as character )
+User Function GwGetFieldStruct( cField as character, cProperty as character )
 
-    Local oStruct as object
-    Local oFields as object
-    Local oError as object
+    Default cField := ""
+    Default cProperty := ""
 
-    oError := GwError():Create()
-    oError:cError := "Erro indefinido ao ler o dicionário de dados SX3."
-    oError:cSuggestion := "Entre em contato com o suporte técnico."
-    oError:cTitleError := "GwGetFieldStruct"
-    oError:lError := .F.
+    Local xResult as variant
 
-    cField := Upper(AllTrim(cField))
-    oFields := GwKeyValue():New()
+    Local aArea := GetArea() as array
+    Local aAreaSX3 := ("SX3")->(GetArea()) as array
 
-    TRY
-        If !u_GwOpenDictionary("SX3","X3DIC")
-            oError:SetError("Erro ao ler o dicionário de dados SX3.",;
-                            "Tente novamente em instantes ou entre em contato com o suporte técnico.",;
-                            "GwGetFieldStruct")
-            oError:ShowError()
-            THROW oError
-        EndIf
+    Local lFull := empty(cProperty) as logical
 
-        X3DIC->(DbSetOrder(2)) // X3_CAMPO
-        If !X3DIC->(MsSeek(cAlias))
-            oError:SetError("Alias " + cAlias + " inexistente no dicionário de dados SX3.",;
-                            "Informe outro alias na chamada da função ou entre em contato com o suporte técnico.",;
-                            "GwGetFieldStruct")
-            oError:ShowError()
-            THROW oError
-        EndIf
+    cField := upper(allTrim(cField))
+    if empty(cField)
+        UserException("GwGetFieldStruct - Invalid cField param...")
+    endif
 
-        While !X3DIC->(EOF()) ;
-            .And. AllTrim(X3DIC->X3_CAMPO) $ cField
+    cProperty := upper(allTrim(cProperty))
+    if !lFull .and. !(cProperty $ cProps__)
+        UserException("GwGetFieldStruct - Invalid cProperty param...")
+    endif
 
-            oStruct := GwKeyValue():New()
+    if( valType(aFields__[cField]) != "U" )
 
-            oStruct:Add("X3_ARQUIVO", AllTrim(X3DIC->&("X3_ARQUIVO")))
-            oStruct:Add("X3_ORDEM", AllTrim(X3DIC->&("X3_ORDEM")))
-            oStruct:Add("X3_CAMPO", AllTrim(X3DIC->&("X3_CAMPO")))
-            oStruct:Add("X3_TIPO", AllTrim(X3DIC->&("X3_TIPO")))
-            oStruct:Add("X3_TAMANHO", AllTrim(X3DIC->&("X3_TAMANHO")))
-            oStruct:Add("X3_DECIMAL", AllTrim(X3DIC->&("X3_DECIMAL")))
-            oStruct:Add("X3_TITULO", AllTrim(X3DIC->&("X3_TITULO")))
-            oStruct:Add("X3_DESCRIC", AllTrim(X3DIC->&("X3_DESCRIC")))
-            oStruct:Add("X3_PICTURE", AllTrim(X3DIC->&("X3_PICTURE")))
-            oStruct:Add("X3_NIVEL", AllTrim(X3DIC->&("X3_NIVEL")))
-            oStruct:Add("X3_CONTEXT", AllTrim(X3DIC->&("X3_CONTEXT")))
-            oStruct:Add("X3_VISUAL", AllTrim(X3DIC->&("X3_VISUAL")))
-            oStruct:Add("X3_OBRIGAT", AllTrim(X3DIC->&("X3_OBRIGAT")))
+        xResult := iif( lFull, aFields__[cField], aFields__[cField][cProperty] )
 
-            oFields:Add( AllTrim(X3DIC->X3_CAMPO), oStruct )
+    else
 
-            X3DIC->(DbSkip())
+        if!(U_GwOpenDictionary("SX3","X3DIC"))
+            UserException("GwGetFieldStruct - Failed to position the SX3 table in the data dictionary...")
+        endif
 
-        EndDo
+        X3DIC->(dbSetOrder(2)) // X3_CAMPO
+        if!(X3DIC->(msSeek(cField)))
+            UserException("GwGetFieldStruct - Failed to position field" +' "'+ cField +'"...')
+        endif
 
-    CATCH oError
-        oError:ShowError()
-    FINALLY
-        If Select("X3DIC")
-            X3DIC->(DbCloseArea())
-        EndIf
-    ENDTRY
+        aFields__[cField] := JsonObject():New()
+        aFields__[cField]["X3_ARQUIVO"] := allTrim(X3DIC->&("X3_ARQUIVO"))
+        aFields__[cField]["X3_ORDEM"] := allTrim(X3DIC->&("X3_ORDEM"))
+        aFields__[cField]["X3_CAMPO"] := allTrim(X3DIC->&("X3_CAMPO"))
+        aFields__[cField]["X3_TIPO"] := allTrim(X3DIC->&("X3_TIPO"))
+        aFields__[cField]["X3_TAMANHO"] := allTrim(X3DIC->&("X3_TAMANHO"))
+        aFields__[cField]["X3_DECIMAL"] := allTrim(X3DIC->&("X3_DECIMAL"))
+        aFields__[cField]["X3_TITULO"] := allTrim(X3DIC->&("X3_TITULO"))
+        aFields__[cField]["X3_DESCRIC"] := allTrim(X3DIC->&("X3_DESCRIC"))
+        aFields__[cField]["X3_PICTURE"] := allTrim(X3DIC->&("X3_PICTURE"))
+        aFields__[cField]["X3_NIVEL"] := allTrim(X3DIC->&("X3_NIVEL"))
+        aFields__[cField]["X3_CONTEXT"] := allTrim(X3DIC->&("X3_CONTEXT"))
+        aFields__[cField]["X3_VISUAL"] := allTrim(X3DIC->&("X3_VISUAL"))
+        aFields__[cField]["X3_OBRIGAT"] := allTrim(X3DIC->&("X3_OBRIGAT"))
 
-Return oFields
+        X3DIC->(DbCloseArea())
+
+    endif
+
+    RestArea(aAreaSX3)
+    RestArea(aArea)
+
+Return xResult
