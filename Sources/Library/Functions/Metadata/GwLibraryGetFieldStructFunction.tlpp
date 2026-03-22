@@ -18,7 +18,8 @@ Static cProps__ :=  "X3_ARQUIVO;" +;
                     "X3_NIVEL;" +;
                     "X3_CONTEXT;" +;
                     "X3_VISUAL;" +;
-                    "X3_OBRIGAT;" as character
+                    "X3_OBRIGAT;" +;
+                    "X3_USADO" as character
 
 /*/{Protheus.doc} GwGetFieldStruct
 Função para retornar a estrutura do dicionário de dados de um determinado campo.
@@ -86,8 +87,8 @@ User Function GwGetFieldStruct( cField as character, cProperty as character )
         aFields__[cField]["X3_ORDEM"] := allTrim(X3DIC->&("X3_ORDEM"))
         aFields__[cField]["X3_CAMPO"] := allTrim(X3DIC->&("X3_CAMPO"))
         aFields__[cField]["X3_TIPO"] := allTrim(X3DIC->&("X3_TIPO"))
-        aFields__[cField]["X3_TAMANHO"] := allTrim(X3DIC->&("X3_TAMANHO"))
-        aFields__[cField]["X3_DECIMAL"] := allTrim(X3DIC->&("X3_DECIMAL"))
+        aFields__[cField]["X3_TAMANHO"] := X3DIC->&("X3_TAMANHO")
+        aFields__[cField]["X3_DECIMAL"] := X3DIC->&("X3_DECIMAL")
         aFields__[cField]["X3_TITULO"] := allTrim(X3DIC->&("X3_TITULO"))
         aFields__[cField]["X3_DESCRIC"] := allTrim(X3DIC->&("X3_DESCRIC"))
         aFields__[cField]["X3_PICTURE"] := allTrim(X3DIC->&("X3_PICTURE"))
@@ -95,6 +96,7 @@ User Function GwGetFieldStruct( cField as character, cProperty as character )
         aFields__[cField]["X3_CONTEXT"] := allTrim(X3DIC->&("X3_CONTEXT"))
         aFields__[cField]["X3_VISUAL"] := allTrim(X3DIC->&("X3_VISUAL"))
         aFields__[cField]["X3_OBRIGAT"] := allTrim(X3DIC->&("X3_OBRIGAT"))
+        aFields__[cField]["X3_USADO"] := x3Usado(cField)
 
         X3DIC->(DbCloseArea())
 
