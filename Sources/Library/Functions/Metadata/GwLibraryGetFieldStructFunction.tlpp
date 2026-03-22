@@ -70,11 +70,7 @@ User Function GwGetFieldStruct( cField as character, cProperty as character )
         UserException("GwGetFieldStruct - Invalid cProperty param...")
     endif
 
-    if( valType(aFields__[cField]) != "U" )
-
-        xResult := iif( lFull, aFields__[cField], aFields__[cField][cProperty] )
-
-    else
+    if( valType(aFields__[cField]) == "U" )
 
         if!(U_GwOpenDictionary("SX3","X3DIC"))
             UserException("GwGetFieldStruct - Failed to position the SX3 table in the data dictionary...")
@@ -103,6 +99,8 @@ User Function GwGetFieldStruct( cField as character, cProperty as character )
         X3DIC->(DbCloseArea())
 
     endif
+
+    xResult := iif( lFull, aFields__[cField], aFields__[cField][cProperty] )
 
     RestArea(aAreaSX3)
     RestArea(aArea)
