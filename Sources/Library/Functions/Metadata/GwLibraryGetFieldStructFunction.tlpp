@@ -15,6 +15,7 @@ Static cProps__ :=  "X3_ARQUIVO;" +;
                     "X3_TITULO;" +;
                     "X3_DESCRIC;" +;
                     "X3_PICTURE;" +;
+                    "X3_F3;" +;
                     "X3_NIVEL;" +;
                     "X3_CONTEXT;" +;
                     "X3_VISUAL;" +;
@@ -92,6 +93,7 @@ User Function GwGetFieldStruct( cField as character, cProperty as character )
         aFields__[cField]["X3_TITULO"] := allTrim(X3DIC->&("X3_TITULO"))
         aFields__[cField]["X3_DESCRIC"] := allTrim(X3DIC->&("X3_DESCRIC"))
         aFields__[cField]["X3_PICTURE"] := allTrim(X3DIC->&("X3_PICTURE"))
+        aFields__[cField]["X3_F3"] := allTrim(X3DIC->&("X3_F3"))
         aFields__[cField]["X3_NIVEL"] := allTrim(X3DIC->&("X3_NIVEL"))
         aFields__[cField]["X3_CONTEXT"] := allTrim(X3DIC->&("X3_CONTEXT"))
         aFields__[cField]["X3_VISUAL"] := allTrim(X3DIC->&("X3_VISUAL"))
