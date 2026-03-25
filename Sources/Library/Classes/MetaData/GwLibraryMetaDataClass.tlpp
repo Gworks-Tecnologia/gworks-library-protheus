@@ -25,6 +25,7 @@ Class GwMetaData From GwMetaDataCommit
 
     Public Data jMetaData as json
     Public Data nLenBranch as integer
+    Public Data nLenUnit as integer
     Public Data nLenCompay as integer
 
     Private Data lCommitInit as logical
@@ -48,6 +49,7 @@ Class GwMetaData From GwMetaDataCommit
 
     // Métodos privados da classe
     Private Method Init()
+    Private Method GetBranchLayout()
     Private Method SeekAttr( cMetaName as character, cMetaField as character, xContent as variant, nRetPos as integer ) as logical
     Private Method GetFieldPrefix( cAlias as character, cRetPrefix as character ) as logical
     Private Method SetFieldBranch()
@@ -83,8 +85,8 @@ Method Init() Class GwMetaData
         UserException("GwMetaData:Init - Environment not defined...")
     endif
 
-    ::nLenCompay := len(cEmpAnt)
-    ::nLenBranch := len(cFilAnt)
+    ::GetBranchLayout()
+
     ::jMetaData := JsonObject():New()
         ::jMetaData["tables"] := {} // sx2
         ::jMetaData["fields"] := {} // sx3
@@ -92,6 +94,50 @@ Method Init() Class GwMetaData
         ::jMetaData["triggers"] := {} // sx7
         ::jMetaData["folders"] := {} // sxa
         ::jMetaData["parameters"] := {} // sx6
+
+Return
+
+Method GetBranchLayout() Class GwMetaData
+
+    Local aArea := GetArea() as array
+    Local cAlias := GetNextAlias() as character
+    Local cLayout as character
+    Local nI as integer
+
+    BeginSql alias cAlias
+        SELECT
+            SM0.M0_LEIAUTE
+        FROM
+            SYS_COMPANY SM0
+        WHERE
+            SM0.M0_CODIGO = %exp:cEmpAnt%
+            AND SM0.M0_CODFIL = %exp:cFilAnt%
+            AND SM0.%notDel%
+    endSql
+
+    dbSelectArea(cAlias)
+
+    if (cAlias)->(eof())
+        UserException("GwMetaData:GetBranchLayout - Invalid branch code.")
+    endif
+
+    cLayout := allTrim((cAlias)->M0_LEIAUTE)
+
+    (cAlias)->(dbCloseArea())
+
+    ::nLenBranch := 0
+    ::nLenUnit := 0
+    ::nLenCompay := 0
+    for nI:=1 to len(cLayout)
+        cChar := subStr(cLayout,nI,1)
+        do case
+            case cChar == "E" ; ::nLenBranch += 1
+            case cChar == "U" ; ::nLenUnit += 1
+            case cChar == "F" ; ::nLenCompay += 1
+        endcase
+    next
+
+    RestArea(aArea)
 
 Return
 
@@ -281,7 +327,7 @@ Method AddTable( jTable as json ) Class GwMetaData
         jSX2["X2_CLOB"] := STR_SPACE
         jSX2["X2_AUTREC"] := STR_SPACE
         jSX2["X2_TAMFIL"] := ::nLenBranch
-        jSX2["X2_TAMUN"] := 0
+        jSX2["X2_TAMUN"] := ::nLenUnit
         jSX2["X2_TAMEMP"] := ::nLenCompay
         jSX2["X2_STAMP"] := STR_SPACE
         jSX2["X2_INSDT"] := STR_SPACE
