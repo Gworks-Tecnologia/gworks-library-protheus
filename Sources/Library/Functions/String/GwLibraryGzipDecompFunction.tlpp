@@ -1,0 +1,40 @@
+#include "totvs.ch"
+
+namespace Gworks.Library.Functions
+
+/*/{Protheus.doc} GwGZipDecomp
+Função simplificada para descompactar strings no formato GZip (GNU Zip).
+@type function
+@version 12.1.2410
+@author Gworks - Giovani Soares
+@since 3/27/2026
+@param lDecode64, variant, Se .T. (true) irá decodificar a string cZipped em codificação Base64.
+@param cZipped, character, Conteúdo a ser descompactado.
+@param cRetUnzipped, character, Conteúdo já descompactado.
+@return variant, Retorna .T. (true) para sucesso e .F. (false) para falhas.
+/*/
+User Function GwGZipDecomp( lDecode64 as variant, cZipped as character, cRetUnzipped as character )
+
+    Default lDecode64 := nil
+
+    Local nZipLen as numeric
+    Local cZipContent as character
+
+    if( lDecode64 == nil ) .or. valType(lDecode64) != "L"
+        UserException("GZipDecomp - Property lDecode64 is empty or invalid.")
+    endif
+
+    if empty(cZipped)
+        UserException("GZipDecomp - Property cZipped is empty.")
+    endif
+
+    nZipLen := Len(cGZip)
+    cZipContent := iif(lDecode64, Decode64(cZipped), cZipped)
+    if ( gzStrDecomp(cZipContent, nZipLen, @cRetUnzipped) )
+        return .T.
+    else
+        return .F.
+    endif
+
+Return
+
