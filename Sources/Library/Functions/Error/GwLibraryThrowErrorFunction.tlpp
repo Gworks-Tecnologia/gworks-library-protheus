@@ -17,7 +17,7 @@ User Function GwThrowError( cMessage as character )
 
     Local nAtiv := 0
 	Local cProcName := upper(allTrim(cProcName(nAtiv)))
-	Local cExcpt := cProcName + allTrim(cMessage)
+	Local cExcpt := cProcName +' - '+ allTrim(cMessage)
 
 	UserException( cExcpt )
 
