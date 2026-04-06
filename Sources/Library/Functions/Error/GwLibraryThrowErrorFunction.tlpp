@@ -1,0 +1,24 @@
+#include "totvs.ch"
+
+namespace Gworks.Library.Functions
+
+/*/{Protheus.doc} GwThrowError
+Função para lançamento simples de exceção.
+@type function
+@version 12.1.2410
+@author Gworks - Giovani
+@since 4/6/2026
+@param cMessage, character, Mensagem a ser considerada na exceção.
+@obs Concatena à mensagem de exceção com o nome completo da função em execução.
+@sample
+    Gworks.Library.Functions.U_GwThrowError( 'File not found!' )
+/*/
+User Function GwThrowError( cMessage as character )
+
+    Local nAtiv := 0
+	Local cProcName := upper(allTrim(cProcName(nAtiv)))
+	Local cExcpt := cProcName + allTrim(cMessage)
+
+	UserException( cExcpt )
+
+Return
