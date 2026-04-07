@@ -15,7 +15,7 @@ Função para lançamento simples de exceção.
 /*/
 User Function GwThrowError( cMessage as character )
 
-    Local nAtiv := 0
+    Local nAtiv := 1
 	Local cProcName := upper(allTrim(ProcName(nAtiv)))
 	Local cExcpt := cProcName +' - '+ allTrim(cMessage)
 
