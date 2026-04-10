@@ -1,0 +1,40 @@
+#include "totvs.ch"
+
+using namespace Gworks.Library.Functions
+using namespace Gworks.Templates.APITrace.Enums
+using namespace Gworks.Templates.APITrace.Controllers
+
+namespace Gworks.Templates.APITrace.Apps
+
+Static lInit__ := iif( lInit__ == nil .or. !lInit, fInit(), .T. ) as logical
+Static Function fInit()
+
+	if type('nOpc___') == 'U'
+        Public nOpc___ as numeric
+    endif
+
+	if type('oControllerEnum___') == 'U'
+		Public oControllerEnum___ := U_GetControllerEnum()
+	endif
+
+	lInit__ := .T.
+
+Return
+
+User Function MetadataConfig()
+
+	nOpc___ := oControllerEnum___:GetEnum('MetadataConfig')
+
+Return( U_Controller( nOpc___ ) )
+
+User Function StartMainBrowse()
+
+	nOpc___ := oControllerEnum___:GetEnum('StartMainBrowse')
+
+Return( U_Controller( nOpc___ ) )
+
+User Function Menudef()
+
+    nOpc___ := oControllerEnum___:GetEnum('GetMenuDef')
+
+Return( U_Controller( nOpc___ ) )

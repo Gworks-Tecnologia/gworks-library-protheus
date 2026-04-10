@@ -1,0 +1,42 @@
+#include "totvs.ch"
+#include "fwmvcdef.ch"
+#include "tlpp-core.th"
+
+#define VER__ 'v1'
+
+using namespace Gworks.Library.Functions
+using namespace Gworks.Library.MvcUtils
+
+namespace Gworks.Templates.APITrace.Forms.Main
+
+Static jPreCarga__ := jConfig___['api-trace'] as json
+
+User Function ViewDef()
+
+    Local oView as object
+    Local oModel as object
+	Local oStrFields as object
+
+    Local cAliasFields as character
+
+    Local bColumnsFields as codeblock
+
+    Local cFieldsId as character
+    Local cGridPedidosId as character
+    Local cGridProdutosId as character
+
+    cAliasFields   := jPreCarga__[ 'MODEL_FIELDS' ][ 'cAlias' ]
+    bColumnsFields := jPreCarga__[ 'MODEL_FIELDS' ][ 'bFields' ]
+    oStrFields := FWFormStruct( 2, cAliasFields, bColumnsFields )
+
+    cFieldsId       := jPreCarga__[ 'MODEL_FIELDS'        ][ 'cId' ]
+    cGridPedidosId  := jPreCarga__[ 'MODEL_GRID_PEDIDOS'  ][ 'cId' ]
+    cGridProdutosId := jPreCarga__[ 'MODEL_GRID_PRODUTOS' ][ 'cId' ]
+    oModel := FwLoadModel( jPreCarga__['modeldef'] )
+	oView := FWFormView():New()
+    oView:SetModel( oModel )
+    oView:addField( 'VIEW_FIELDS' , oStrFields, cFieldsId )
+    oView:SetOwnerView( 'VIEW_FIELDS', 'BOX_FIELDS' )
+    oView:SetCloseOnOk({|| .T. })
+
+Return oView

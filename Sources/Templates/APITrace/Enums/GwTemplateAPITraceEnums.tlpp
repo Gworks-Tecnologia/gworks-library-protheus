@@ -1,0 +1,16 @@
+#include "totvs.ch"
+
+using namespace Gworks.Library.Classes
+
+namespace Gworks.Templates.APITrace.Enums
+
+User Function GetControllerEnum()
+
+    Local oEnum as object
+
+    oEnum := GwEnum():New()
+    oEnum:SetEnum( "MetadataConfig", "Inicializar metadados." )
+    oEnum:SetEnum( "StartMainBrowse", "Inicializar formulário." )
+    oEnum:SetEnum( "GetMenuDef", "Retornar lista de opções do formulário." )
+
+Return oEnum

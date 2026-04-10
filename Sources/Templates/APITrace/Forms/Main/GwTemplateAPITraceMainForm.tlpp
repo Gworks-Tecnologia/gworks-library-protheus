@@ -1,0 +1,155 @@
+#include "totvs.ch"
+#include "fwmvcdef.ch"
+#include "tlpp-core.th"
+
+#define MODEL_OPERATION_PRINT 8
+
+using namespace Gworks.Library.Functions
+
+namespace Gworks.Templates.APITrace.Forms.Main
+
+Static lInit__ := iif( type("lInit__")=="U" .or. !lInit___, fInit(), .T. ) as logical
+
+/*/{Protheus.doc} fInit
+Função auxiliar para inicializar variáveis públicas.
+@type function
+@version 12.1.2410
+@author Gworks - Giovani
+@since 1/30/2026
+/*/
+Static Function fInit()
+
+    if type('jParams___') == 'U'
+        Public jParams___ := JsonObject():New() as json
+    endif
+    jParams___['api-trace'] := JsonObject():New()
+
+    if type('jConfig___') == 'U'
+        Public jConfig___ := JsonObject():New() as json
+    endif
+
+    if type('jBrowser___') == 'U'
+        Public jBrowser___ := JsonObject():New() as json
+    endif
+
+    jConfig___[ 'api-trace' ] := JsonObject():New()
+    jConfig___[ 'api-trace' ][ 'cId' ] := 'GwTemplateApiTrace'
+    jConfig___[ 'api-trace' ][ 'cEventId' ] := 'GwTemplateApiTraceEvent'
+    jConfig___[ 'api-trace' ][ 'bPre' ] := nil
+    jConfig___[ 'api-trace' ][ 'bPost' ] := nil
+    jConfig___[ 'api-trace' ][ 'bCommit' ] := nil
+    jConfig___[ 'api-trace' ][ 'bCancel' ] := nil
+    jConfig___[ 'api-trace' ][ 'bActivate' ] := nil
+    jConfig___[ 'api-trace' ][ 'bVldActivate' ] := nil
+    jConfig___[ 'api-trace' ][ 'menudef' ] := 'Gworks.Templates.APITrace.Forms.Main.ApiTraceMainForm'
+    jConfig___[ 'api-trace' ][ 'modeldef' ] := 'Gworks.Templates.APITrace.Forms.Main.ApiTraceMainForm'
+    jConfig___[ 'api-trace' ][ 'viewdef' ] := 'Gworks.Templates.APITrace.Forms.Main.ApiTraceMainForm'
+    jConfig___[ 'api-trace' ][ 'actions' ] := 'ViewDef.Gworks.Templates.APITrace.Forms.Main.ApiTraceMainForm'
+
+    if( nOpc___ == oControllerEnum___:GetEnum('StartMainBrowse') )
+
+        jConfig___[ 'api-trace' ][ 'MODEL_FIELDS' ] := JsonObject():New()
+        jConfig___[ 'api-trace' ][ 'MODEL_FIELDS' ][ 'cAlias' ] := jAliases_["api-trace"]["alias"]
+        jConfig___[ 'api-trace' ][ 'MODEL_FIELDS' ][ 'cId' ] := 'MODEL_FIELDS'
+        jConfig___[ 'api-trace' ][ 'MODEL_FIELDS' ][ 'cDescription' ] := 'API Trace'
+        jConfig___[ 'api-trace' ][ 'MODEL_FIELDS' ][ 'bFields' ] := {|cCampo| !(allTrim(cCampo) $ 'ZGR_FILIAL' ) }
+        jConfig___[ 'api-trace' ][ 'MODEL_FIELDS' ][ 'aPK' ]:={ jAliases_["api-trace"]["prefix"]+'_FILIAL',;
+                                                                jAliases_["api-trace"]["prefix"]+'_CID',;
+                                                                jAliases_["api-trace"]["prefix"]+'_DATA',;
+                                                                jAliases_["api-trace"]["prefix"]+'_HORA' }
+        jBrowser___[ 'cAlias' ] := jAliases_["api-trace"]["alias"]
+        jBrowser___[ 'cDescription' ] := 'API Trace'
+        jBrowser___[ 'bChange' ] := {|| nil }
+
+        dbSelectArea("ZAK")
+
+    endif
+
+    lInit__ := .T.
+
+Return
+
+User Function ApiTraceMainForm()
+
+    Local xReturn as variant
+
+    do case
+        case( nOpc___ == oControllerEnum___:GetEnum('StartMainBrowse') )
+
+            xReturn := Gworks.Templates.APITrace.Forms.Main.U_BrowseDef()
+
+        case( nOpc___ == oControllerEnum___:GetEnum('GetMenuDef') )
+
+            xReturn := Gworks.Templates.APITrace.Forms.Main.U_MenuDef()
+
+    endcase
+
+Return xReturn
+
+User Function BrowseDef()
+
+    Local alDms as array
+
+    Local cId as character
+    Local lFilter as logical
+
+    Private oBrwPreCarga_ as object
+
+    alDms := FWGetDialogSize()
+    cId := "1"
+    lFilter := .T.
+    oBrwPreCarga_:= FwMBrowse():New()
+    oBrwPreCarga_:SetAlias( jBrowser___["cAlias"] )
+    oBrwPreCarga_:SetDescription( jBrowser___["cDescription"] )
+    oBrwPreCarga_:SetMenuDef( jConfig___["api-trace"]["menudef"] )
+    oBrwPreCarga_:AddLegend( {|| ZAK->ZAK_STATUS == "P" }, "BR_BRANCO"  , "Requisição: P-Pendente" , cId, lFilter )
+    oBrwPreCarga_:AddLegend( {|| ZAK->ZAK_STATUS == "C" }, "BR_VERDE"   , "Requisição: C-Concluído", cId, lFilter )
+    oBrwPreCarga_:AddLegend( {|| ZAK->ZAK_STATUS == "F" }, "BR_VERMELHO", "Requisição: F-Falha"    , cId, lFilter )
+    oBrwPreCarga_:SetChange( jBrowser___["bChange"] )
+
+    oBrwPreCarga_:Activate()
+
+Return
+
+Static Function fSetChange()
+
+    Local jAreas as json
+    Local nOrder as integer
+    Local cSeek as character
+
+    jAreas := JsonObject():New()
+    jAreas["active"] := ZC9->(getArea())
+
+    if( nOpc___ != oControllerEnum___:GetEnum('StartMainFormItems') )
+        return
+    endif
+
+    nOrder := retOrder('ZAK','ZAK_FILIAL+ZAK_CODIGO')
+    cSeek := xFilial("ZAK") + ZC9->ZC9_CODIGO
+    dbSelectArea('ZAK')
+    ZAK->(dbSetOrder(nOrder))
+    ZAK->(dbGoTop())
+    if!(ZAK->(msSeek(cSeek)))
+        U_GwThrowError("Invalid seek over ZAK alias!")
+    endif
+
+    RestArea( jAreas["active"] )
+
+Return
+
+User Function MenuDef()
+
+    Local aRotina := {} as array
+
+    /*
+    ADD OPTION aRotina Title 'Visualizar' Action 'ViewDef.Gworks.Templates.APITrace.Forms.Main.PreCargaBrowse' OPERATION 2 ACCESS 0
+    ADD OPTION aRotina Title 'Incluir'    Action 'ViewDef.Gworks.Templates.APITrace.Forms.Main.PreCargaBrowse' OPERATION 3 ACCESS 0
+    ADD OPTION aRotina Title 'Alterar'    Action 'ViewDef.Gworks.Templates.APITrace.Forms.Main.PreCargaBrowse' OPERATION 4 ACCESS 0
+    ADD OPTION aRotina Title 'Excluir'    Action 'ViewDef.Gworks.Templates.APITrace.Forms.Main.PreCargaBrowse' OPERATION 5 ACCESS 0
+    ADD OPTION aRotina Title 'Imprimir'   Action 'ViewDef.Gworks.Templates.APITrace.Forms.Main.PreCargaBrowse' OPERATION 8 ACCESS 0
+    ADD OPTION aRotina Title 'Copiar'     Action 'ViewDef.Gworks.Templates.APITrace.Forms.Main.PreCargaBrowse' OPERATION 9 ACCESS 0
+    */
+
+    ADD OPTION aRotina Title 'Visualizar' Action jConfig___["api-trace"]["actions"] OPERATION MODEL_OPERATION_VIEW ACCESS 0
+
+Return aRotina

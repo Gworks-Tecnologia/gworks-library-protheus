@@ -1,0 +1,97 @@
+#include "totvs.ch"
+#include "tlpp-core.th"
+
+using namespace Gworks.Library.Classes
+using namespace Gworks.Library.Functions
+using namespace Gworks.Templates.APITrace.Forms.Main
+using namespace Gworks.Templates.APITrace.Metadata
+
+namespace Gworks.Templates.APITrace.Controllers
+
+User Function Controller( nOpc as integer, xParam as variant )
+
+	Default nOpc := iif( empty(nOpc) .and. type("nOpc___")=="N", nOpc___, 0 )
+
+	Local xResult as variant
+
+	Local cGW_ALIASES as character
+	Local jGW_ALIASES := JsonObject():New() as json
+
+	Private lProduction_ := empty(GetSrvProfString("SpecialKey","")) as logical
+	Private lBlind_ := isBlind() .or. type("cFilAnt") == "U" as logical
+	Private lRpcSetEnv_ := .F. as logical
+	Private jAliases_ := JsonObject():New() as json
+
+	Private oMessage_ := GwMessagingClass():New() as object
+	Private oError_ := oMessage_:GetObject("error") as object
+
+	fSetEnvironment(xParam)
+
+	cGW_ALIASES := SuperGetMv("GW_ALIASES",.F.,'{"api-trace":"ZGT"}')
+	jGW_ALIASES:FromJson(cGW_ALIASES)
+
+	jAliases_["api-trace"] := JsonObject():New()
+	jAliases_["api-trace"]["alias"] := jGW_ALIASES["api-trace"]
+	jAliases_["api-trace"]["prefix"] := U_SxUtilGetFieldPrefixByAlias(jAliases_["api-trace"]["alias"],.F.)
+
+	do case
+
+		case nOpc == oControllerEnum___:GetEnum('MetadataConfig')
+			U_MetadataConfig()
+
+		case nOpc == oControllerEnum___:GetEnum('StartMainBrowse')
+			U_ApiTraceMainForm()
+
+	otherwise
+		U_GwThrowError("Invalid value for nOpc!")
+
+	endcase
+
+	fResetEnvironment()
+
+Return xResult
+
+Static Function fSetEnvironment( xParam as variant )
+
+	Default xParam := {"01","01"}
+
+	Local cRpcEmpresa := xParam[1] as character
+	Local cRpcFilial := xParam[2] as character
+	Local cRpcUser as variant
+	Local cRpcPassword as variant
+	Local cRpcMod := 'OMS' as character
+	Local cRpcRotina := 'PreCarga' as character
+	Local aRpcTables := {'SB1'} as array
+
+	if valType(xParam) != "A"
+		U_GwThrowError("xParam must be an array!")
+	endif
+
+	if lBlind_ .and. !lRpcSetEnv_ .and. !fwIsInCallStack("U_GMNUEXEC")
+
+		if empty(cRpcEmpresa) .or. empty(cRpcFilial)
+			U_GwThrowError("Blind execution without company group and branch code!")
+		endif
+
+		RpcSetEnv( ;
+			cRpcEmpresa,;
+			cRpcFilial,;
+			cRpcUser,;
+			cRpcPassword,;
+			cRpcMod,;
+			cRpcRotina,;
+			aRpcTables )
+
+		lRpcSetEnv_ := .T.
+
+	endif
+
+Return
+
+Static Function fResetEnvironment()
+
+	if lRpcSetEnv_
+		RpcClearEnv()
+	endif
+
+Return

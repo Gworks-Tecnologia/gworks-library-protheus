@@ -1,0 +1,32 @@
+
+#include "tlpp-core.th"
+
+namespace Gworks.Templates.APITrace.Metadata
+
+User Function MetadataConfig()
+
+    Local cError as character
+    Local lError as logical
+
+    BEGIN SEQUENCE
+
+        if!( lError := U_HeaderCreate( @cError ) )
+            BREAK
+        endif
+
+    END SEQUENCE
+
+    if( !lError )
+
+        oMessage_:SetProperty( "error_state", .T. )
+        oMessage_:SetProperty( "error_message", "Falha ao validar/criar metadados!" )
+        oMessage_:SetProperty( "error_suggestion", "Favor contactar o suporte técnico." )
+        oMessage_:SetProperty( "error_title", "Falha!" )
+        oMessage_:SetProperty( "error_style", "HELP" )
+        oMessage_:SetProperty( "error_details", cError )
+        oMessage_:SetProperty( "log_state", "ERROR")
+        oMessage_:Display()
+
+    endif
+
+Return

@@ -1,0 +1,46 @@
+#include 'totvs.ch'
+#include 'fwmvcdef.ch'
+#include 'tlpp-core.th'
+
+using namespace Gworks.Library.Functions
+using namespace Gworks.Library.MvcUtils
+using namespace Gworks.Templates.APITrace.Forms.Main.Triggers
+using namespace Gworks.Templates.APITrace.Forms.Main.Events
+
+namespace Gworks.Templates.APITrace.Forms.Main
+
+Static jPreCarga__ := jConfig___['api-trace'] as json
+
+User Function ModelDef()
+
+	Local oModel as object
+    Local oEvent as object
+	Local oStrFields as object
+
+    Local cAliasFields as character
+
+    Local bColumnsFields as codeblock
+
+    Local cFieldsId as character
+    Local cFieldsPK as array
+
+    cAliasFields   := jPreCarga__[ 'MODEL_FIELDS' ][ 'cAlias' ]
+    bColumnsFields := jPreCarga__[ 'MODEL_FIELDS' ][ 'bFields' ]
+    oStrFields := FWFormStruct( 1, cAliasFields, bColumnsFields )
+
+    oEvent := TemplatePreCargaEvent():New()
+    oModel:= MPFormModel():New( jPreCarga__['cId'],;
+                                jPreCarga__['bPre'],;
+                                jPreCarga__['bPost'],;
+                                jPreCarga__['bCommit'],;
+                                jPreCarga__['bCancel'] )
+
+    oModel:SetDescription( 'Modelo principal' )
+
+    cFieldsId := jPreCarga__['MODEL_FIELDS']['cId']
+    cFieldsPK := jPreCarga__['MODEL_FIELDS']['aPK']
+    oModel:addFields( cFieldsId,,oStrFields )
+    oModel:SetPrimaryKey( cFieldsPK )
+    oModel:GetModel(cFieldsId):SetDescription( jPreCarga__['MODEL_FIELDS']["cDescription"] )
+
+Return oModel

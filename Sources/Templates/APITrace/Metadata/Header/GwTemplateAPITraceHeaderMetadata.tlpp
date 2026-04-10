@@ -1,0 +1,94 @@
+#include "tlpp-core.th"
+
+using namespace Gworks.Library.Functions
+using namespace Gworks.Library.Classes
+
+namespace Gworks.Templates.APITrace.Metadata
+
+User Function HeaderCreate( cRetError as character )
+
+    Private oMeta_ := GwMetaData():New() as object
+    Private cAlias_ := jAliases_["api-trace"]["alias"] as character
+    Private cPrefix_ := jAliases_["api-trace"]["prefix"] as character
+
+    fSetTables()
+
+    fSetFields()
+
+    fSetIndexes()
+
+    oMeta_:CommitData()
+
+    fwFreeObj(oMeta_)
+
+Return .T.
+
+Static Function fSetTables()
+
+    Local jTable as json
+
+    jTable := JsonObject():New()
+        jTable["alias"] := cAlias_
+        jTable["name"] := "API Trace"
+        jTable["sharing_branch"] := "E"
+        jTable["sharing_unit"] := "E"
+        jTable["sharing_company"] := "E"
+    oMeta_:AddTable( jTable )
+    fwFreeVar(jTable)
+
+Return
+
+Static Function fSetFields()
+
+    Local nI as integer
+    Local aFields := {} as array
+    Local cComboStatus as character
+
+    aAdd( aFields, {"alias": cAlias_, "order": "02", "name": cPrefix_+"_STATUS", "type": "C", "size": 1  , "decimal": 0, "title": "Status"  , "description": "Status da Requisição"  , "picture": "@!"         , "visual": "V", "context": "R", "requisite": true , "used": true, "used_brw": true , "dataset": "", "vld_user": "", "combo_box": "", "init": "", "init_brw": "", "when": "", "folder": "", "level": 1} )
+    aAdd( aFields, {"alias": cAlias_, "order": "03", "name": cPrefix_+"_CID"   , "type": "C", "size": 60 , "decimal": 0, "title": "Ident."  , "description": "Ident. de uso livre"   , "picture": "@!"         , "visual": "V", "context": "R", "requisite": true , "used": true, "used_brw": true , "dataset": "", "vld_user": "", "combo_box": "", "init": "", "init_brw": "", "when": "", "folder": "", "level": 1} )
+    aAdd( aFields, {"alias": cAlias_, "order": "04", "name": cPrefix_+"_DATA"  , "type": "D", "size": 8  , "decimal": 0, "title": "Data"    , "description": "Data da Requisição"    , "picture": "@!"         , "visual": "V", "context": "R", "requisite": true , "used": true, "used_brw": true , "dataset": "", "vld_user": "", "combo_box": "", "init": "", "init_brw": "", "when": "", "folder": "", "level": 1} )
+    aAdd( aFields, {"alias": cAlias_, "order": "05", "name": cPrefix_+"_HORA"  , "type": "C", "size": 8  , "decimal": 0, "title": "Hora"    , "description": "Hora da Requisição"    , "picture": "@R 99:99:99", "visual": "V", "context": "R", "requisite": true , "used": true, "used_brw": true , "dataset": "", "vld_user": "", "combo_box": "", "init": "", "init_brw": "", "when": "", "folder": "", "level": 1} )
+    aAdd( aFields, {"alias": cAlias_, "order": "06", "name": cPrefix_+"_URL"   , "type": "C", "size": 150, "decimal": 0, "title": "URL"     , "description": "URL da Requisição"     , "picture": "@!"         , "visual": "V", "context": "R", "requisite": true , "used": true, "used_brw": true , "dataset": "", "vld_user": "", "combo_box": "", "init": "", "init_brw": "", "when": "", "folder": "", "level": 1} )
+    aAdd( aFields, {"alias": cAlias_, "order": "07", "name": cPrefix_+"_TIPO"  , "type": "C", "size": 10 , "decimal": 0, "title": "Tipo"    , "description": "Tipo da Requisição"    , "picture": "@!"         , "visual": "V", "context": "R", "requisite": true , "used": true, "used_brw": true , "dataset": "", "vld_user": "", "combo_box": "", "init": "", "init_brw": "", "when": "", "folder": "", "level": 1} )
+    aAdd( aFields, {"alias": cAlias_, "order": "08", "name": cPrefix_+"_HEADER", "type": "M", "size": 80 , "decimal": 0, "title": "Headers" , "description": "Headers da Requisição" , "picture": ""           , "visual": "V", "context": "R", "requisite": true , "used": true, "used_brw": false, "dataset": "", "vld_user": "", "combo_box": "", "init": "", "init_brw": "", "when": "", "folder": "", "level": 1} )
+    aAdd( aFields, {"alias": cAlias_, "order": "09", "name": cPrefix_+"_BODY"  , "type": "M", "size": 80 , "decimal": 0, "title": "Body"    , "description": "Body da Requisição"    , "picture": ""           , "visual": "V", "context": "R", "requisite": true , "used": true, "used_brw": false, "dataset": "", "vld_user": "", "combo_box": "", "init": "", "init_brw": "", "when": "", "folder": "", "level": 1} )
+    aAdd( aFields, {"alias": cAlias_, "order": "10", "name": cPrefix_+"_RESPON", "type": "M", "size": 80 , "decimal": 0, "title": "Response", "description": "Response da Requisição", "picture": ""           , "visual": "V", "context": "R", "requisite": true , "used": true, "used_brw": false, "dataset": "", "vld_user": "", "combo_box": "", "init": "", "init_brw": "", "when": "", "folder": "", "level": 1} )
+
+    cComboStatus :=;
+        "P=Pendente;"+;
+        "C=Concluído;"+;
+        "F=Falha"
+    aFields[ aScan(aFields,{|x| x["name"] == cPrefix_+"_STATUS" })]["combo_box"] := cComboStatus
+    aFields[ aScan(aFields,{|x| x["name"] == cPrefix_+"_STATUS" })]["init"] := 'P'
+
+    for nI:=1 to len(aFields)
+        oMeta_:AddField( aFields[nI] )
+    next
+
+Return .T.
+
+Static Function fSetIndexes()
+
+    Local nI as integer
+    Local aIndexes := {} as array
+    Local cKey
+
+    cKey := cPrefix_+"_FILIAL+"
+    cKey += cPrefix_+"_STATUS+"
+    cKey += cPrefix_+"_CID+"
+    cKey += cPrefix_+"_DATA"
+    aAdd( aIndexes, {"alias": cAlias_, "order": "1", "key": cKey, "name": "Filial + Status + Ident. + Data", "nickname": "", "show_seek": true } )
+    cKey := ""
+
+    cKey := cPrefix_+"_FILIAL+"
+    cKey += cPrefix_+"_DATA+"
+    cKey += cPrefix_+"_CID+"
+    cKey += cPrefix_+"_STATUS"
+    aAdd( aIndexes, {"alias": cAlias_, "order": "2", "key": cKey, "name": "Filial + Data + Ident. + Status", "nickname": "", "show_seek": true } )
+    cKey := ""
+
+    for nI:=1 to len(aIndexes)
+        oMeta_:AddIndex( aIndexes[nI] )
+    next
+
+Return .T.
