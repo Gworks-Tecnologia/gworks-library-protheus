@@ -95,7 +95,7 @@ Method DateToUtc( dValue as date, cTime as character ) as character Class GwForm
         UserException("GwFormatData:DateToUtc - Invalid parameter dValue.")
     endif
 
-    cDate :=  dToS( dValue )
+    cDate := dToS( dValue )
     cYear := SubStr(cDate, 1, 4)
     cMonth := PadL(SubStr(cDate, 5, 2), 2, '0')
     cDay := PadL(SubStr(cDate, 7, 2), 2, '0')
