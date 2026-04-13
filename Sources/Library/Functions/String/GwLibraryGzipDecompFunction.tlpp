@@ -28,7 +28,7 @@ User Function GwGZipDecomp( lDecode64 as variant, cZipped as character, cRetUnzi
         UserException("GZipDecomp - Property cZipped is empty.")
     endif
 
-    nZipLen := Len(cGZip)
+    nZipLen := Len(cZipped)
     cZipContent := iif(lDecode64, Decode64(cZipped), cZipped)
     if ( gzStrDecomp(cZipContent, nZipLen, @cRetUnzipped) )
         return .T.
@@ -37,4 +37,3 @@ User Function GwGZipDecomp( lDecode64 as variant, cZipped as character, cRetUnzi
     endif
 
 Return
-
