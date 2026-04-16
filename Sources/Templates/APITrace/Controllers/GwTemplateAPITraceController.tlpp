@@ -21,7 +21,6 @@ User Function Controller( nOpc as integer, xParam as variant )
 	Private lBlind_ := isBlind() .or. type("cFilAnt") == "U" as logical
 	Private lRpcSetEnv_ := .F. as logical
 	Private jAliases_ := JsonObject():New() as json
-
 	Private oMessage_ := GwMessagingClass():New() as object
 	Private oError_ := oMessage_:GetObject("error") as object
 

@@ -87,6 +87,13 @@ Static Function fSetIndexes()
     aAdd( aIndexes, {"alias": cAlias_, "order": "2", "key": cKey, "name": "Filial + Data + Ident. + Status", "nickname": "", "show_seek": true } )
     cKey := ""
 
+    cKey := cPrefix_+"_FILIAL+"
+    cKey += cPrefix_+"_CID+"
+    cKey += cPrefix_+"_STATUS+"
+    cKey += cPrefix_+"_DATA"
+    aAdd( aIndexes, {"alias": cAlias_, "order": "3", "key": cKey, "name": "Filial + Ident. + Status + Data", "nickname": "", "show_seek": true } )
+    cKey := ""
+
     for nI:=1 to len(aIndexes)
         oMeta_:AddIndex( aIndexes[nI] )
     next
