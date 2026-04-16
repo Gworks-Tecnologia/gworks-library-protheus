@@ -24,9 +24,9 @@ Classe para execução de filas de processamento de forma assíncrona (multithread)
 Class GwMetaData From GwMetaDataCommit
 
     Public Data jMetaData as json
-    Public Data nLenBranch as integer
-    Public Data nLenUnit as integer
     Public Data nLenCompay as integer
+    Public Data nLenUnit as integer
+    Public Data nLenBranch as integer
 
     Private Data lCommitInit as logical
 
@@ -125,15 +125,15 @@ Method GetBranchLayout() Class GwMetaData
 
     (cAlias)->(dbCloseArea())
 
-    ::nLenBranch := 0
-    ::nLenUnit := 0
     ::nLenCompay := 0
+    ::nLenUnit := 0
+    ::nLenBranch := 0
     for nI:=1 to len(cLayout)
         cChar := subStr(cLayout,nI,1)
         do case
-            case cChar == "E" ; ::nLenBranch += 1
+            case cChar == "E" ; ::nLenCompay += 1
             case cChar == "U" ; ::nLenUnit += 1
-            case cChar == "F" ; ::nLenCompay += 1
+            case cChar == "F" ; ::nLenBranch += 1
         endcase
     next
 
