@@ -7,6 +7,8 @@ namespace Gworks.Templates.APITrace.Metadata
 
 User Function HeaderCreate( cRetError as character )
 
+    Local lResult as logical
+
     Private oMeta_ := GwMetaData():New() as object
     Private cAlias_ := jAliases_["api-trace"]["alias"] as character
     Private cPrefix_ := jAliases_["api-trace"]["prefix"] as character
@@ -17,11 +19,13 @@ User Function HeaderCreate( cRetError as character )
 
     fSetIndexes()
 
-    oMeta_:CommitData()
+    if!( lResult := oMeta_:CommitData() )
+        cRetError := "Fault on header metadata create..."
+    endif
 
     fwFreeObj(oMeta_)
 
-Return .T.
+Return lResult
 
 Static Function fSetTables()
 
