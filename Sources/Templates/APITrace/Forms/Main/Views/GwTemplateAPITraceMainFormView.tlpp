@@ -18,20 +18,14 @@ User Function ViewDef()
 	Local oStrFields as object
 
     Local cAliasFields as character
-
     Local bColumnsFields as codeblock
-
     Local cFieldsId as character
-    Local cGridPedidosId as character
-    Local cGridProdutosId as character
 
     cAliasFields   := jPreCarga__[ 'MODEL_FIELDS' ][ 'cAlias' ]
     bColumnsFields := jPreCarga__[ 'MODEL_FIELDS' ][ 'bFields' ]
     oStrFields := FWFormStruct( 2, cAliasFields, bColumnsFields )
 
-    cFieldsId       := jPreCarga__[ 'MODEL_FIELDS'        ][ 'cId' ]
-    cGridPedidosId  := jPreCarga__[ 'MODEL_GRID_PEDIDOS'  ][ 'cId' ]
-    cGridProdutosId := jPreCarga__[ 'MODEL_GRID_PRODUTOS' ][ 'cId' ]
+    cFieldsId := jPreCarga__[ 'MODEL_FIELDS' ][ 'cId' ]
     oModel := FwLoadModel( jPreCarga__['modeldef'] )
 	oView := FWFormView():New()
     oView:SetModel( oModel )
