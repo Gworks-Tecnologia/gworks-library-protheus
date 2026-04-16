@@ -19,11 +19,6 @@ Função auxiliar para inicializar variáveis públicas.
 /*/
 Static Function fInit()
 
-    if type('jParams___') == 'U'
-        Public jParams___ := JsonObject():New() as json
-    endif
-    jParams___['api-trace'] := JsonObject():New()
-
     if type('jConfig___') == 'U'
         Public jConfig___ := JsonObject():New() as json
     endif
