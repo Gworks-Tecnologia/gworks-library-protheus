@@ -14,7 +14,6 @@ Static jPreCarga__ := jConfig___['api-trace'] as json
 User Function ModelDef()
 
 	Local oModel as object
-    Local oEvent as object
 	Local oStrFields as object
 
     Local cAliasFields as character
@@ -28,7 +27,6 @@ User Function ModelDef()
     bColumnsFields := jPreCarga__[ 'MODEL_FIELDS' ][ 'bFields' ]
     oStrFields := FWFormStruct( 1, cAliasFields, bColumnsFields )
 
-    oEvent := TemplatePreCargaEvent():New()
     oModel:= MPFormModel():New( jPreCarga__['cId'],;
                                 jPreCarga__['bPre'],;
                                 jPreCarga__['bPost'],;

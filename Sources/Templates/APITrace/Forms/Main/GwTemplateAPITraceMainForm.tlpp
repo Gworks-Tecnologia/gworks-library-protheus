@@ -55,8 +55,13 @@ Static Function fInit()
         jBrowser___[ 'cAlias' ] := jAliases_["api-trace"]["alias"]
         jBrowser___[ 'cDescription' ] := 'API Trace'
         jBrowser___[ 'bChange' ] := {|| nil }
+        jBrowser___[ 'aLegend' ] := {;
+            &('{|| '+jAliases_['api-trace']['alias']+'->'+jAliases_['api-trace']['prefix']+'_STATUS == "P" }'),;
+            &('{|| '+jAliases_['api-trace']['alias']+'->'+jAliases_['api-trace']['prefix']+'_STATUS == "C" }'),;
+            &('{|| '+jAliases_['api-trace']['alias']+'->'+jAliases_['api-trace']['prefix']+'_STATUS == "F" }') ;
+        }
 
-        dbSelectArea("ZAK")
+        dbSelectArea( jAliases_['api-trace']['alias'] )
 
     endif
 
@@ -94,13 +99,13 @@ User Function BrowseDef()
     cId := "1"
     lFilter := .T.
     oBrwPreCarga_:= FwMBrowse():New()
-    oBrwPreCarga_:SetAlias( jBrowser___["cAlias"] )
-    oBrwPreCarga_:SetDescription( jBrowser___["cDescription"] )
-    oBrwPreCarga_:SetMenuDef( jConfig___["api-trace"]["menudef"] )
-    oBrwPreCarga_:AddLegend( {|| ZAK->ZAK_STATUS == "P" }, "BR_BRANCO"  , "Requisição: P-Pendente" , cId, lFilter )
-    oBrwPreCarga_:AddLegend( {|| ZAK->ZAK_STATUS == "C" }, "BR_VERDE"   , "Requisição: C-Concluído", cId, lFilter )
-    oBrwPreCarga_:AddLegend( {|| ZAK->ZAK_STATUS == "F" }, "BR_VERMELHO", "Requisição: F-Falha"    , cId, lFilter )
-    oBrwPreCarga_:SetChange( jBrowser___["bChange"] )
+    oBrwPreCarga_:SetAlias( jBrowser___['cAlias'] )
+    oBrwPreCarga_:SetDescription( jBrowser___['cDescription'] )
+    oBrwPreCarga_:SetMenuDef( jConfig___['api-trace']['menudef'] )
+    oBrwPreCarga_:AddLegend( jBrowser___['aLegend'][1], "BR_BRANCO"  , "Requisição: P-Pendente" , cId, lFilter )
+    oBrwPreCarga_:AddLegend( jBrowser___['aLegend'][2], "BR_VERDE"   , "Requisição: C-Concluído", cId, lFilter )
+    oBrwPreCarga_:AddLegend( jBrowser___['aLegend'][3], "BR_VERMELHO", "Requisição: F-Falha"    , cId, lFilter )
+    oBrwPreCarga_:SetChange( jBrowser___['bChange'] )
 
     oBrwPreCarga_:Activate()
 
