@@ -30,6 +30,7 @@ User Function ViewDef()
 	oView := FWFormView():New()
     oView:SetModel( oModel )
     oView:addField( 'VIEW_FIELDS' , oStrFields, cFieldsId )
+    oView:CreateHorizontalBox( 'BOX_FIELDS', 100 )
     oView:SetOwnerView( 'VIEW_FIELDS', 'BOX_FIELDS' )
     oView:SetCloseOnOk({|| .T. })
 
