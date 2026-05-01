@@ -34,6 +34,11 @@ User Function gMnuExec( _cParms, _cAuthFile, _cTables )
     Default _cAuthFile := "NO_AUTH"
     Default _cTables := ""
 
+    // Definições do agente local Webagent
+    // [1] - Versão do webagent
+    // [2] - Porta de comunicação
+    Local aWebAgentInfo := GetWebAgentInfo() as array
+
     // Parâmetros referente à rotina desejada para execução
     Local aParms
     Local cEmp // empresa, ex.: "01"
@@ -57,6 +62,11 @@ User Function gMnuExec( _cParms, _cAuthFile, _cTables )
     Private __lInternet
     Private __cInternet
     Private lMsFinalAuto
+
+    if( empty(aWebAgentInfo[1]) )
+        FwAlertWarning("Favor habilitar WebAgent...", "WebAgent desativado!")
+        return
+    endif
 
     _cParms := upper(_cParms)
     aParms := StrTokArr(_cParms,';')
