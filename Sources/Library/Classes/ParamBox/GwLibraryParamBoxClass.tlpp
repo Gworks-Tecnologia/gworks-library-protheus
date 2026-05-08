@@ -497,6 +497,9 @@ Method GetValue( cName as character ) Class GwParamBox
     endif
 
     xResult := ::jParam[cName]["xValue"]
+    if( xResult == nil )
+        xResult := ""
+    endif
 
     // Corrige bug de retorno do parâmetro tipo combobox
     if ::jParam[cName]["nType"] == TYPE_COMBO
