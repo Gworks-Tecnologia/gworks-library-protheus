@@ -295,7 +295,7 @@ Variáveis:
 @obs As referidas variáveis devem ser declaradas com escopo "Private" antes da chamada deste método.
 @link https://tdn.totvs.com/pages/releaseview.action?pageId=566489232
 /*/
-Method SetExecAutoVariables( nOpc as numeric ) as variant Class GwError
+Method SetExecAutoVariables() as variant Class GwError
 
     if type("lMsErroAuto") == "U" .or. type("lMsHelpAuto") == "U" .or. type("lAutoErrNoFile") == "U"
         ::ThrowException("Environment variables lMsErroAuto, lMsHelpAuto or lAutoErrNoFile are not defined.")
