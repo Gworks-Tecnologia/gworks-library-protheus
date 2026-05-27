@@ -33,7 +33,7 @@ Class GwError From ErrorClass
     Public Method DefineWithError( lError as logical ) // define que a instância da classe foi definida com erro
     Public Method HasError() as logical // indica que a instância da classe GwError foi definida como erro
     Public Method ShowError( cStyle as character, cTitle as character, lShowAutoGRLog as logical, lDefineWithError as logical, lUpdateErrorClass as logical ) as variant // exibe a mensagem de erro entre: "INFO", "STOP", "ALERT", "HELP"
-    Public Method SetExecAutoVariables() as variant
+    Public Method SetExecAutoVariables( cMode as character ) as variant
     Public Method SetAutoGRLog( cAutoGRLog as character ) // define a mensagem para exibição via função MostraErro()
     Public Method SetAutoGRLogFromModel( oModel as object ) as variant // define a mensagem para exibição via função MostraErro() a partir de um array (somente para funções mvc)
     Public Method SetAutoGRLogFromExecAuto( cExecAutoName as character ) as variant
@@ -286,24 +286,39 @@ Return
 Define as variáveis de ambiente a serem usadas para controle de erro e log da execução de rotina via MsExecAuto().
 Variáveis:
  - lMsErroAuto: Indica de se houve erro não fatal durante a execução;
- - lMsHelpAuto: Habilita a captura das mensagens de erro;
  - lAutoErrNoFile: Desabilita a geração do arquivo de log padrão do sistema.
+ - lMsHelpAuto: Habilita a captura das mensagens de erro;
 @type method
 @version 12.1.2410
 @author giovani
 @since 5/21/2025
+@param cMode, character, Permite os modos de funcionamento entre:
+    "CAPTURE" - Prepara variáveis para captura do erro;
+    "DISPLAY" - Prapara variáveis para exibição do erro em tela;
 @obs As referidas variáveis devem ser declaradas com escopo "Private" antes da chamada deste método.
 @link https://tdn.totvs.com/pages/releaseview.action?pageId=566489232
 /*/
-Method SetExecAutoVariables() as variant Class GwError
+Method SetExecAutoVariables( cMode as character ) as variant Class GwError
 
-    if type("lMsErroAuto") == "U" .or. type("lMsHelpAuto") == "U" .or. type("lAutoErrNoFile") == "U"
-        ::ThrowException("Environment variables lMsErroAuto, lMsHelpAuto or lAutoErrNoFile are not defined.")
+    Default cMode := "CAPTURE"
+
+    if( type("lMsErroAuto") == "U" .or.;
+        type("lAutoErrNoFile") == "U" .or.;
+        type("lMsHelpAuto") == "U" )
+        ::ThrowException("Environment variables lMsErroAuto, lAutoErrNoFile or lMsHelpAuto are not defined.")
     endif
 
-    lMsErroAuto    := .F.
-    lMsHelpAuto    := .T.
-    lAutoErrNoFile := .T.
+    lMsErroAuto := .F.
+
+    do case
+        case cMode == "CAPTURE"
+            lAutoErrNoFile := .T.
+            lMsHelpAuto := .T.
+
+        case cMode == "DISPLAY"
+            lAutoErrNoFile := .F.
+            lMsHelpAuto := .T.
+    endcase
 
 Return
 
