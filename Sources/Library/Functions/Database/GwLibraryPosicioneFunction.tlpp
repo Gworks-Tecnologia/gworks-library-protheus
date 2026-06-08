@@ -66,14 +66,16 @@ User Function GwPosicione( cAlias as character,;
     // Avalia se deve concatenar o código de filial na chave de busca
     cSeek := iif(lAutoFil, xFilial(cAlias)+cSeek, "")
 
+
+    // Realiza a busca pela chave informada
     if( lForceSeek .or. ( (cAlias)->&(cIndexKey) != cSeek ) ) // comparar o registro posicionado com a chave de busca desejada
         lSeek := (cAlias)->(msSeek(cSeek)) // ...realiza a busca conforme cSeek
     else
         lSeek := .T. // ...entende que já está posicionado no registro correto e não realiza nova busca
     endif
 
-    // Avalia necessidade de execução de bBlock
-    if( lSeek .and. bBlock != nil )
+    // Define o retorno
+    if( bBlock != nil )
         xResult := eval(bBlock,lSeek)
     else
         xResult := lSeek
