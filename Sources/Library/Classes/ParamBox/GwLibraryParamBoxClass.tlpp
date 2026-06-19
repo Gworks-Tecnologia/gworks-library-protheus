@@ -167,6 +167,7 @@ Method GetParamBoxArray() Class GwParamBox
     Local aResult := {} as array
 
     Local aParam as array
+    Local jVars as json
 
     Local nX as integer
     Local nY as integer
@@ -174,6 +175,11 @@ Method GetParamBoxArray() Class GwParamBox
     Local aNamesProperty as array
     Local cNameParam as character
     Local cNameProperty as character
+
+    jVars := JsonObject():New()
+        jVars["lPropInit"] := .F.
+        jVars["lParamCombo"] := .F.
+        jVars["lHasValue"] := .F.
 
     for nX:=1 to len(aNamesParam)
 
@@ -184,8 +190,15 @@ Method GetParamBoxArray() Class GwParamBox
         for nY:=1 to len(aNamesProperty)
 
             cNameProperty := aNamesProperty[nY]
-            if cNameProperty == "xValue"
+            if( cNameProperty == "xValue" )
                 loop
+            endif
+
+            jVars["lPropInit"] := cNameProperty == "nInit"
+            jVars["lParamCombo"] := ::jParam[cNameParam]["nType"] == TYPE_COMBO
+            jVars["lHasValue"] := ::jParam[cNameParam]["xValue"] != nil
+            if( jVars["lPropInit"] .and. jVars["lParamCombo"] .and. jVars["lHasValue"] )
+                cNameProperty := "xValue"
             endif
 
             aadd( aParam, ::jParam[cNameParam][cNameProperty] )
@@ -195,13 +208,20 @@ Method GetParamBoxArray() Class GwParamBox
         aadd( aResult, aClone(aParam) )
 
     next
-
     nX := 0
     nY := 0
     cNameParam := ""
     cNameProperty := ""
+
     fwFreeVar(aNamesParam)
+    aNamesParam := nil
+
     fwFreeVar(aNamesProperty)
+    aNamesProperty := nil
+
+    fwFreeObj(jVars)
+    jVars := nil
+
 
 Return aResult
 
