@@ -1,0 +1,509 @@
+#include 'totvs.ch'
+#include 'tlpp-core.th'
+
+#define NPOS_PESSOA 01
+#define NPOS_TIPO 02
+#define NPOS_CGC 03
+#define NPOS_NOME 04
+#define NPOS_NREDUZ 05
+#define NPOS_CEP 06
+#define NPOS_END 07
+#define NPOS_COMPLEM 08
+#define NPOS_BAIRRO 09
+#define NPOS_MUN 10
+#define NPOS_COD_MUN 11
+#define NPOS_EST 12
+#define NPOS_DDD 13
+#define NPOS_TEL 14
+#define NPOS_EMAIL 15
+#define NPOS_CONTATO 16
+#define NPOS_INSCR 17
+#define NPOS_INSCRM 18
+#define NPOS_PAIS 19
+#define NPOS_CODPAIS 20
+
+#define CPOS_CHARACTER "1;2;3;4;5;6;7;8;9;10;11;12;13;14;15;16;17;18;19;20"
+
+#define CRLF chr(13)+chr(10)
+#define CRLF2 CRLF+CRLF
+
+Static aDados__ as array
+Static cRegistered__ as character
+Static cCGCInvalid__ as character
+Static cAutoGrLog__ as character
+
+using namespace Gworks.Library.Classes
+using namespace Gworks.Library.Utils
+
+namespace Gworks.Library.Functions
+
+/*/{Protheus.doc} U_Importar
+Função para importar arquivo csv de títulos à pagar, conforme layout:
+    [01] - A1_PESSOA  TIPO:C - Pessoa (F - Fisica / J - Juridica)
+    [02] - A1_TIPO    TIPO:C - Tipo do Cliente (L-Rural, F-Cons.Final, R-Revendedor, S-Solidário, X-Exportação)
+    [03] - A1_CGC     TIPO:C - Código CGC (CPF/CNPJ)
+    [04] - A1_NOME    TIPO:C - Nome
+    [05] - A1_NREDUZ  TIPO:C - Nome reduzido
+    [06] - A1_CEP     TIPO:C - CEP
+    [07] - A1_END     TIPO:C - Endereço
+    [08] - A1_COMPLEM TIPO:C - Complemento
+    [09] - A1_BAIRRO  TIPO:C - Bairro
+    [10] - A1_MUN     TIPO:C - Nome da Cidade
+    [11] - A1_COD_MUN TIPO:C - Código IBGE da Cidade
+    [12] - A1_EST     TIPO:C - Estado
+    [13] - A1_DDD     TIPO:C - DDD
+    [14] - A1_TEL     TIPO:C - Telefone
+    [15] - A1_EMAIL   TIPO:C - Email
+    [16] - A1_CONTATO TIPO:C - Contato
+    [17] - A1_INSCR   TIPO:C - Inscrição Estadual
+    [18] - A1_INSCRM  TIPO:C - Inscrição Municipal
+    [19] - A1_PAIS    TIPO:C - Código País
+    [20] - A1_CODPAIS TIPO:C - Código do País no Banco Central
+@type function
+@version 12.1.2410
+@author TOTVS
+@since 7/3/2025
+/*/
+User Function Importar()
+
+    Local lResult as logical
+
+    Private cTarget_ := '' as character
+    Private oError_ := GwError():New() as object
+    Private oLog_ := GwConsoleLog():New() as object
+    Private jMessage_ := U_GwGetMessage() as json
+    Private lProduction_ := empty(GetSrvProfString("SpecialKey","")) as logical
+    Private lBlind_ := (isBlind() .or. type('CEMPANT') == 'U' ) as logical
+
+    if lBlind_
+        UserException("CARVALHO.IMPORT.FORNECEDORES.U_IMPORTAR - Invalid rpc call...")
+    endif
+
+    // Recicla aDados__ de processamentos anteriores
+    if !empty(aDados__)
+        fwFreeVar(aDados__)
+    endif
+
+    aDados__ := {}
+    cRegistered__ := ''
+    cCGCInvalid__ := ''
+    cAutoGrLog__ := ''
+
+    try
+
+        if( !fGetFile() .or. empty(cTarget_) .or. !file(cTarget_) )
+
+            jMessage_['cState'] := "WARNING"
+            jMessage_['cError'] := "Arquivo inválido ou não selecionado!"
+            jMessage_['cSuggestion'] := "Selecione um arquivo válido e tente novamente."
+            jMessage_['cTitle'] := "Atenção!"
+            jMessage_['lError'] := .F.
+            jMessage_['cDetails'] := ""
+
+            U_GwSetMessage(oError_, oLog_, jMessage_)
+
+            return
+
+        endif
+
+        processa({|| lResult := fProcess()}, "Importando arquivo...", "Aguarde...")
+        if!( lResult )
+            return
+        endif
+
+    catch _varError
+
+        if!( oError_:lError )
+
+            jMessage_['cState'] := "FAULT"
+            jMessage_['cError'] := "Falha inesperada!"
+            jMessage_['cSuggestion'] := "Favor contactar o suporte técnico."
+            jMessage_['cTitle'] := "Falha!"
+            jMessage_['lError'] := .T.
+            jMessage_['cDetails'] := ;
+                                    "Erro:" + _varError:Description +CRLF2+;
+                                    "Stack:" + _varError:errorStack
+
+            U_GwSetMessage(oError_, oLog_, jMessage_)
+
+        endif
+
+    endtry
+
+    if lResult
+        fWAlertSuccess("Arquivo processado com sucesso.", "Sucesso!")
+    endif
+
+    oError_:Clear()
+    oLog_:Clear()
+
+Return
+
+/*/{Protheus.doc} fGetFile
+Ontem o arquivo a ser importado.
+@type function
+@version 12.1.2410
+@author TOTVS
+@since 5/13/2025
+@return logical, Retorna .T. (true) para indicar sucesso.
+/*/
+Static Function fGetFile as logical
+
+    Local lResult := .T. as logical
+
+    do case
+    case cValToChar(getRemoteType()) $ '0,1'
+        cTarget_ := tFileDialog("Arquivos CSV (*.csv)","Seleção de Arquivo",,'C:\Temp\',.F.,)
+
+    case cValToChar(getRemoteType()) == '2'
+        cTarget_ := tFileDialog("Arquivos CSV (*.csv)","Seleção de Arquivo",,'/temp/',.F.)
+
+    otherwise
+        lResult := .F.
+
+    endcase
+
+Return lResult
+
+/*/{Protheus.doc} fProcess
+Função para processamento da importacao do arquivo.
+@type function
+@version 12.1.2410
+@author TOTVS
+@since 5/13/2025
+@return logical, Retorna .T. (true) para indicar sucesso e .F. (false) em caso de falhas.
+/*/
+Static Function fProcess as logical
+
+    Local lResult as logical
+    Local lData as logical
+    Local nI as numeric
+    Local nHDL as numeric
+    Local nLinha as numeric
+    Local cBuffer as character
+    Local aBuffer as array
+
+    nHDL := FT_FUSE(cTarget_)
+    if nHDL < 0
+
+        jMessage_['cState'] := "FAULT"
+        jMessage_['cError'] := "Falha ao abrir arquivo!"
+        jMessage_['cSuggestion'] := "Verifique o arquivo selecionado e tente novamente."
+        jMessage_['cTitle'] := "Atenção!"
+        jMessage_['lError'] := .T.
+        jMessage_['cDetails'] := ""
+
+        U_GwSetMessage(oError_, oLog_, jMessage_)
+
+        return .F.
+
+    endif
+
+    while .not. FT_FEOF()
+
+        nLinha++
+        cBuffer := FT_FREADLN()
+        aBuffer := strToKArr2(cBuffer,';',.T.)
+
+        if empty(aBuffer)
+            FT_FSKIP()
+            Loop // ignora linhas vazias
+        endif
+
+        if( nLinha == 1 )
+            FT_FSKIP()
+            loop // ignora cabeçalho (linha 1)
+        else
+            if!( lData := fReadData(@aBuffer, allTrim(str(nLinha))) )
+                exit
+            endif
+        endif
+
+        FT_FSKIP()
+
+    enddo
+
+    if!( lData )
+        return .F.
+    endif
+
+    FT_FUSE()
+
+    procregua(len(aDados__))
+    cRegistered__ := ''
+    cCGCInvalid__ := ''
+    cAutoGrLog__ := ''
+    for nI := 1 To Len(aDados__)
+        incproc()
+        if!( lResult := fCadastrarCliente( aDados__[nI], allTrim(str(nI)) ) )
+            exit
+        endif
+    next
+
+    if !empty(cRegistered__)
+
+        jMessage_['cState'] := "WARNING"
+        jMessage_['cError'] := "Títulos já cadastrados!"
+        jMessage_['cSuggestion'] := "Não é possível atualizar dados de produtos já cadastrados."
+        jMessage_['cTitle'] := "Atenção!"
+        jMessage_['lError'] := .F.
+        jMessage_['cDetails'] := cRegistered__
+
+        U_GwSetMessage(oError_, oLog_, jMessage_)
+
+    endif
+
+    if !empty(cCGCInvalid__)
+
+        jMessage_['cState'] := "WARNING"
+        jMessage_['cError'] := "Fornecedores com CNPJ/CPF inválidos!"
+        jMessage_['cSuggestion'] := "Favor verificar os CNPJ/CPF's listados a seguir."
+        jMessage_['cTitle'] := "Atenção!"
+        jMessage_['lError'] := .F.
+        jMessage_['cDetails'] := "CNPJ/CPF INVALIDOS: " + CRLF + cCGCInvalid__
+
+        U_GwSetMessage(oError_, oLog_, jMessage_)
+
+    endif
+
+    if !empty(cAutoGrLog__)
+
+        jMessage_['cState'] := "FAULT"
+        jMessage_['cError'] := "Falha ao efetivar importação via ExecAuto!"
+        jMessage_['cSuggestion'] := "Corrija os erros criticados no log a seguir e tente novamente."
+        jMessage_['cTitle'] := "Atenção!"
+        jMessage_['lError'] := .F.
+        jMessage_['cDetails'] := "EXECAUTO ERRO LIST: " + CRLF + cAutoGrLog__
+
+        U_GwSetMessage(oError_, oLog_, jMessage_)
+
+    endif
+
+Return lResult
+
+/*/{Protheus.doc} fReadData
+Ontem os dados de uma determinada linha do arquivo e os correlaciona com a estrutura Json presente em jData__.
+@type function
+@version 12.1.2410
+@author TOTVS
+@since 5/14/2025
+@param aLinha, array, Linha a ser processada.
+@param cLinha, character, Número da linha correspondente.
+/*/
+Static Function fReadData( aLinha as array, cLinha as character )
+
+    Local lResult := .T. as logical
+    Local nCol as numeric // coluna
+    Local xValue as variant
+
+    if empty(aLinha)
+
+        jMessage_['cState'] := "FAULT"
+        jMessage_['cError'] := "Linha "+ ( '"'+cLinha+'"' ) +" vazia..."
+        jMessage_['cSuggestion'] := "Verifique o arquivo e tente novamente."
+        jMessage_['cTitle'] := "Atenção!"
+        jMessage_['lError'] := .T.
+        jMessage_['cDetails'] := cLayout__
+
+        U_GwSetMessage(oError_, oLog_, jMessage_)
+
+        return .F.
+
+    endif
+
+    for nCol:=1 to len(aLinha)
+
+        xValue := aLinha[nCol]
+
+        if empty(xValue)
+
+            if allTrim(str(nCol)) $ CPOS_CHARACTER
+                xValue := " "
+            endif
+
+        else
+
+            do case
+                case nCol == NPOS_PESSOA ; xValue := iif(!empty(xValue), upper(allTrim(xValue)), " ")
+                case nCol == NPOS_TIPO   ; xValue := iif(!empty(xValue), upper(allTrim(xValue)), " ")
+                case nCol == NPOS_CGC    ; xValue := iif(!empty(xValue), fFormatCgc(xValue), " ")
+                case nCol == NPOS_NOME   ; xValue := iif(!empty(xValue), upper(allTrim(decodeUtf8(xValue))), " ")
+                case nCol == NPOS_NREDUZ ; xValue := iif(!empty(xValue), upper(allTrim(decodeUtf8(xValue))), " ")
+                case nCol == NPOS_CEP    ; xValue := iif(!empty(xValue), fFormatCep(xValue), " ")
+                case nCol == NPOS_END    ; xValue := iif(!empty(xValue), upper(allTrim(xValue)), " ")
+                case nCol == NPOS_COMPLEM; xValue := iif(!empty(xValue), upper(allTrim(xValue)), " ")
+                case nCol == NPOS_BAIRRO ; xValue := iif(!empty(xValue), fwNoAccent(upper(allTrim(decodeUtf8(xValue)))), " ")
+                case nCol == NPOS_MUN    ; xValue := iif(!empty(xValue), fwNoAccent(upper(allTrim(decodeUtf8(xValue)))), " ")
+                case nCol == NPOS_COD_MUN; xValue := iif(!empty(xValue), fwNoAccent(upper(allTrim(decodeUtf8(xValue)))), " ")
+                case nCol == NPOS_EST    ; xValue := iif(!empty(xValue), fwNoAccent(upper(allTrim(decodeUtf8(xValue)))), " ")
+                case nCol == NPOS_DDD    ; xValue := iif(!empty(xValue), upper(allTrim(xValue)), " ")
+                case nCol == NPOS_TEL    ; xValue := iif(!empty(xValue), upper(allTrim(xValue)), " ")
+                case nCol == NPOS_EMAIL  ; xValue := iif(!empty(xValue), upper(allTrim(xValue)), " ")
+                case nCol == NPOS_CONTATO; xValue := iif(!empty(xValue), decodeUtf8(upper(allTrim(xValue))), " ")
+                case nCol == NPOS_INSCR  ; xValue := iif(!empty(xValue), upper(allTrim(xValue)), " ")
+                case nCol == NPOS_INSCRM ; xValue := iif(!empty(xValue), upper(allTrim(xValue)), " ")
+                case nCol == NPOS_PAIS   ; xValue := iif(!empty(xValue), upper(allTrim(xValue)), " ")
+                case nCol == NPOS_CODPAIS; xValue := iif(!empty(xValue), upper(allTrim(xValue)), " ")
+            endcase
+
+        endif
+
+        aLinha[nCol] := xValue // devolve valor tratado para o array aLinha
+
+    next
+
+    if !fValidTipoPessoa( @aLinha )
+        cCGCInvalid__ +=;
+                        "CGC: " + aLinha[ NPOS_CGC ] + ' - ' +;
+                        "NOME:" + aLinha[ NPOS_NOME ] + CRLF
+    endif
+
+    aAdd( aDados__, aLinha )
+
+Return lResult
+
+/*/{Protheus.doc} fCadastrarCliente
+Função auxiliar para gravação do Produto na tabela SB1 do banco de dados.
+@type function
+@version 12.1.2410
+@author TOTVS
+@since 5/13/2025
+@param aLinha, array, Linha de dados a serem gravados.
+@param cLinha, character, Linha a ser gravada em formato de texto.
+/*/
+Static Function fCadastrarCliente( aLinha as array, cLinha as character ) as logical
+
+    Local aAuto as array
+    Local aCodigo as array
+
+    SA2->( dbSelectArea("SA2"), dbSetOrder(3), dbGoTop() )
+    if( SA2->( msSeek( xFilial("SA2")+aLinha[ NPOS_CGC ] ) ) )
+        cRegistered__ += ;
+                        "CGC: " + aLinha[ NPOS_CGC ] + ' - ' +;
+                        "NOME: "+ aLinha[ NPOS_NOME ] + CRLF
+        return .T.
+    endif
+
+    if empty(aLinha[ NPOS_NREDUZ ])
+        aLinha[ NPOS_NREDUZ ] := aLinha[ NPOS_NOME ]
+    endif
+
+    if empty(aLinha[ NPOS_EMAIL ])
+        aLinha[ NPOS_EMAIL ] := "nomail@nomail.com"
+    endif
+
+    aAuto := {;
+        {"A1_COD"    , aCodigo[1]            , Nil},;
+        {"A1_LOJA"   , aCodigo[2]            , Nil},;
+        {"A1_CONTRIB", "1"                   , Nil},;
+        {"A1_SIMPNAC", "2"                   , Nil},;
+        {"A1_PAIS"   , '105'                 , Nil},;
+        {"A1_CODPAIS", '01058'               , Nil},;
+        {"A1_TIPO"   , aLinha[ NPOS_TIPO ]   , Nil},;
+        {"A1_PESSOA" , aLinha[ NPOS_PESSOA ] , Nil},;
+        {"A1_CGC"    , aLinha[ NPOS_CGC ]    , Nil},;
+        {"A1_NOME"   , aLinha[ NPOS_NOME ]   , Nil},;
+        {"A1_NREDUZ" , aLinha[ NPOS_NREDUZ ] , Nil},;
+        {"A1_CEP"    , aLinha[ NPOS_CEP ]    , Nil},;
+        {"A1_END"    , aLinha[ NPOS_END ]    , Nil},;
+        {"A1_COMPLEM", aLinha[ NPOS_COMPLEM ], Nil},;
+        {"A1_BAIRRO" , aLinha[ NPOS_BAIRRO ] , Nil},;
+        {"A1_EST"    , aLinha[ NPOS_EST ]    , Nil},;
+        {"A1_COD_MUN", aLinha[ NPOS_COD_MUN ], Nil},;
+        {"A1_MUN"    , aLinha[ NPOS_MUN ]    , Nil},;
+        {"A1_DDD"    , aLinha[ NPOS_DDD ]    , Nil},;
+        {"A1_TEL"    , aLinha[ NPOS_TEL ]    , Nil},;
+        {"A1_EMAIL"  , aLinha[ NPOS_EMAIL ]  , Nil},;
+        {"A1_CONTATO", aLinha[ NPOS_CONTATO ], Nil},;
+        {"A1_INSCR"  , aLinha[ NPOS_INSCR ]  , Nil},;
+        {"A1_INSCRM" , aLinha[ NPOS_INSCRM ] , Nil} ;
+    }
+
+    BEGIN TRANSACTION
+
+        Private lMsErroAuto as logical
+        Private lMsHelpAuto as logical
+        Private lAutoErrNoFile as logical
+
+        oError_:SetExecAutoVariables()
+
+        msExecAuto({|x,y| mata030(x,y)},aAuto,3)
+
+        if( lMsErroAuto )
+            oError_:lError := .T.
+            disarmTransaction()
+            break
+        endif
+
+    END TRANSACTION
+
+    if( oError_:lError )
+
+        oError_:SetAutoGRLogFromExecAuto("mata030/Linha:" + cLinha) // captura erro do executo
+
+        if!empty(cAutoGrLog__)
+            cAutoGrLog__ += CRLF // se ja existe um log de erro, adiciona uma quebra de linha
+        endif
+
+        cAutoGrLog__ += oError_:cAutoGrLog // concatena o log de erro com o erro capturado do executo
+
+        oError_:Clear() // limpa o log de erro
+
+    endif
+
+Return .T.
+
+/*/{Protheus.doc} fValidTipoPessoa
+Valida o tipo de pessoa do Fornecedor
+@type function
+@version 12.1.2410
+@author TOTVS
+@since 7/9/2025
+@param aLinha, array, Linha de dados.
+@return character, Retorna .T. (true) para tipo de pessoa válido ou .F. (false) para tipo de pessoa inválido.
+/*/
+Static Function fValidTipoPessoa( aLinha as array ) as character
+
+    if empty(aLinha[NPOS_TIPO])
+
+        aLinha[NPOS_TIPO] := iif( len(aLinha[NPOS_CGC]) == 11, "F", "J" )
+
+    endif
+
+Return( !empty(aLinha[NPOS_TIPO]) )
+
+/*/{Protheus.doc} fFormatCep
+Função auxiliar para formatar o CEP.
+@type function
+@version 12.1.2410
+@author TOTVS
+@since 7/8/2025
+@param cCep, character, Cep a ser formatado.
+@return character, Cep formatado.
+/*/
+Static Function fFormatCep( cCep as character ) as character
+
+    cCep := allTrim(cCep)
+    cCep := replace(cCep, '.', '')
+    cCep := replace(cCep, '-', '')
+
+Return cCep
+
+/*/{Protheus.doc} fFormatCgc
+Função auxiliar para formatar o CGC.
+@type function
+@version 12.1.2410
+@author TOTVS
+@since 7/8/2025
+@param cCgc, character, Cgc a ser formatado.
+@return character, Cgc formatado.
+/*/
+Static Function fFormatCgc( cCgc as character ) as character
+
+    cCgc := allTrim(cCgc)
+    cCgc := replace(cCgc, '.', '')
+    cCgc := replace(cCgc, '-', '')
+    cCgc := replace(cCgc, '/', '')
+    cCgc := replace(cCgc, '\', '')
+
+Return cCgc

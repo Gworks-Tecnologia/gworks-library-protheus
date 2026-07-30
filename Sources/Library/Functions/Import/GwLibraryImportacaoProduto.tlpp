@@ -1,0 +1,917 @@
+#include 'totvs.ch'
+#include 'tlpp-core.th'
+
+#define CRLF chr(13)+chr(10)
+#define CRLF2 CRLF+CRLF
+
+using namespace Gworks.Library.Classes
+using namespace Gworks.Library.Utils
+
+namespace Gworks.Library.Functions
+
+Static aDados__ as array
+Static jStruct__ as json
+Static cLayout__ as character
+Static cRegistered__ as character
+Static lCheckDescricao__ as logical
+Static lInit__ := fInit() as logical
+
+Static Function fInit()
+
+    aDados__ := {}
+
+    jStruct__ := JsonObject():New()
+    jStruct__["COD_PRODUTO"]          := { "erp_field_name": "B1_COD"     , "erp_field_level": 1}
+    jStruct__["GRUPO"]                := { "erp_field_name": "B1_GRUPO"   , "erp_field_level": 2}
+    jStruct__["LOCAL_ESTOQUE"]        := { "erp_field_name": "B1_LOCPAD"  , "erp_field_level": 1}
+    jStruct__["DESCRICAO"]            := { "erp_field_name": "B1_DESC"    , "erp_field_level": 1}
+    jStruct__["ORIGEM"]               := { "erp_field_name": "B1_ORIGEM"  , "erp_field_level": 1}
+    jStruct__["TIPO"]                 := { "erp_field_name": "B1_TIPO"    , "erp_field_level": 1}
+    jStruct__["NCM"]                  := { "erp_field_name": "B1_POSIPI"  , "erp_field_level": 1}
+    jStruct__["EX_NBM"]               := { "erp_field_name": "B1_EX_NBM"  , "erp_field_level": 2}
+    jStruct__["UN_PRIMARIA"]          := { "erp_field_name": "B1_UM"      , "erp_field_level": 1}
+    jStruct__["UN_SECUNDARIA"]        := { "erp_field_name": "B1_SEGUM"   , "erp_field_level": 2}
+    jStruct__["FATOR_CONV"]           := { "erp_field_name": "B1_CONV"    , "erp_field_level": 2}
+    jStruct__["TIPO_CONV"]            := { "erp_field_name": "B1_TIPCONV" , "erp_field_level": 2}
+    jStruct__["PESO_LIQUIDO"]         := { "erp_field_name": "B1_PESO"    , "erp_field_level": 2}
+    jStruct__["PESO_BRUTO"]           := { "erp_field_name": "B1_PESBRU"  , "erp_field_level": 2}
+    jStruct__["PONTO_PED"]            := { "erp_field_name": "B1_EMIN"    , "erp_field_level": 2}
+    jStruct__["CUSTO_STD"]            := { "erp_field_name": "B1_CUSTD"   , "erp_field_level": 2}
+    jStruct__["LOTE_ENCO"]            := { "erp_field_name": "B1_LE"      , "erp_field_level": 2}
+    jStruct__["RASTRO"]               := { "erp_field_name": "B1_RASTRO"  , "erp_field_level": 2}
+    jStruct__["TIPOCQ"]               := { "erp_field_name": "B1_TIPOCQ"  , "erp_field_level": 2}
+    jStruct__["COD_CEST"]             := { "erp_field_name": "B1_CEST"    , "erp_field_level": 2}
+    jStruct__["IPI"]                  := { "erp_field_name": "B1_IPI"     , "erp_field_level": 2}
+    jStruct__["DESC_CIENTIFICA"]      := { "erp_field_name": "B5_CEME"    , "erp_field_level": 1}
+    jStruct__["EMBALAGEM_1"]          := { "erp_field_name": "B5_EMB1"    , "erp_field_level": 2}
+    jStruct__["QTD_EMBALAG1"]         := { "erp_field_name": "B5_QE1"     , "erp_field_level": 2}
+    jStruct__["EMBALAGEM_2"]          := { "erp_field_name": "B5_EMB2"    , "erp_field_level": 2}
+    jStruct__["QTD_EMBALAG2"]         := { "erp_field_name": "B5_QE2"     , "erp_field_level": 2}
+    jStruct__["COMPRIMENTO"]          := { "erp_field_name": "B5_COMPR"   , "erp_field_level": 2}
+    jStruct__["LARGURA"]              := { "erp_field_name": "B5_LARG"    , "erp_field_level": 2}
+    jStruct__["ALTURA"]               := { "erp_field_name": "B5_ALTURA"  , "erp_field_level": 2}
+
+    lInit__ := .T.
+
+Return .T.
+
+/*/{Protheus.doc} U_IMPORTAR
+    PRograma para importacao do cadastro de produtos a partir de arquivo CSV para o cliente Carvalho Cosmeticos
+    @type Function
+    @author Gworks - Giovani
+    @since 04/04/2024
+    @version 1.0
+
+    @see https://tdn.totvs.com/display/tec/tFileDialog
+    @see https://tdn.totvs.com/display/tec/getRemoteType
+    /*/
+
+User Function IMPORTAR()
+
+    Local lResult as logical
+
+    Private cTarget_ := '' as character
+    Private oError_ := GwError():New() as object
+    Private oLog_ := GwConsoleLog():New() as object
+    Private jMessage_ := U_GwGetMessage() as json
+    Private lProduction_ := empty(GetSrvProfString("SpecialKey","")) as logical
+    Private lBlind_ := (isBlind() .or. type('CEMPANT') == 'U' ) as logical
+
+    if lBlind_
+        UserException("CARVALHO.IMPORT.PRODUTOS.U_IMPORTAR - Invalid rpc call...")
+    endif
+
+    // Recicla aDados__ de processamentos anteriores
+    if !empty(aDados__)
+        fwFreeObj(aDados__)
+    endif
+    aDados__ := {}
+    lCheckDescricao__ := .T.
+
+    try
+
+        if!( fGetLayout() )
+
+            jMessage_['cState'] := "FAULT"
+            jMessage_['cError'] := "Falha ao gerar o layout do arquivo de importação."
+            jMessage_['cSuggestion'] := "Favor acione o suporte técnico."
+            jMessage_['cTitle'] := "Atenção!"
+            jMessage_['lError'] := .T.
+            jMessage_['cDetails'] := "Detalhe: " + oError_:cAutoGRLog
+
+            U_GwSetMessage(oError_, oLog_, jMessage_)
+
+            return
+
+        endif
+
+        if( !fGetFile() .or. empty(cTarget_) .or. !file(cTarget_) )
+
+            jMessage_['cState'] := "WARNING"
+            jMessage_['cError'] := "Arquivo inválido ou não selecionado!"
+            jMessage_['cSuggestion'] := "Selecione um arquivo válido e tente novamente."
+            jMessage_['cTitle'] := "Atenção!"
+            jMessage_['lError'] := .F.
+            jMessage_['cDetails'] := cLayout__
+
+            U_GwSetMessage(oError_, oLog_, jMessage_)
+
+            return
+
+        endif
+
+        processa({|| lResult := fProcess()}, "Importando arquivo...", "Aguarde...")
+        if!( lResult )
+            return
+        endif
+
+    catch _varError
+
+        if!( oError_:lError )
+
+            jMessage_['cState'] := "FAULT"
+            jMessage_['cError'] := "Falha inesperada!"
+            jMessage_['cSuggestion'] := "Favor contactar o suporte técnico."
+            jMessage_['cTitle'] := "Falha!"
+            jMessage_['lError'] := .T.
+            jMessage_['cDetails'] := ;
+                                    "Erro:" + _varError:Description +CRLF2+;
+                                    "Stack:" + _varError:errorStack
+
+            U_GwSetMessage(oError_, oLog_, jMessage_)
+
+        endif
+
+    endtry
+
+    if lResult
+        fWAlertSuccess("Arquivo processado com sucesso.", "Sucesso!")
+    endif
+
+Return
+
+/*/{Protheus.doc} LAYOUT
+Função auxiliar para excução direta via debug para geração do layout csv de importação.
+@type function
+@version 12.1.2410
+@author Gworks - Giovani
+@since 6/10/2025
+/*/
+User Function LAYOUT() // CARVALHO.IMPORT.PRODUTOS.U_LAYOUT
+
+    Private lBlind_ := (isBlind() .or. type('CEMPANT') == 'U' ) as logical
+
+    if lBlind_
+
+        rpcSetEnv( ;
+            "01"   ,; // cEmp
+            "0101" ,; // cFil
+            nil    ,; // cUser
+            nil    ,; // cPassword
+            "EST"  ,; // cModulo
+            "RPC"  ,; // cRotina
+            {"SB1"} ) // aTables
+
+    endif
+
+    if( fGetLayout() )
+        conOut( cLayout__ )
+    endif
+
+    if lBlind_
+        rpcClearEnv()
+    endif
+
+Return
+
+/*/{Protheus.doc} fGetLayout
+Obtem a estrutura de dados a ser considerada como layout do arquivo de importação.
+@type function
+@version 12.1.2410
+@author Gworks - Giovani
+@since 5/13/2025
+@return character, Retorna o layout do arquivo de importação.
+/*/
+Static Function fGetLayout()
+
+    Local lResult as logical
+    Local cCampoCsv as character
+    Local cCampoErp as character
+    Local aNames as array
+    Local nI as integer
+
+    if!( U_GwOpenDictionary("SX3", "SX3DIC") )
+        oError_:cAutoGRLog :="Erro ao abrir o dicionário de dados SX3..."
+        return .F.
+    endif
+
+    lResult := .T.
+    dbSelectArea("SX3DIC")
+    SX3DIC->(dbSetOrder(2)) // X3_CAMPO
+    aNames := jStruct__:getNames()
+    cLayout__ := "CAMPO_CSV;CAMPO_ERP;TITULO;DESCRICAO;TIPO;TAMANHO;DECIMAIS;OPCOES;OBRIGATORIO" + CRLF
+    for nI:=1 to len(aNames)
+        cCampoCsv := aNames[nI]
+        cCampoErp := jStruct__[cCampoCsv]["erp_field_name"]
+        cCampoErp := PadR(cCampoErp, 10, " ")
+        if!( SX3DIC->(msSeek( cCampoErp )) )
+            oError_:cAutoGRLog := "Erro ao localizar o campo "+ allTrim(cCampoErp) +" no dicionário SX3..."
+            lResult := .F.
+            exit
+        endif
+
+        jStruct__[cCampoCsv]["erp_field_type"] := SX3DIC->X3_TIPO
+        jStruct__[cCampoCsv]["erp_field_size"] := SX3DIC->X3_TAMANHO
+        jStruct__[cCampoCsv]["erp_field_decimals"] := SX3DIC->X3_DECIMAL
+        jStruct__[cCampoCsv]["erp_field_required"] := x3Obrigat(SX3DIC->X3_CAMPO)
+        jStruct__[cCampoCsv]["position"] := 0
+        cLayout__ += ;
+                    cCampoCsv +';'+;
+                    allTrim(SX3DIC->X3_CAMPO) +';'+;
+                    allTrim(encodeUtf8(SX3DIC->X3_TITULO)) +';'+;
+                    allTrim(encodeUtf8(SX3DIC->X3_DESCRIC)) +';'+;
+                    allTrim(SX3DIC->X3_TIPO) +';'+;
+                    allTrim(str(SX3DIC->X3_TAMANHO)) +';'+;
+                    allTrim(str(SX3DIC->X3_DECIMAL)) +';'+;
+                    replace(allTrim(SX3DIC->X3_CBOX),';',',') +';'+;
+                    iif(jStruct__[cCampoCsv]["erp_field_required"],'S','N') + CRLF
+
+    next
+
+Return lResult
+
+/*/{Protheus.doc} fGetFile
+Ontem o arquivo a ser importado.
+@type function
+@version 12.1.2410
+@author TOTVS - Gworks - Giovani
+@since 5/13/2025
+@return logical, Retorna .T. (true) para indicar sucesso.
+/*/
+Static Function fGetFile as logical
+
+    do case
+    case cValToChar(getRemoteType()) $ '0,1'
+        cTarget_ := tFileDialog("Arquivos CSV (*.csv)","Seleção de Arquivo",,'C:\Temp\',.F.,)
+
+    case cValToChar(getRemoteType()) == '2'
+        cTarget_ := tFileDialog("Arquivos CSV (*.csv)","Seleção de Arquivo",,'/temp/',.F.)
+
+    otherwise
+        cTarget_ := '\data\produtos.csv'
+
+    endcase
+
+Return .T.
+
+/*/{Protheus.doc} fProcess
+Função para processamento da importacao do arquivo.
+@type function
+@version 12.1.2410
+@author Gworks - Gworks - Giovani
+@since 5/13/2025
+@return logical, Retorna .T. (true) para indicar sucesso e .F. (false) em caso de falhas.
+/*/
+Static Function fProcess as logical
+
+    Local lResult as logical
+    Local lCabec as logical
+    Local lData as logical
+    Local lRegistered as logical
+    Local nI as numeric
+    Local nHDL as numeric
+    Local nLinha as numeric
+    Local cBuffer as character
+    Local aBuffer as array
+
+    nHDL := FT_FUSE(cTarget_)
+    if nHDL < 0
+
+        jMessage_['cState'] := "FAULT"
+        jMessage_['cError'] := "Falha ao abrir arquivo!"
+        jMessage_['cSuggestion'] := "Verifique o arquivo selecionado e tente novamente."
+        jMessage_['cTitle'] := "Atenção!"
+        jMessage_['lError'] := .T.
+        jMessage_['cDetails'] := ""
+
+        U_GwSetMessage(oError_, oLog_, jMessage_)
+
+        return .F.
+
+    endif
+
+    while .not. FT_FEOF()
+
+        nLinha++
+        cBuffer := FT_FREADLN()
+        aBuffer := strToKArr2(cBuffer,';',.T.)
+
+        if empty(aBuffer)
+            FT_FSKIP()
+            Loop // ignora linhas vazias
+        endif
+
+        if( nLinha == 1 )
+            if!( lCabec := fReadCabec(aBuffer))
+                exit
+            endif
+        else
+            if!( lData := fReadData(aBuffer, allTrim(str(nLinha))) )
+                exit
+            endif
+        endif
+
+        FT_FSKIP()
+
+    enddo
+
+    if( !lCabec .or. !lData )
+        return .F.
+    endif
+
+    FT_FUSE()
+
+    procregua(len(aDados__))
+    cRegistered__ := ''
+    for nI := 1 To Len(aDados__)
+        incproc()
+        if!( lResult := fCadastraProduto( aDados__[nI], allTrim(str(nI)), @lRegistered ) )
+            exit
+        endif
+    next
+
+    if !empty(cRegistered__)
+
+        jMessage_['cState'] := "WARNING"
+        jMessage_['cError'] := "Produtos já cadastrados!"
+        jMessage_['cSuggestion'] := "Não é possível atualizar dados de produtos já cadastrados."
+        jMessage_['cTitle'] := "Atenção!"
+        jMessage_['lError'] := .F.
+        jMessage_['cDetails'] := cRegistered__
+
+        U_GwSetMessage(oError_, oLog_, jMessage_)
+
+    endif
+
+Return lResult
+
+/*/{Protheus.doc} fReadCabec
+Função para validação do cabeçalho do arquivo.
+@type function
+@version 12.1.2410
+@author Gworks - Giovani
+@since 5/13/2025
+@param aCabec, array, Estrutura do cabeçalho do arquivo.
+@return variant, Retorna .T. (true) para indicar que o cabeçalho é válido e .F. (false) caso contrário.
+/*/
+Static Function fReadCabec( aCabec as array )
+
+    Local lResult := .T. as logical
+    Local lExists := .T. as logical
+    Local nI as numeric
+    Local aNames as array
+    Local cCampoCsv as character
+    Local cCposInvalidos as character
+    Local cCposRepetidos as character
+
+    if empty(aCabec)
+
+        jMessage_['cState'] := "FAULT"
+        jMessage_['cError'] := "Cabeçalho do arquivo inválido!"
+        jMessage_['cSuggestion'] := "Corrija o cabeçalho e tente novamente."
+        jMessage_['cTitle'] := "Atenção!"
+        jMessage_['lError'] := .T.
+        jMessage_['cDetails'] := cLayout__
+
+        U_GwSetMessage(oError_, oLog_, jMessage_)
+
+        return .F.
+
+    endif
+
+    aNames := jStruct__:getNames()
+    for nI:=1 to len(aCabec)
+
+        cCampoCsv := allTrim(upper(aCabec[nI]))
+        lExists := .T.
+
+        if ( aScan( aNames, { |x| x == cCampoCsv } ) == 0 )
+            if !empty(cCposInvalidos)
+                cCposInvalidos += "; "
+            endif
+            cCposInvalidos += cCampoCsv
+            lExists := .F.
+            lResult := .F.
+        endif
+
+        if( lExists .and. jStruct__[cCampoCsv]["position"] > 0 )
+            if !empty(cCposRepetidos)
+                cCposRepetidos += "; "
+            endif
+            cCposRepetidos += cCampoCsv
+            lResult := .F.
+        endif
+
+        if lResult
+            jStruct__[cCampoCsv]["position"] := nI
+        endif
+
+    next
+
+    if !lResult .and. !empty(cCposInvalidos)
+
+        jMessage_['cState'] := "FALUT"
+        jMessage_['cError'] := "Estrutura do arquivo inválida!"
+        jMessage_['cSuggestion'] := "Corrija a estrutura de dados e tente novamente."
+        jMessage_['cTitle'] := "Atenção!"
+        jMessage_['lError'] := .T.
+        jMessage_['cDetails'] := "Coluna(s) inválida(s): " +CRLF+ cCposInvalidos
+
+        U_GwSetMessage(oError_, oLog_, jMessage_)
+
+    endif
+
+    if !lResult .and. !empty(cCposRepetidos)
+
+        jMessage_['cState'] := "FALUT"
+        jMessage_['cError'] := "Estrutura do arquivo inválida!"
+        jMessage_['cSuggestion'] := "Corrija o cabeçalho e tente novamente."
+        jMessage_['cTitle'] := "Atenção!"
+        jMessage_['lError'] := .T.
+        jMessage_['cDetails'] := "Coluna(s) repetida(s): " +CRLF+ cCposRepetidos
+
+        U_GwSetMessage(oError_, oLog_, jMessage_)
+
+    endif
+
+Return lResult
+
+/*/{Protheus.doc} fReadData
+Ontem os dados de uma determinada linha do arquivo e os correlaciona com a estrutura Json presente em jData__.
+@type function
+@version 12.1.2410
+@author Gworks - Giovani
+@since 5/14/2025
+@param aLinha, array, Linha a ser processada.
+@param cLinha, character, Número da linha correspondente.
+/*/
+Static Function fReadData( aLinha as array, cLinha as character )
+
+    Local lResult := .T. as logical
+    Local lCriaVar := .F. as logical
+    Local jDados := jSonObject():New() as json
+    Local nX as numeric
+    Local nPos as numeric
+    Local aNames as array
+    Local cCampoCsv as character
+    Local cCampoErp as character
+    Local cEmptyRequired as character
+    Local xValue as variant
+
+    if empty(aLinha)
+
+        jMessage_['cState'] := "FAULT"
+        jMessage_['cError'] := "Linha "+ ( '"'+cLinha+'"' ) +" vazia..."
+        jMessage_['cSuggestion'] := "Verifique o arquivo e tente novamente."
+        jMessage_['cTitle'] := "Atenção!"
+        jMessage_['lError'] := .T.
+        jMessage_['cDetails'] := cLayout__
+
+        U_GwSetMessage(oError_, oLog_, jMessage_)
+
+        return .F.
+
+    endif
+
+    cEmptyRequired := ''
+    aNames := jStruct__:getNames()
+    for nX:=1 to len(aNames) // para cada campo...
+
+        lCriaVar  := .F.
+        cCampoCsv := aNames[nX]
+        cCampoErp := jStruct__[cCampoCsv]["erp_field_name"]
+
+        nPos := jStruct__[cCampoCsv]["position"]
+        if( nPos == 0 )
+            lCriavar := .T. // campo não informado no arquivo
+        endif
+
+        if!( lCriaVar )
+            xValue := aLinha[nPos]
+            if empty(xValue)
+                lCriaVar := .T. // campo informado no arquivo, porém sem conteúdo
+            endif
+        endif
+
+        if!( lCriaVar )
+            do case
+                case jStruct__[cCampoCsv]["erp_field_type"] $ "C/M"; xValue := fNormalizaTexto(cCampoCsv, cCampoErp, xValue )
+                case jStruct__[cCampoCsv]["erp_field_type"] == "N" ; xValue := val(replace(replace(xValue,'.',''),',','.'))
+                case jStruct__[cCampoCsv]["erp_field_type"] == "D" ; xValue := cTod(xValue)
+                otherwise
+
+                    jMessage_['cState'] := "FAULT"
+                    jMessage_['cError'] := "Linha "+ ( '"'+cLinha+'"' ) +" vazia..."
+                    jMessage_['cSuggestion'] := "Verifique o arquivo e tente novamente."
+                    jMessage_['cTitle'] := "Atenção!"
+                    jMessage_['lError'] := .T.
+                    jMessage_['cDetails'] := "A coluna " + cCampoCsv + " referente à linha: "+ ( '"'+cLinha+'"' ) +" não possui um tipo válido..."
+
+                    U_GwSetMessage(oError_, oLog_, jMessage_)
+
+                    lResult := .F.
+
+                    exit
+            endcase
+        else
+            xValue := criaVar(cCampoErp)
+        endif
+
+        if empty(xValue) ;
+            .and. jStruct__[cCampoCsv]["erp_field_required"] ;
+            .and. jStruct__[cCampoCsv]["erp_field_level"] == 1
+            cEmptyRequired := cCampoCsv + CRLF
+        endif
+
+        jDados[cCampoCsv] := xValue
+
+    next
+
+    aAdd(aDados__, jDados)
+
+    if !empty(cEmptyRequired)
+
+        jMessage_['cState'] := "FAULT"
+        jMessage_['cError'] := "Campos obrigatórios com conteúdo não informado na linha "+ ( '"'+cLinha+'"' ) + "."
+        jMessage_['cSuggestion'] := "Informe o respectivo conteúdo para os campos listados a seguir e tente novamente."
+        jMessage_['cTitle'] := "Atenção!"
+        jMessage_['lError'] := .T.
+        jMessage_['cDetails'] := cEmptyRequired
+
+        U_GwSetMessage(oError_, oLog_, jMessage_)
+
+        lResult := .F.
+
+    endif
+
+Return lResult
+
+/*/{Protheus.doc} fCadastraProduto
+Função auxiliar para gravação do Produto na tabela SB1 do banco de dados.
+@type function
+@version 12.1.2410
+@author TOTVS - Gworks - Giovani
+@since 5/13/2025
+@param jDados, array, Dados a serem gravados.
+@param cLinha, character, Linha a ser gravada em formato de texto.
+@return logical, Retorna .T. (true) se a gravação foi realizada com sucesso e .F. (false) caso contrário.
+/*/
+Static Function fCadastraProduto( jDados as json, cLinha as character, lRegistered as logical ) as logical
+
+    Local lResult as logical
+    Local aAuto as array
+
+    aAuto := {}
+
+    if( fVerificarProdutoCadastrado(jDados) )
+        return .T. // ignora a execução
+    endif
+
+    if!( fObterRastroGrupoProduto(jDados) )
+        return .F. // aborta a execução
+    endif
+
+    if!( fObterCodigoProduto(jDados, cLinha) )
+        return .F. // aborta a execução
+    endif
+
+    if!( fAtualizarDadosNCM( jDados ) )
+        return .F. // aborta a execução
+    endif
+
+    // Campos pertencentes ao mapeamento
+    aadd(aAuto, {"B1_COD", jDados["COD_PRODUTO"], Nil})
+    aadd(aAuto, {"B1_GRUPO", jDados["GRUPO"], Nil})
+    aadd(aAuto, {"B1_DESC", jDados["DESCRICAO"], Nil})
+    aadd(aAuto, {"B1_TIPO", jDados["TIPO"], Nil})
+    aadd(aAuto, {"B1_POSIPI", jDados["NCM"], Nil})
+    aadd(aAuto, {"B1_EX_NBM", jDados["EX_NBM"], Nil})
+    aadd(aAuto, {"B1_LOCPAD", jDados["LOCAL_ESTOQUE"], Nil})
+    aadd(aAuto, {"B1_UM", jDados["UN_PRIMARIA"], Nil})
+    aadd(aAuto, {"B1_SEGUM", jDados["UN_SECUNDARIA"], Nil})
+    aadd(aAuto, {"B1_CONV", jDados["FATOR_CONV"], Nil})
+    aadd(aAuto, {"B1_TIPCONV", jDados["TIPO_CONV"], Nil})
+    aadd(aAuto, {"B1_PESO", jDados["PESO_LIQUIDO"], Nil})
+    aadd(aAuto, {"B1_PESBRU", jDados["PESO_BRUTO"], Nil})
+    aadd(aAuto, {"B1_ORIGEM", jDados["ORIGEM"], Nil})
+    aadd(aAuto, {"B1_EMIN", jDados["PONTO_PED"], Nil})
+    aadd(aAuto, {"B1_CUSTD", jDados["CUSTO_STD"], Nil})
+    aadd(aAuto, {"B1_LE", jDados["LOTE_ENCO"], Nil})
+    aadd(aAuto, {"B1_RASTRO", jDados["RASTRO"], Nil})
+    aadd(aAuto, {"B1_TIPOCQ", jDados["TIPOCQ"], Nil})
+    aadd(aAuto, {"B1_CEST", jDados["COD_CEST"], Nil})
+    aadd(aAuto, {"B1_IPI", jDados["IPI"], Nil})
+
+    // Campos fora do mapeamento
+    if( !empty(jDados["COD_EAN"]) .and. allTrim(jDados["COD_EAN"]) != "N.A." )
+        aadd(aAuto, {"B1_CODBAR", jDados["COD_EAN"], Nil})
+        aadd(aAuto, {"B1_CODGTIN", jDados["COD_EAN"], Nil})
+    endif
+
+    BEGIN TRANSACTION
+
+        lResult := .T.
+
+        Private lMsErroAuto as logical
+        Private lMsHelpAuto as logical
+        Private lAutoErrNoFile as logical
+
+        oError_:SetExecAutoVariables()
+
+        msExecAuto({ |x,y| MATA010(x,y) }, aAuto, 3 )
+
+        if( lMsErroAuto )
+            lResult := .F.
+            disarmTransaction()
+            break
+        endif
+
+        if!( fIncluirDadosComplementares(jDados) )
+            lResult := .F.
+            disarmTransaction()
+            break
+        endif
+
+    END TRANSACTION
+
+    if!( lResult )
+
+        oError_:SetAutoGRLogFromExecAuto("MATA010")
+
+        jMessage_['cState'] := "FAULT"
+        jMessage_['cError'] := "Falha ao cadastrar o produto: " + ('"'+allTrim(jDados["DESCRICAO"])+'"')
+        jMessage_['cSuggestion'] := "Revise o dados correspondentes à linha "+ ('"'+cLinha+'"') +" e tente novamente."
+        jMessage_['cTitle'] := "Atenção!"
+        jMessage_['lError'] := .T.
+        jMessage_['cDetails'] := nil
+
+        U_GwSetMessage(oError_, oLog_, jMessage_)
+
+        if( lResult := FwAlertYesNo("Deseja continuar processando os demais itens do arquivo de importação?", "Continuar?") )
+
+            jMessage_['cState'] := ""
+            jMessage_['cError'] := ""
+            jMessage_['cSuggestion'] := ""
+            jMessage_['cTitle'] := ""
+            jMessage_['lError'] := .F.
+            jMessage_['cDetails'] := ""
+
+            oError_:Clear()
+            oLog_:Clear()
+
+        endif
+
+    endif
+
+Return lResult
+
+/*/{Protheus.doc} fVerificarProdutoCadastrado
+Valida se o produto já está cadastrado.
+@type function
+@version 12.1.2310
+@author Gworks - Giovani
+@since 6/10/2025
+@param jDados, json, Dados do produto.
+@return logical, Retorna .T. (true) para indicar que o produto já existe e .F. (false) caso contrário.
+/*/
+Static Function fVerificarProdutoCadastrado( jDados as json )
+
+    Local lResult as logical
+    Local nIdProduto as integer
+    Local cCodigo as character
+    Local cDescri as character
+    Local cCEME as character
+    Local cAlias as character
+
+    if allTrim(jDados["GRUPO"]) $ "IM;IM0;FPI;FPI0"
+        lCheckDescricao__ := .F.
+        if empty(jDados["COD_PRODUTO"])
+            UserException("CARVALHO.IMPORT.PRODUTOS.U_IMPORTAR - Não é permitido impotar produtos do grupo IM sem informar o campo COD_PRODUTO...")
+        endif
+    endif
+
+    cCodigo := ( cAux:=jDados["COD_PRODUTO"]       , iif(empty(cAux),"n/a", allTrim(cAux)) )
+    cLegado := ( cAux:=jDados["COD_PRODUTO_LEGADO"], iif(empty(cAux),"n/a", allTrim(cAux)) )
+    cDescri := ( cAux:=jDados["DESCRICAO"]         , iif(empty(cAux),"n/a", allTrim(cAux)) )
+    cCEME   := ( cAux:=jDados["DESC_CIENTIFICA"]   , iif(empty(cAux),"n/a", allTrim(cAux)) )
+    if .not. empty(cDescri)
+
+        cAlias := getNextAlias()
+
+        if( lCheckDescricao__ )
+            beginSql alias cAlias
+                SELECT SB1.R_E_C_N_O_ AS B1_RECNO
+                FROM %table:SB1% SB1
+                JOIN %table:SB5% SB5 ON ( SB5.B5_FILIAL = SB1.B1_FILIAL AND SB5.B5_COD = SB1.B1_COD AND SB5.D_E_L_E_T_ = ' ' )
+                WHERE SB1.B1_FILIAL = %xFilial:SB1%
+                AND (  SB1.B1_COD = %exp:cCodigo%
+                    OR SB1.B1_YLEGADO = %exp:cLegado%
+                    OR SB1.B1_DESC = %exp:cDescri%
+                    OR SB5.B5_CEME = %exp:cCEME% )
+                AND SB1.%notdel%
+            endSql
+
+        else
+            beginSql alias cAlias
+                SELECT SB1.R_E_C_N_O_ AS B1_RECNO
+                FROM %table:SB1% SB1
+                WHERE SB1.B1_FILIAL = %xFilial:SB1%
+                AND ( SB1.B1_COD = %exp:cCodigo% )
+                AND SB1.%notdel%
+            endSql
+
+        endif
+
+        dbSelectArea(cAlias)
+
+        if !(cAlias)->(eof())
+            nIdProduto := (cAlias)->(B1_RECNO)
+        endif
+
+        (cAlias)->(dbCloseArea())
+
+    endif
+
+    if( lResult := (nIdProduto > 0) )
+        dbSelectArea("SB1")
+        SB1->(dbGoTo(nIdProduto))
+        cRegistered__ += SB1->( allTrim(B1_COD) +'-'+ allTrim(B1_DESC) ) + CRLF
+    endif
+
+Return lResult
+
+/*/{Protheus.doc} fNormalizaTexto
+Quebra linha de um texto com base no marcador "\n".
+@type function
+@version 12.1.2410
+@author Gworks - Giovani
+@since 5/13/2025
+@param cTexto, character, Texto a ser formatado.
+@return character, Texto formatado.
+/*/
+Static Function fNormalizaTexto( cCampoCsv as character, cCampoErp as character, cTexto as character )
+
+    Local lRemoveMask as logical
+
+    lRemoveMask := (cCampoErp $ "B1_POSIPI, B1_CEST")
+
+    if jStruct__[cCampoCsv]["erp_field_type"] == "C"
+        cTexto := iif( lRemoveMask, replace(cTexto, '.', ''), cTexto)
+        cTexto := left(cTexto, jStruct__[cCampoCsv]["erp_field_size"])
+    endif
+
+    cTexto := upper(allTrim(decodeUtf8(cTexto)))
+    cTexto := replace( cTexto, " \N" , "\N" )
+    cTexto := replace( cTexto, "\N " , "\N" )
+    cTexto := replace( cTexto, " \N ", "\N" )
+    cTexto := replace( cTexto, "\N"  , CRLF )
+
+Return cTexto
+
+/*/{Protheus.doc} fObterRastroGrupoProduto
+Obtem dados do rastro do grupo de produto a partir de seu grupo correspondente.
+@type function
+@version 12.1.2410
+@author giovani
+@since 6/10/2025
+@param jDados, json, Dados do produto.
+@return logical, Retorna .T. (true) para indicar sucesso e .F. (false) caso contrário.
+/*/
+Static Function fObterRastroGrupoProduto( jDados as json )
+
+    SBM->(dbSetOrder(1))
+    SBM->(dbGoTop())
+    if SBM->(msSeek(xFilial("SBM")+jDados["GRUPO"]))
+        jDados["RASTRO"] := SBM->BM_YRASTRO
+        jDados["TIPOCQ"] := SBM->BM_YTIPOCQ
+    endif
+
+Return .T.
+
+/*/{Protheus.doc} fObterCodigoProduto
+Obtem o código do Produto para inclusão, caso o mesmo não seja informado.
+@type function
+@version 12.1.2410
+@author Gworks - Giovani
+@since 6/10/2025
+@param jDados, json, Dados do produto.
+@param cLinha, character, Linha do arquivo CSV.
+@return logical, Retorna .T. (true) para indicar sucesso e .F. (false) caso contrário.
+/*/
+Static Function fObterCodigoProduto( jDados as json, cLinha as character )
+
+    if!( empty(jDados["COD_PRODUTO"]) )
+        return .T.
+    endif
+
+    do case
+
+        // Agrega o código conforme: <grupo><armazem>.<seq. 4 díg.>
+        case jDados["TIPO_CODIGO"] == "1"
+            jDados["COD_PRODUTO"] := U_CodProd(jDados["GRUPO"], jDados["LOCAL_ESTOQUE"], 1)
+
+        // Agrega o código conforme: <grupo><prefixo>.<seq. 4 díg.>
+        case jDados["TIPO_CODIGO"] == "2"
+            jDados["COD_PRODUTO"] := U_CodProd(jDados["GRUPO"], jDados["PREFIXO"], 2)
+
+        otherwise
+
+            jMessage_['cState'] := "FALUT"
+            jMessage_['cError'] := "Código do produto inválido!"
+            jMessage_['cSuggestion'] := "Revise os dados a serem importados e tente novamente."
+            jMessage_['cTitle'] := "Atenção!"
+            jMessage_['lError'] := .T.
+            jMessage_['cDetails'] := ;
+                                    "FALHA LINHA: " + cLinha +CRLF2+;
+                                    " - COD_PRODUTO: " + jDados["COD_PRODUTO"] +CRLF+ ;
+                                    " - GRUPO: " + jDados["GRUPO"] +CRLF+ ;
+                                    " - LOCAL_ESTOQUE: " + jDados["LOCAL_ESTOQUE"] +CRLF+ ;
+                                    " - PREFIXO: " + jDados["PREFIXO"]
+
+            U_GwSetMessage(oError_, oLog_, jMessage_)
+
+            return .F.
+
+    endcase
+
+Return .T.
+
+/*/{Protheus.doc} fAtualizarDadosNCM
+Atualiza dados do NCM do produto.
+@type function
+@version 12.1.2410
+@author giovani
+@since 6/10/2025
+@param jDados, json, Dados do produto.
+@return logical, Retorna .T. (true) para indicar sucesso e .F. (false) caso contrário.
+/*/
+Static Function fAtualizarDadosNCM( jDados as json )
+
+    if !empty(jDados["NCM"])
+
+        dbSelectArea("SYD")
+        SYD->(dbSetOrder(1))
+        SYD->(dbGoTop())
+        if!(SYD->( msSeek(xFilial("SYD")+jDados["NCM"])))
+            reclock("SYD", .T.)
+                SYD->YD_FILIAL := xFilial("SYD")
+                SYD->YD_TEC := jDados["NCM"]
+                SYD->YD_UNID := jDados["UN_PRIMARIA"]
+            SYD->(msUnlock())
+        endif
+
+    endif
+
+Return .T.
+
+/*/{Protheus.doc} fIncluirDadosComplementares
+Incluir dados complementares do produto.
+@type function
+@version 12.1.2410
+@author Gworks - Giovani
+@since 6/10/2025
+@param jDados, json, Dados do produto.
+@return logical, Retorna .T. (true) para indicar sucesso e .F. (false) caso contrário.
+/*/
+Static Function fIncluirDadosComplementares( jDados as json )
+
+    Local cCEME as character
+    Local aCamposSB5 as array
+
+    cCEME := iif( !empty(jDados["DESC_CIENTIFICA"]), jDados["DESC_CIENTIFICA"], jDados["DESCRICAO"] )
+
+    dbSelectArea("SB5")
+    SB5->(dbSetOrder(retOrder(,"B5_FILIAL+B5_COD")))
+    SB5->(dbGoTop())
+    if!(SB5->(msSeek(xFilial("SB5")+jDados["COD_PRODUTO"])))
+
+        reclock("SB5",.T.)
+
+            aCamposSB5 := fwSX3Util():getAllFields("SB5",.F.)
+            aEval(aCamposSB5,{|campo| SB5->&(campo) := criavar(campo,.T.)})
+
+            SB5->B5_COD    := jDados["COD_PRODUTO"]
+            SB5->B5_CEME   := cCEME
+            SB5->B5_EMB1   := jDados["EMBALAGEM_1"]
+            SB5->B5_QE1    := jDados["QTD_EMBALAG1"]
+            SB5->B5_EMB2   := jDados["EMBALAGEM_2"]
+            SB5->B5_QE2    := jDados["QTD_EMBALAG2"]
+            SB5->B5_COMPR  := jDados["COMPRIMENTO"]
+            SB5->B5_LARG   := jDados["LARGURA"]
+            SB5->B5_ALTURA := jDados["ALTURA"]
+
+        SB5->(msunlock())
+
+    endif
+
+Return .T.
