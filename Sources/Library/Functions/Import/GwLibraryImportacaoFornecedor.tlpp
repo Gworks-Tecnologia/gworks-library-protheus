@@ -35,7 +35,7 @@ Static cAutoGrLog__ as character
 using namespace Gworks.Library.Classes
 using namespace Gworks.Library.Utils
 
-namespace Gworks.Library.Functions
+namespace Gworks.Library.Functions 
 
 /*/{Protheus.doc} U_Importar
 Função para importar arquivo csv de títulos à pagar, conforme layout:
@@ -325,26 +325,26 @@ Static Function fReadData( aLinha as array, cLinha as character )
         else
 
             do case
-                case nCol == NPOS_TIPO   ; xValue := iif(!empty(xValue), upper(allTrim(xValue)), " ")
-                case nCol == NPOS_CGC    ; xValue := iif(!empty(xValue), fFormatCgc(xValue), " ")
-                case nCol == NPOS_NOME   ; xValue := iif(!empty(xValue), upper(allTrim(decodeUtf8(xValue))), " ")
-                case nCol == NPOS_NREDUZ ; xValue := iif(!empty(xValue), upper(allTrim(decodeUtf8(xValue))), " ")
-                case nCol == NPOS_CEP    ; xValue := iif(!empty(xValue), fFormatCep(xValue), " ")
-                case nCol == NPOS_END    ; xValue := iif(!empty(xValue), upper(allTrim(xValue)), " ")
-                case nCol == NPOS_COMPLEM; xValue := iif(!empty(xValue), upper(allTrim(xValue)), " ")
-                case nCol == NPOS_BAIRRO ; xValue := iif(!empty(xValue), fwNoAccent(upper(allTrim(decodeUtf8(xValue)))), " ")
-                case nCol == NPOS_MUN    ; xValue := iif(!empty(xValue), fwNoAccent(upper(allTrim(decodeUtf8(xValue)))), " ")
-                case nCol == NPOS_COD_MUN; xValue := iif(!empty(xValue), fwNoAccent(upper(allTrim(decodeUtf8(xValue)))), " ")
-                case nCol == NPOS_EST    ; xValue := iif(!empty(xValue), fwNoAccent(upper(allTrim(decodeUtf8(xValue)))), " ")
-                case nCol == NPOS_DDD    ; xValue := iif(!empty(xValue), upper(allTrim(xValue)), " ")
-                case nCol == NPOS_TEL    ; xValue := iif(!empty(xValue), upper(allTrim(xValue)), " ")
-                case nCol == NPOS_EMAIL  ; xValue := iif(!empty(xValue), upper(allTrim(xValue)), " ")
-                case nCol == NPOS_CONTATO; xValue := iif(!empty(xValue), decodeUtf8(upper(allTrim(xValue))), " ")
-                case nCol == NPOS_INSCR  ; xValue := iif(!empty(xValue), upper(allTrim(xValue)), " ")
-                case nCol == NPOS_INSCRM ; xValue := iif(!empty(xValue), upper(allTrim(xValue)), " ")
-                case nCol == NPOS_PAIS   ; xValue := iif(!empty(xValue), upper(allTrim(xValue)), " ")
-                case nCol == NPOS_CODPAIS; xValue := iif(!empty(xValue), upper(allTrim(xValue)), " ")
-                case nCol == NPOS_CONTRIB; xValue := iif(!empty(xValue), upper(allTrim(xValue)), " ")
+                case nCol == NPOS_TIPO   ; xValue := iif(!empty(xValue), upper(allTrim(LEFT(xValue,1))), " ")
+                case nCol == NPOS_CGC    ; xValue := iif(!empty(xValue), fFormatCgc(LEFT(xValue,14)), " ")
+                case nCol == NPOS_NOME   ; xValue := iif(!empty(xValue), upper(allTrim(decodeUtf8(LEFT(xValue,50)))), " ")
+                case nCol == NPOS_NREDUZ ; xValue := iif(!empty(xValue), upper(allTrim(decodeUtf8(LEFT(xValue,20)))), " ")
+                case nCol == NPOS_CEP    ; xValue := iif(!empty(xValue), fFormatCep(LEFT(xValue,8)), " ")
+                case nCol == NPOS_END    ; xValue := iif(!empty(xValue), upper(allTrim(LEFT(xValue,40))), " ")
+                case nCol == NPOS_COMPLEM; xValue := iif(!empty(xValue), upper(allTrim(LEFT(xValue,50))), " ")
+                case nCol == NPOS_BAIRRO ; xValue := iif(!empty(xValue), fwNoAccent(upper(allTrim(decodeUtf8(LEFT(xValue,20))))), " ")
+                case nCol == NPOS_EST    ; xValue := iif(!empty(xValue), fwNoAccent(upper(allTrim(decodeUtf8(LEFT(xValue,2))))), " ")
+                case nCol == NPOS_MUN    ; xValue := iif(!empty(xValue), fwNoAccent(upper(allTrim(decodeUtf8(LEFT(xValue,60))))), " ")
+                case nCol == NPOS_COD_MUN; xValue := iif(!empty(xValue), fwNoAccent(upper(allTrim(decodeUtf8(RIGHT(xValue,5))))), " ")
+                case nCol == NPOS_DDD    ; xValue := iif(!empty(xValue), upper(allTrim(LEFT(xValue,3))), " ")
+                case nCol == NPOS_TEL    ; xValue := iif(!empty(xValue), upper(allTrim(LEFT(xValue,50))), " ")
+                case nCol == NPOS_EMAIL  ; xValue := iif(!empty(xValue), upper(allTrim(LEFT(xValue,30))), " ")
+                case nCol == NPOS_CONTATO; xValue := iif(!empty(xValue), decodeUtf8(upper(allTrim(LEFT(xValue,15)))), " ")
+                case nCol == NPOS_INSCR  ; xValue := iif(!empty(xValue), upper(allTrim(LEFT(xValue,18))), " ")
+                case nCol == NPOS_INSCRM ; xValue := iif(!empty(xValue), upper(allTrim(LEFT(xValue,18))), " ")
+                case nCol == NPOS_PAIS   ; xValue := iif(!empty(xValue), upper(allTrim(LEFT(xValue,3))), " ")
+                case nCol == NPOS_CODPAIS; xValue := iif(!empty(xValue), upper(allTrim(LEFT(xValue,5))), " ")
+                case nCol == NPOS_CONTRIB; xValue := iif(!empty(xValue) .AND. xValue == "SIM" .OR. xValue == "1", "1", "2")
             endcase
 
         endif
@@ -375,7 +375,7 @@ Função auxiliar para gravação do Produto na tabela SB1 do banco de dados.
 Static Function fCadastrarFornecedor( aLinha as array, cLinha as character ) as logical
 
     Local aAuto as array
-    Local aCodigo as array
+    Local aCodigo := array(2) as array
 
     SA2->( dbSelectArea("SA2"), dbSetOrder(3), dbGoTop() )
     if( SA2->( msSeek( xFilial("SA2")+aLinha[ NPOS_CGC ] ) ) )
@@ -384,6 +384,9 @@ Static Function fCadastrarFornecedor( aLinha as array, cLinha as character ) as 
                         "NOME: "+ aLinha[ NPOS_NOME ] + CRLF
         return .T.
     endif
+
+    aCodigo[1] := GetSxEnum("SA2","A2_COD")
+    aCodigo[2] := "01"
 
     if empty(aLinha[ NPOS_NREDUZ ])
         aLinha[ NPOS_NREDUZ ] := aLinha[ NPOS_NOME ]
@@ -396,7 +399,7 @@ Static Function fCadastrarFornecedor( aLinha as array, cLinha as character ) as 
     aAuto := {;
         {"A2_COD"    , aCodigo[1]            , Nil},;
         {"A2_LOJA"   , aCodigo[2]            , Nil},;
-        {"A2_CONTRIB", aLinha[ A2_CONTRIB ]  , Nil},;
+        {"A2_CONTRIB", aLinha[ NPOS_CONTRIB ], Nil},;
         {"A2_SIMPNAC", "2"                   , Nil},;
         {"A2_PAIS"   , '105'                 , Nil},;
         {"A2_CODPAIS", '01058'               , Nil},;
@@ -406,8 +409,8 @@ Static Function fCadastrarFornecedor( aLinha as array, cLinha as character ) as 
         {"A2_NREDUZ" , aLinha[ NPOS_NREDUZ ] , Nil},;
         {"A2_CEP"    , aLinha[ NPOS_CEP ]    , Nil},;
         {"A2_END"    , aLinha[ NPOS_END ]    , Nil},;
-        {"A2_BAIRRO" , aLinha[ NPOS_BAIRRO ] , Nil},;
         {"A2_EST"    , aLinha[ NPOS_EST ]    , Nil},;
+        {"A2_BAIRRO" , aLinha[ NPOS_BAIRRO ] , Nil},;
         {"A2_COD_MUN", aLinha[ NPOS_COD_MUN ], Nil},;
         {"A2_MUN"    , aLinha[ NPOS_MUN ]    , Nil},;
         {"A2_DDD"    , aLinha[ NPOS_DDD ]    , Nil},;
@@ -431,7 +434,11 @@ Static Function fCadastrarFornecedor( aLinha as array, cLinha as character ) as 
         if( lMsErroAuto )
             oError_:lError := .T.
             disarmTransaction()
+            SA2->(rollBackSx8())
             break
+        
+        else
+            ConfirmSx8()
         endif
 
     END TRANSACTION
