@@ -40,12 +40,14 @@ Class GwMetaData From GwMetaDataCommit
     Public Method AddIndex( jIndex as json )
     // Public Method AddTriggers()
     Public Method AddFolder( jFolder as json )
+    Public Method AddQuery( jQuery as json )
     // Public Method AddParameters()
 
     Private Method ValidTable( jTable as json, jRetValid as json ) as logical
     Private Method ValidField( jField as json, jRetValid as json ) as logical
     Private Method ValidIndex( jIndex as json, jRetValid as json ) as logical
     Private Method ValidFolder( jField as json, jRetValid as json ) as logical
+    Private Method ValidQuery( jQuery as json, jRetValid as json ) as logical
 
     // Métodos privados da classe
     Private Method Init()
@@ -93,6 +95,7 @@ Method Init() Class GwMetaData
         ::jMetaData["indexes"] := {} // six
         ::jMetaData["triggers"] := {} // sx7
         ::jMetaData["folders"] := {} // sxa
+        ::jMetaData["queries"] := {} // sxb
         ::jMetaData["parameters"] := {} // sx6
 
 Return
@@ -849,5 +852,262 @@ Method ValidFolder( jFolder as json, jRetValid as json ) as logical Class GwMeta
     // TODO: validar database...
 
     RestArea(aArea)
+
+Return .T.
+
+/*/{Protheus.doc} GwMetaData::AddQuery
+Método para adicionar uma consulta padrão à tabela SXB (consultas) do dicionário de dados do ERP.
+@type method
+@version 12.1.2410
+@author Gworks - Giovani
+@since 8/18/2026
+@param jQuery, json, Objeto referente aos metadados para gravação conforme layout:
+    {
+        "alias" : "string", // apelido da consulta (até 6 caracteres), referenciado pelo campo X3_F3
+        "table" : "string", // alias da tabela pesquisada (3 caracteres); grava no XB_CONTEM da linha XB_TIPO "1"
+        "title" : "string",
+        "title_sp" : "string",
+        "title_eng" : "string",
+        "orders" : [
+            {
+                "description" : "string",
+                "description_sp" : "string",
+                "description_eng" : "string",
+                "content" : "string" // numero da ordem (SIX) correspondente, com zeros a esquerda (ex: "01")
+            }
+        ],
+        "action" : {
+            "description" : "string",
+            "description_sp" : "string",
+            "description_eng" : "string",
+            "content" : "string"
+        },
+        "fields" : [
+            {
+                "description" : "string",
+                "description_sp" : "string",
+                "description_eng" : "string",
+                "content" : "string", // nome do campo fisico retornado pela pesquisa
+                "order" : "string" // igual ao "content" do item correspondente em "orders" (referencia explicita)
+            }
+        ],
+        "relation" : [ "string", "..." ], // um ou mais retornos, no formato "ALIAS->CAMPO"
+        "filter" : "string"
+    }
+/*/
+Method AddQuery( jQuery as json ) Class GwMetaData
+
+    Local aNames := jQuery:getNames() as array
+    Local jValid as json
+    Local jItem as json
+    Local jSXB as json
+    Local aItemNames as array
+    Local nI as integer
+    Local nOrderPos as integer
+    Local aRows := {} as array
+
+    if!( ::ValidQuery( jQuery, @jValid ) )
+        UserException("GwMetaData:AddQuery - " + jValid["exception"])
+    endif
+
+    if jValid["exists"]
+        UserException("GwMetaData:AddQuery - " + jValid["exception"])
+    endif
+
+    // XB_TIPO "1" - Titulo da pesquisa
+    jSXB := JsonObject():New()
+        jSXB["XB_ALIAS"] := jQuery["alias"]
+        jSXB["XB_TIPO"] := "1"
+        jSXB["XB_SEQ"] := "01"
+        jSXB["XB_COLUNA"] := "DB"
+        jSXB["XB_DESCRI"] := jQuery["title"]
+        jSXB["XB_DESCSPA"] := iif( aScan(aNames, "title_sp") > 0, jQuery["title_sp"], jQuery["title"] )
+        jSXB["XB_DESCENG"] := iif( aScan(aNames, "title_eng") > 0, jQuery["title_eng"], jQuery["title"] )
+        jSXB["XB_CONTEM"] := jQuery["table"]
+    aAdd(aRows, jSXB)
+
+    // XB_TIPO "2" - Ordens (SIX) disponiveis para pesquisa
+    for nI:=1 to len(jQuery["orders"])
+        jItem := jQuery["orders"][nI]
+        aItemNames := jItem:getNames()
+        jSXB := JsonObject():New()
+            jSXB["XB_ALIAS"] := jQuery["alias"]
+            jSXB["XB_TIPO"] := "2"
+            jSXB["XB_SEQ"] := strZero(nI,2)
+            jSXB["XB_COLUNA"] := jItem["content"]
+            jSXB["XB_DESCRI"] := jItem["description"]
+            jSXB["XB_DESCSPA"] := iif( aScan(aItemNames, "description_sp") > 0, jItem["description_sp"], jItem["description"] )
+            jSXB["XB_DESCENG"] := iif( aScan(aItemNames, "description_eng") > 0, jItem["description_eng"], jItem["description"] )
+            jSXB["XB_CONTEM"] := STR_SPACE
+        aAdd(aRows, jSXB)
+    next
+
+    // XB_TIPO "3" - Ação de cadastro (opcional)
+    if( aScan(aNames, "action") > 0 )
+        jItem := jQuery["action"]
+        aItemNames := jItem:getNames()
+        jSXB := JsonObject():New()
+            jSXB["XB_ALIAS"] := jQuery["alias"]
+            jSXB["XB_TIPO"] := "3"
+            jSXB["XB_SEQ"] := "01"
+            jSXB["XB_COLUNA"] := "01"
+            jSXB["XB_DESCRI"] := jItem["description"]
+            jSXB["XB_DESCSPA"] := iif( aScan(aItemNames, "description_sp") > 0, jItem["description_sp"], jItem["description"] )
+            jSXB["XB_DESCENG"] := iif( aScan(aItemNames, "description_eng") > 0, jItem["description_eng"], jItem["description"] )
+            jSXB["XB_CONTEM"] := jItem["content"]
+        aAdd(aRows, jSXB)
+    endif
+
+    // XB_TIPO "4" - Campos pesquisáveis e retornados (XB_SEQ segue o "content" do item de "orders" referenciado)
+    for nI:=1 to len(jQuery["fields"])
+        jItem := jQuery["fields"][nI]
+        aItemNames := jItem:getNames()
+        nOrderPos := aScan( jQuery["orders"], {|jOrder| jOrder["content"] == jItem["order"] } )
+        jSXB := JsonObject():New()
+            jSXB["XB_ALIAS"] := jQuery["alias"]
+            jSXB["XB_TIPO"] := "4"
+            jSXB["XB_SEQ"] := strZero(nOrderPos,2)
+            jSXB["XB_COLUNA"] := strZero(nI,2)
+            jSXB["XB_DESCRI"] := jItem["description"]
+            jSXB["XB_DESCSPA"] := iif( aScan(aItemNames, "description_sp") > 0, jItem["description_sp"], jItem["description"] )
+            jSXB["XB_DESCENG"] := iif( aScan(aItemNames, "description_eng") > 0, jItem["description_eng"], jItem["description"] )
+            jSXB["XB_CONTEM"] := jItem["content"]
+        aAdd(aRows, jSXB)
+    next
+
+    // XB_TIPO "5" - Relações de retorno (uma linha por elemento de "relation")
+    for nI:=1 to len(jQuery["relation"])
+        jSXB := JsonObject():New()
+            jSXB["XB_ALIAS"] := jQuery["alias"]
+            jSXB["XB_TIPO"] := "5"
+            jSXB["XB_SEQ"] := strZero(nI,2)
+            jSXB["XB_COLUNA"] := STR_SPACE
+            jSXB["XB_DESCRI"] := STR_SPACE
+            jSXB["XB_DESCSPA"] := STR_SPACE
+            jSXB["XB_DESCENG"] := STR_SPACE
+            jSXB["XB_CONTEM"] := jQuery["relation"][nI]
+        aAdd(aRows, jSXB)
+    next
+
+    // XB_TIPO "6" - Filtro AdvPL (opcional)
+    if( aScan(aNames, "filter") > 0 .and. !empty(jQuery["filter"]) )
+        jSXB := JsonObject():New()
+            jSXB["XB_ALIAS"] := jQuery["alias"]
+            jSXB["XB_TIPO"] := "6"
+            jSXB["XB_SEQ"] := "01"
+            jSXB["XB_COLUNA"] := "01"
+            jSXB["XB_DESCRI"] := STR_SPACE
+            jSXB["XB_DESCSPA"] := STR_SPACE
+            jSXB["XB_DESCENG"] := STR_SPACE
+            jSXB["XB_CONTEM"] := jQuery["filter"]
+        aAdd(aRows, jSXB)
+    endif
+
+    aAdd(::jMetaData["queries"], aRows)
+
+Return
+
+/*/{Protheus.doc} GwMetaData::ValidQuery
+Método interno para validar o objeto candidato a ser adicionado à tabela de dicionário de dados SXB (consultas).
+@type method
+@version 12.1.2410
+@author Gworks - Giovani
+@since 8/18/2026
+@param jQuery, json, Objeto candidato a ser validado.
+@param jRetValid, json, Retorna validação do objeto conforme layout:
+    {
+        "exists" : logical,
+        "exception" : string,
+        "required" : string
+    }
+@return logical, Retorna .T. (true) caso a validação seja bem sucedida, ou .F. (false) caso contrário.
+/*/
+Method ValidQuery( jQuery as json, jRetValid as json ) as logical Class GwMetaData
+
+    Local aNames as array
+    Local aItemNames as array
+    Local jItem as json
+    Local nI as integer
+
+    Private cNames_ as character
+    Private cNotFound_ as character
+
+    jRetValid := JsonObject():New()
+        jRetValid["exists"] := .F.
+        jRetValid["exception"] := ""
+        jRetValid["required"] := { ;
+                                "alias",;
+                                "table",;
+                                "title",;
+                                "orders",;
+                                "fields",;
+                                "relation" }
+
+    aNames := jQuery:getNames()
+    aEval( aNames, {|x| cNames_ += (x+";") } )
+    aEval( jRetValid["required"], {|x| cNotFound_ += iif( !(x $ cNames_), x+";", "" ) } )
+    if !empty(cNotFound_)
+        jRetValid["exception"] := 'Parameters "' + cNotFound_ + '" are required.'
+    else
+        do case
+            case empty(jQuery["alias"]) .or. len(jQuery["alias"]) > 6; jRetValid["exception"] := 'Parameter "alias" must be between 1 and 6 characters.'
+            case len(jQuery["table"]) != 3; jRetValid["exception"] := 'Parameter "table" must be 3 characters.'
+            case empty(jQuery["title"]); jRetValid["exception"] := 'Parameter "title" cannot be empty.'
+            case valType(jQuery["orders"]) != "A" .or. len(jQuery["orders"]) == 0; jRetValid["exception"] := 'Parameter "orders" must be a non-empty array.'
+            case valType(jQuery["fields"]) != "A" .or. len(jQuery["fields"]) == 0; jRetValid["exception"] := 'Parameter "fields" must be a non-empty array.'
+            case valType(jQuery["relation"]) != "A" .or. len(jQuery["relation"]) == 0; jRetValid["exception"] := 'Parameter "relation" must be a non-empty array.'
+        endcase
+    endif
+
+    if( empty(jRetValid["exception"]) .and. valType(jQuery["orders"]) == "A" )
+        for nI:=1 to len(jQuery["orders"])
+            jItem := jQuery["orders"][nI]
+            aItemNames := jItem:getNames()
+            if( empty(jItem["description"]) )
+                jRetValid["exception"] := 'Parameter "orders[' + allTrim(str(nI)) + '].description" cannot be empty.'
+            elseif( aScan(aItemNames,"content")==0 .or. empty(jItem["content"]) )
+                jRetValid["exception"] := 'Parameter "orders[' + allTrim(str(nI)) + '].content" cannot be empty.'
+            endif
+            if( !empty(jRetValid["exception"]) )
+                exit
+            endif
+        next
+    endif
+
+    if( empty(jRetValid["exception"]) .and. valType(jQuery["fields"]) == "A" )
+        for nI:=1 to len(jQuery["fields"])
+            jItem := jQuery["fields"][nI]
+            aItemNames := jItem:getNames()
+            if( empty(jItem["description"]) )
+                jRetValid["exception"] := 'Parameter "fields[' + allTrim(str(nI)) + '].description" cannot be empty.'
+            elseif( aScan(aItemNames,"content")==0 .or. empty(jItem["content"]) )
+                jRetValid["exception"] := 'Parameter "fields[' + allTrim(str(nI)) + '].content" cannot be empty.'
+            elseif( aScan(aItemNames,"order")==0 .or. empty(jItem["order"]) .or. aScan(jQuery["orders"],{|jOrder| jOrder["content"]==jItem["order"]})==0 )
+                jRetValid["exception"] := 'Parameter "fields[' + allTrim(str(nI)) + '].order" must match a "content" value from "orders".'
+            endif
+            if( !empty(jRetValid["exception"]) )
+                exit
+            endif
+        next
+    endif
+
+    if( empty(jRetValid["exception"]) .and. valType(jQuery["relation"]) == "A" )
+        for nI:=1 to len(jQuery["relation"])
+            if( empty(jQuery["relation"][nI]) )
+                jRetValid["exception"] := 'Parameter "relation[' + allTrim(str(nI)) + ']" cannot be empty.'
+                exit
+            endif
+        next
+    endif
+
+    if !empty( jRetValid["exception"] )
+        return .F.
+    endif
+
+    if( aScan( ::jMetaData["queries"], {|aRows| aRows[1]["XB_ALIAS"] == jQuery["alias"] } ) > 0 )
+        jRetValid["exists"] := .T.
+        jRetValid["exception"] := 'Parameter "alias" already added in this metadata instance.'
+        return .F.
+    endif
 
 Return .T.

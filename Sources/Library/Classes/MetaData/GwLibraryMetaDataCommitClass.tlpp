@@ -26,6 +26,12 @@ Static cSix_Req_Fields__ := "INDICE;ORDEM;CHAVE;DESCRICAO;DESCSPA;DESCENG;PROPRI
 // Campos que podem ser atualizados na SIX
 Static cSix_Can_Update__ := "DESCRICAO;DESCSPA;DESCENG;NICKNAME;SHOWPESQ;"
 
+// Campos obrigatórios (required) da SXB
+Static cSxb_Req_Fields__ := "XB_ALIAS;XB_TIPO;XB_SEQ;XB_COLUNA;XB_DESCRI;XB_DESCSPA;XB_DESCENG;XB_CONTEM;"
+
+// Campos que podem ser atualizados na SXB
+Static cSxb_Can_Update__ := "XB_DESCRI;XB_DESCSPA;XB_DESCENG;XB_CONTEM;"
+
 /*/{Protheus.doc} GwMetaDataCommit
 Classe auxiliar à classe GwMetaData() para definição dos métodos de persistência em base de dados.
 @type class
@@ -98,6 +104,9 @@ Method VldData() Class GwMetaDataCommit
     Local aTriggers as array
     Local aFolders as array
     Local aParameters as array
+    Local aQueries as array
+    Local aQueryRows as array
+    Local nJ as integer
 
     // tables
     // fields
@@ -113,6 +122,7 @@ Method VldData() Class GwMetaDataCommit
         aTriggers := ::jCommit["triggers"] // TODO: implementar...
         aFolders := ::jCommit["folders"] // TODO: implementar...
         aParameters := ::jCommit["parameters"] // TODO: implementar...
+        aQueries := ::jCommit["queries"]
 
         lResult := .T.
         jDeleted := JsonObject():New()
@@ -146,6 +156,21 @@ Method VldData() Class GwMetaDataCommit
             endif
         next
 
+        for nI:=1 to len(aQueries)
+            aQueryRows := aQueries[nI]
+            if( fQueryExists( aQueryRows[1]["XB_ALIAS"] ) )
+                loop
+            endif
+            for nJ:=1 to len(aQueryRows)
+                jData := aQueryRows[nJ]
+                if!( lResult := fValid( "SXB", @jData, jDeleted ) )
+                    cError := iif( !empty(jData["info"]["message"]), jData["info"]["message"], "Unexpected error to valid SXB table struct..." )
+                    lResult := .F.
+                    BREAK
+                endif
+            next
+        next
+
     END SEQUENCE
 
     if !(lResult)
@@ -153,6 +178,30 @@ Method VldData() Class GwMetaDataCommit
     endif
 
 Return lResult
+
+/*/{Protheus.doc} fQueryExists
+Função auxiliar para verificar se uma consulta padrão (XB_ALIAS) já existe fisicamente na tabela SXB.
+@type function
+@version 12.1.2410
+@author Gworks - Giovani Soares
+@since 8/18/2026
+@param cAlias, character, Apelido da consulta (XB_ALIAS) a ser verificado.
+@return logical, Retorna .T. (true) se já existir ao menos um registro com este XB_ALIAS na SXB, e .F. (false) caso contrário.
+/*/
+Static Function fQueryExists( cAlias as character )
+
+    Local aArea := getArea() as array
+    Local aAreaX := ("SXB")->(getArea()) as array
+    Local lExists as logical
+
+    dbSelectArea("SXB")
+    ("SXB")->(dbSetOrder(1)) // XB_ALIAS+XB_TIPO+XB_SEQ+XB_COLUNA
+    lExists := ("SXB")->(msSeek(cAlias))
+
+    RestArea(aAreaX)
+    RestArea(aArea)
+
+Return lExists
 
 /*/{Protheus.doc} fGetDeleted
 Função auxiliar para identificar objetos que já não fazem parte da estrutura
@@ -271,6 +320,9 @@ Method CommitData() Class GwMetaDataCommit
     Local aTriggers as array
     Local aFolders as array
     Local aParameters as array
+    Local aQueries as array
+    Local aQueryRows as array
+    Local nJ as integer
 
     BEGIN TRANSACTION
 
@@ -280,6 +332,7 @@ Method CommitData() Class GwMetaDataCommit
         aTriggers := ::jCommit["triggers"] // TODO: implementar...
         aFolders := ::jCommit["folders"] // TODO: implementar...
         aParameters := ::jCommit["parameters"] // TODO: implementar...
+        aQueries := ::jCommit["queries"]
 
         lResult := .T.
 
@@ -320,6 +373,25 @@ Method CommitData() Class GwMetaDataCommit
                 DisarmTransaction()
                 BREAK
             endif
+        next
+
+        for nI:=1 to len(aQueries)
+            aQueryRows := aQueries[nI]
+            if( fQueryExists( aQueryRows[1]["XB_ALIAS"] ) )
+                loop
+            endif
+            for nJ:=1 to len(aQueryRows)
+                jData := aQueryRows[nJ]
+                if( empty(jData["info"]["changes"]) )
+                    loop
+                endif
+                if!( lResult := fCommit( "SXB", jData ) )
+                    cError := iif( !empty(jData["info"]["message"]), jData["info"]["message"], "Unexpected error to commit SXB table struct..." )
+                    lResult := .F.
+                    DisarmTransaction()
+                    BREAK
+                endif
+            next
         next
 
     END TRANSACTION
@@ -579,6 +651,42 @@ Static Function fCommit( cAlias as character, jData as json )
 
             endif
 
+        case cAlias == "SXB"
+
+            if lInsert
+                recLock(cAlias, .T.)
+                    (cAlias)->&("XB_ALIAS"  ) := jData["XB_ALIAS"  ]
+                    (cAlias)->&("XB_TIPO"   ) := jData["XB_TIPO"   ]
+                    (cAlias)->&("XB_SEQ"    ) := jData["XB_SEQ"    ]
+                    (cAlias)->&("XB_COLUNA" ) := jData["XB_COLUNA" ]
+                    (cAlias)->&("XB_DESCRI" ) := jData["XB_DESCRI" ]
+                    (cAlias)->&("XB_DESCSPA") := jData["XB_DESCSPA"]
+                    (cAlias)->&("XB_DESCENG") := jData["XB_DESCENG"]
+                    (cAlias)->&("XB_CONTEM" ) := jData["XB_CONTEM" ]
+                (cAlias)->(msUnLock())
+
+            elseif lUpdate
+                dbSelectArea(cAlias)
+                (cAlias)->(dbSetOrder(1)) // XB_ALIAS+XB_TIPO+XB_SEQ+XB_COLUNA
+                (cAlias)->(dbGoTo(jInfo["recno"]))
+                if (cAlias)->(recno()) == jInfo["recno"]
+                    recLock(cAlias, .F.)
+                        cField := "XB_ALIAS"  ; iif( cField $ jInfo["changes"], (cAlias)->&(cField) := jData[cField], nil )
+                        cField := "XB_TIPO"   ; iif( cField $ jInfo["changes"], (cAlias)->&(cField) := jData[cField], nil )
+                        cField := "XB_SEQ"    ; iif( cField $ jInfo["changes"], (cAlias)->&(cField) := jData[cField], nil )
+                        cField := "XB_COLUNA" ; iif( cField $ jInfo["changes"], (cAlias)->&(cField) := jData[cField], nil )
+                        cField := "XB_DESCRI" ; iif( cField $ jInfo["changes"], (cAlias)->&(cField) := jData[cField], nil )
+                        cField := "XB_DESCSPA"; iif( cField $ jInfo["changes"], (cAlias)->&(cField) := jData[cField], nil )
+                        cField := "XB_DESCENG"; iif( cField $ jInfo["changes"], (cAlias)->&(cField) := jData[cField], nil )
+                        cField := "XB_CONTEM" ; iif( cField $ jInfo["changes"], (cAlias)->&(cField) := jData[cField], nil )
+                    (cAlias)->(msUnLock())
+                else
+                    jInfo["status"] := .F.
+                    jInfo["message"] := "fault to set SXB table over recno " + allTrim(str(jInfo["recno"]))
+                endif
+
+            endif
+
     endcase
 
     RestArea(aAreaX)
@@ -618,6 +726,10 @@ Static Function fValid( cAlias as character, jRetData as json, jDeleted as json 
         case cAlias == "SIX"
             nOrder := 1 // INDICE+ORDEM
             cSeek := jRetData["INDICE"]+jRetData["ORDEM"]
+
+        case cAlias == "SXB"
+            nOrder := 1 // XB_ALIAS+XB_TIPO+XB_SEQ+XB_COLUNA
+            cSeek := jRetData["XB_ALIAS"]+jRetData["XB_TIPO"]+jRetData["XB_SEQ"]
 
     endcase
 
@@ -724,6 +836,16 @@ Static Function fValid( cAlias as character, jRetData as json, jDeleted as json 
             jInfo["changes"] += fGetChange( cAlias, jInfo["operation"], "SHOWPESQ"  , jRetData["SHOWPESQ"  ] )
             jInfo["changes"] += fGetChange( cAlias, jInfo["operation"], "IX_VIRTUAL", jRetData["IX_VIRTUAL"] )
             jInfo["changes"] += fGetChange( cAlias, jInfo["operation"], "IX_VIRCUST", jRetData["IX_VIRCUST"] )
+
+        case cAlias == "SXB"
+            jInfo["changes"] += fGetChange( cAlias, jInfo["operation"], "XB_ALIAS"  , jRetData["XB_ALIAS"  ] )
+            jInfo["changes"] += fGetChange( cAlias, jInfo["operation"], "XB_TIPO"   , jRetData["XB_TIPO"   ] )
+            jInfo["changes"] += fGetChange( cAlias, jInfo["operation"], "XB_SEQ"    , jRetData["XB_SEQ"    ] )
+            jInfo["changes"] += fGetChange( cAlias, jInfo["operation"], "XB_COLUNA" , jRetData["XB_COLUNA" ] )
+            jInfo["changes"] += fGetChange( cAlias, jInfo["operation"], "XB_DESCRI" , jRetData["XB_DESCRI" ] )
+            jInfo["changes"] += fGetChange( cAlias, jInfo["operation"], "XB_DESCSPA", jRetData["XB_DESCSPA"] )
+            jInfo["changes"] += fGetChange( cAlias, jInfo["operation"], "XB_DESCENG", jRetData["XB_DESCENG"] )
+            jInfo["changes"] += fGetChange( cAlias, jInfo["operation"], "XB_CONTEM" , jRetData["XB_CONTEM" ] )
 
     endcase
 
@@ -852,6 +974,7 @@ Static Function fGetOperationStatus( cAlias as character, jData as json, jRetInf
                 case cAlias == "SX2"; cFieldsToBeRequired := cSx2_Req_Fields__
                 case cAlias == "SX3"; cFieldsToBeRequired := cSx3_Req_Fields__
                 case cAlias == "SIX"; cFieldsToBeRequired := cSix_Req_Fields__
+                case cAlias == "SXB"; cFieldsToBeRequired := cSxb_Req_Fields__
                 case cAlias == "SX7"; cFieldsToBeRequired := cSx7_Req_Fields__
                 case cAlias == "SXA"; cFieldsToBeRequired := cSxa_Req_Fields__
                 case cAlias == "SX6"; cFieldsToBeRequired := cSx6_Req_Fields__
@@ -886,6 +1009,7 @@ Static Function fGetOperationStatus( cAlias as character, jData as json, jRetInf
                 case cAlias == "SX2"; cFieldsAllowedToUpdated := cSx2_Can_Update__
                 case cAlias == "SX3"; cFieldsAllowedToUpdated := cSx3_Can_Update__
                 case cAlias == "SIX"; cFieldsAllowedToUpdated := cSix_Can_Update__
+                case cAlias == "SXB"; cFieldsAllowedToUpdated := cSxb_Can_Update__
                 case cAlias == "SX7"; cFieldsAllowedToUpdated := cSx7_Can_Update__
                 case cAlias == "SXA"; cFieldsAllowedToUpdated := cSxa_Can_Update__
                 case cAlias == "SX6"; cFieldsAllowedToUpdated := cSx6_Can_Update__
