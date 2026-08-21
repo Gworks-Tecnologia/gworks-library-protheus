@@ -10,7 +10,7 @@ Posiciona em uma tabela conforme chave de busca desejada.
 @version 12.1.2410
 @author Gworks - Giovani Soares
 @since 1/15/2026
-@param cAlias, character, Alias da tabela a ser considerada.
+@param cAlias, character, Alias da tabela a considerar.
 @param nOrder, numeric, Ordem do índice de busca.
 @param cSeek, character, Chave de busca desejada.
 @param bBlock, codeblock, Bloco de código a ser executado caso a busca tenha sido realizada com sucesso.
@@ -42,7 +42,7 @@ User Function GwPosicione( cAlias as character,;
 
     // Abandona execução se cSeek estiver vazio
     if empty(cSeek)
-        return( fGetReturn(bBlock,lSeek) )
+        return( fGetReturn(cAlias,bBlock,lSeek) )
     endif
 
     // Seleciona a tabelas conforme Alias informado
@@ -73,7 +73,7 @@ User Function GwPosicione( cAlias as character,;
         lSeek := .T. // ...entende que já está posicionado no registro correto e não realiza nova busca
     endif
 
-Return( fGetReturn(bBlock,lSeek) )
+Return( fGetReturn(cAlias,bBlock,lSeek) )
 
 /*/{Protheus.doc} fGetReturn
 Funçao de definição de retorno.
@@ -81,18 +81,20 @@ Funçao de definição de retorno.
 @version 12.1.2510
 @author Gworks - Giovani
 @since 8/20/2026
+@param cAlias, character, Alias da tabela a considerar.
 @param bBlock, codeblock, Bloco de Código de retorno (opcional).
 @param lSeek, logical, Se .T. (true) indica que foi posicionado corretamentee .F. (false) caso contrário.
 @return variant, Retorno conforme execução de bBlock ou lSeek se bBlock for nulo.
 /*/
-Static Function fGetReturn( bBlock as codeblock, lSeek as logical)
+Static Function fGetReturn( cAlias as character, bBlock as codeblock, lSeek as logical)
 
     Local xResult as variant
 
-    if( bBlock != nil )
-        xResult := eval(bBlock,lSeek)
-    else
-        xResult := lSeek
+    if( !lSeek .and. !(cAlias)->(eof()) )
+        (cAlias)->(dbGoBottom())
+        (cAlias)->(dbSkip())
     endif
+
+    xResult := iif( bBlock != nil, eval(bBlock,lSeek), lSeek )
 
 Return xResult
