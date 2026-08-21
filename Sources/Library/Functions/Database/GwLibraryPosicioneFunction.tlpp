@@ -38,12 +38,11 @@ User Function GwPosicione( cAlias as character,;
     Default lAutoFil := .T.
     Default lForceSeek := .F.
 
-    Local xResult as variant
     Local lSeek as logical
 
     // Abandona execução se cSeek estiver vazio
     if empty(cSeek)
-        return .F.
+        return( fGetReturn(bBlock,lSeek) )
     endif
 
     // Seleciona a tabelas conforme Alias informado
@@ -74,7 +73,22 @@ User Function GwPosicione( cAlias as character,;
         lSeek := .T. // ...entende que já está posicionado no registro correto e não realiza nova busca
     endif
 
-    // Define o retorno
+Return( fGetReturn(bBlock,lSeek) )
+
+/*/{Protheus.doc} fGetReturn
+Funçao de definição de retorno.
+@type function
+@version 12.1.2510
+@author Gworks - Giovani
+@since 8/20/2026
+@param bBlock, codeblock, Bloco de Código de retorno (opcional).
+@param lSeek, logical, Se .T. (true) indica que foi posicionado corretamentee .F. (false) caso contrário.
+@return variant, Retorno conforme execução de bBlock ou lSeek se bBlock for nulo.
+/*/
+Static Function fGetReturn( bBlock as codeblock, lSeek as logical)
+
+    Local xResult as variant
+
     if( bBlock != nil )
         xResult := eval(bBlock,lSeek)
     else
