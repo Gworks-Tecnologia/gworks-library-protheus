@@ -35,7 +35,7 @@ Static cAutoGrLog__ as character
 using namespace Gworks.Library.Classes
 using namespace Gworks.Library.Utils
 
-namespace Gworks.Library.Functions 
+namespace Gworks.Library.Functions
 
 /*/{Protheus.doc} U_Importar
 Função para importar arquivo csv de títulos à pagar, conforme layout:
@@ -65,11 +65,11 @@ Função para importar arquivo csv de títulos à pagar, conforme layout:
 @author TOTVS
 @since 7/3/2025
 /*/
-User Function Importar()
+User Function ImportarFornecedor()
 
     Local lResult as logical
 
-    Private cTarget_ := '' as character
+    Private cTarget_ := 'l:/tmp/totvs/minerasul_fornecedores.csv' as character
     Private oError_ := GwError():New() as object
     Private oLog_ := GwConsoleLog():New() as object
     Private jMessage_ := U_GwGetMessage() as json
@@ -92,7 +92,7 @@ User Function Importar()
 
     try
 
-        if( !fGetFile() .or. empty(cTarget_) .or. !file(cTarget_) )
+        if( ( empty(cTarget_) .and. !fGetFile() ) .or. !file(cTarget_) )
 
             jMessage_['cState'] := "WARNING"
             jMessage_['cError'] := "Arquivo inválido ou não selecionado!"
@@ -326,10 +326,10 @@ Static Function fReadData( aLinha as array, cLinha as character )
 
             do case
                 case nCol == NPOS_TIPO   ; xValue := iif(!empty(xValue), upper(allTrim(LEFT(xValue,1))), " ")
-                case nCol == NPOS_CGC    ; xValue := iif(!empty(xValue), fFormatCgc(LEFT(xValue,14)), " ")
+                case nCol == NPOS_CGC    ; xValue := iif(!empty(xValue), LEFT(fFormatCgc(xValue),14), " ")
                 case nCol == NPOS_NOME   ; xValue := iif(!empty(xValue), upper(allTrim(decodeUtf8(LEFT(xValue,50)))), " ")
                 case nCol == NPOS_NREDUZ ; xValue := iif(!empty(xValue), upper(allTrim(decodeUtf8(LEFT(xValue,20)))), " ")
-                case nCol == NPOS_CEP    ; xValue := iif(!empty(xValue), fFormatCep(LEFT(xValue,8)), " ")
+                case nCol == NPOS_CEP    ; xValue := iif(!empty(xValue), LEFT(fFormatCep(xValue),8), " ")
                 case nCol == NPOS_END    ; xValue := iif(!empty(xValue), upper(allTrim(LEFT(xValue,40))), " ")
                 case nCol == NPOS_COMPLEM; xValue := iif(!empty(xValue), upper(allTrim(LEFT(xValue,50))), " ")
                 case nCol == NPOS_BAIRRO ; xValue := iif(!empty(xValue), fwNoAccent(upper(allTrim(decodeUtf8(LEFT(xValue,20))))), " ")
@@ -344,7 +344,7 @@ Static Function fReadData( aLinha as array, cLinha as character )
                 case nCol == NPOS_INSCRM ; xValue := iif(!empty(xValue), upper(allTrim(LEFT(xValue,18))), " ")
                 case nCol == NPOS_PAIS   ; xValue := iif(!empty(xValue), upper(allTrim(LEFT(xValue,3))), " ")
                 case nCol == NPOS_CODPAIS; xValue := iif(!empty(xValue), upper(allTrim(LEFT(xValue,5))), " ")
-                case nCol == NPOS_CONTRIB; xValue := iif(!empty(xValue) .AND. xValue == "SIM" .OR. xValue == "1", "1", "2")
+                case nCol == NPOS_CONTRIB; xValue := iif(!empty(xValue) .AND. (upper(allTrim(xValue)) == "SIM" .OR. upper(allTrim(xValue)) == "1"), "1", "2")
             endcase
 
         endif
@@ -401,8 +401,8 @@ Static Function fCadastrarFornecedor( aLinha as array, cLinha as character ) as 
         {"A2_LOJA"   , aCodigo[2]            , Nil},;
         {"A2_CONTRIB", aLinha[ NPOS_CONTRIB ], Nil},;
         {"A2_SIMPNAC", "2"                   , Nil},;
-        {"A2_PAIS"   , '105'                 , Nil},;
-        {"A2_CODPAIS", '01058'               , Nil},;
+        {"A2_PAIS"   , aLinha[ NPOS_PAIS ]   , Nil},;
+        {"A2_CODPAIS", aLinha[ NPOS_CODPAIS ], Nil},;
         {"A2_TIPO"   , aLinha[ NPOS_TIPO ]   , Nil},;
         {"A2_CGC"    , aLinha[ NPOS_CGC ]    , Nil},;
         {"A2_NOME"   , aLinha[ NPOS_NOME ]   , Nil},;
@@ -436,7 +436,7 @@ Static Function fCadastrarFornecedor( aLinha as array, cLinha as character ) as 
             disarmTransaction()
             SA2->(rollBackSx8())
             break
-        
+
         else
             ConfirmSx8()
         endif
