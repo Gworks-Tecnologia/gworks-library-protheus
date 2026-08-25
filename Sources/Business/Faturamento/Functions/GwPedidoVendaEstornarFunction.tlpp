@@ -1,0 +1,66 @@
+#include "totvs.ch"
+
+using namespace Gworks.Library.Functions
+
+namespace Gworks.Business.Faturamento.Functions
+
+/*/{Protheus.doc} GwPedidoVendaEstornarLiberacao
+Função para estornar Itens Liberados do Pedidos de Venda.
+@type function
+@version 12.1.2410
+@author Gworks - Giovani
+@since 6/25/2026
+@param cPedido, character, Nro. do Pedido.
+/*/
+User Function GwPedidoVendaEstornarLiberacao( cPedido as character )
+
+    Default cPedido := ""
+
+    Local jAreas := JsonObject():New()
+
+    jAreas["active"] := getArea()
+    jAreas["extras"] := { SC5->(getArea()), SC6->(getArea()) }
+
+    // Valida parâmetro obrigatório cPedido
+    if( empty(cPedido) )
+        U_GwThrowError("Missing param cPedido in jParams!")
+    endif
+
+    DbSelectArea("SC5")
+    SC5->(dbSetOrder(retOrder(,"C5_FILIAL+C5_NUM")))
+
+    DbSelectArea('SC6')
+    SC6->(DbSetOrder(retOrder(,"C6_FILIAL+C6_NUM+C6_ITEM+C6_PRODUTO")))
+
+    DbSelectArea('SC9')
+    SC9->(DbSetOrder(retOrder(,"C9_FILIAL+C9_PEDIDO+C9_ITEM+C9_SEQUEN+C9_PRODUTO+C9_BLEST+C9_BLCRED")))
+
+    // Posiciona no Pedido de Venda
+    if!( SC5->(msSeek(xFilial("SC5")+cPedido)) )
+        U_GwThrowError('The value "'+ cPedido +'" was not found on SC5 alias!')
+    endif
+
+    // Posiciona no primeiro item do respectivo Pedido
+    SC6->(dbSetOrder(retOrder(,"C6_FILIAL+C6_NUM+C6_ITEM+C6_PRODUTO")))
+    if!( SC6->(msSeek(xFilial("SC6")+cPedido)) )
+        U_GwThrowError('The value "'+ cPedido +'" was not found on SC6 alias!')
+    endif
+
+    // Percorre os itens do Pedido
+    while !SC6->(eof()) .and. SC6->(C6_FILIAL+C6_NUM) == SC5->(C5_FILIAL+C5_NUM)
+
+        if!( SC9->(msSeek(xFilial("SC9")+SC6->(C6_NUM+C6_ITEM))))
+            SC6->(dbSkip())
+            loop
+        endif
+
+        while !SC9->(eof()) .and. SC9->(C9_FILIAL+C9_PEDIDO+C9_ITEM) == SC6->(C6_FILIAL+C6_NUM+C6_ITEM)
+            SC9->(a460Estorna(.T.))
+            SC9->(dbSkip())
+        enddo
+
+        SC6->(dbSkip())
+
+    enddo
+
+Return

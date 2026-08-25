@@ -1,0 +1,191 @@
+#include "totvs.ch"
+
+using namespace Gworks.Library.Functions
+
+namespace Gworks.Business.Faturamento.Functions
+
+/*/{Protheus.doc} GwPedidoVendaLiberar
+Processa a Liberação de Itens do Pedido de Venda.
+@type function
+@version 12.1.2410
+@author Gworks - Giovani
+@since 6/25/2026
+@param cPedido, character, Nro. do Pedido de Venda.
+@param cItens, character, Itens do Pedido conforme formato: "item-produto;".
+    Obs.: informar "*" para considerar todos os itens.
+@param jParams, json, Parâmetros a serem considerados na execução da rotina MaLibDoFat,
+    conforme o seguinte formato json:
+    {
+        nQtdALib: <type:float, default:nil>,
+        lCredito: <type:logical, default:.T.>,
+        lEstoque: <type:logical, default:.T.>,
+        lAvCred: <type:logical, default:.T.>,
+        lAvEst: <type:logical, default:.T.>,
+        lLibPar: <type:logical, default:nil>,
+        lTrfLocal: <type:logical, default:nil>,
+        aEmpenho: <type:array, default:nil>,
+        bBlock: <type:expression, default:nil>,
+        aEmpPronto: <type:array, default:nil>,
+        lTrocaLot: <type:logical, default:nil>,
+        lGeraDCF: <type:logical, default:.T.>,
+        nVlrCred: <type:float, default:nil>,
+        nQtdALib2: <type:float, default:nil>,
+        lLogMsg: <type:logical, default:.F.>,
+        lOrdSepLib: <type:logical, default:.F.>
+    }
+@return json, Retorna json conforme a segunite estrutura:
+    {
+        "pedido": <string>,
+        "item-produto": {
+            "nRegSC6": <integer>,
+            "nQtdLib": <float>,
+            "lCredito": <logical>,
+            "lEstoque": <logical>,
+            "aEmpenho": <array>
+        }
+    }
+/*/
+User Function GwPedidoVendaLiberar( cPedido as character, cItens as character, jParams as json )
+
+    Default cPedido := ""
+    Default cItens := "*"
+    Default jParams := JsonObject:New()
+
+    // Áreas abertas
+    Local jAreas := JsonObject():New() as json
+
+    // Retorno da função
+    Local jResult := JsonObject():New() as json
+
+    // Parâmetros da MaLibDoFat
+    Local nRegSC6 := nil as variant
+    Local nQtdALib := nil as variant
+    Local lCredito := nil as variant
+    Local lEstoque := nil as variant
+    Local lAvCred := nil as variant
+    Local lAvEst := nil as variant
+    Local lLibPar := nil as variant
+    Local lTrfLocal := nil as variant
+    Local aEmpenho := nil as variant
+    Local bBlock := nil as variant
+    Local aEmpPronto := nil as variant
+    Local lTrocaLot := nil as variant
+    Local lGeraDCF := nil as variant
+    Local nVlrCred := nil as variant
+    Local nQtdALib2 := nil as variant
+    Local lLogMsg := nil as variant
+    Local lOrdSepLib := nil as variant
+
+    // Retorno da MaLibDoFat
+    Local nQtdLib := 0 as numeric
+
+    // Variáveis auxiliares
+    Local cItem as character
+
+    // Salva áreas abertas
+    jAreas["active"] := getArea()
+    jAreas["extras"] := { SC5->(getArea()), SC6->(getArea()) }
+
+    // Valida parâmetro obrigatório cPedido
+    if( empty(cPedido) )
+        U_GwThrowError("Missing param cPedido in jParams!")
+    endif
+
+    // Valida parâmetro obrigatório cItens
+    if( empty(cItens) )
+        U_GwThrowError("Missing param cItens in jParams!")
+    endif
+
+    // Inicializa Variáveis conforme parâmetros de entrada
+    nRegSC6    := 0
+    nQtdALib   := iif( jParams["nQtdALib"]   != nil, jParams["nQtdALib"]  , nil )
+    lCredito   := iif( jParams["lCredito"]   != nil, jParams["lCredito"]  , .T. )
+    lEstoque   := iif( jParams["lEstoque"]   != nil, jParams["lEstoque"]  , .T. )
+    lAvCred    := iif( jParams["lAvCred"]    != nil, jParams["lAvCred"]   , .T. )
+    lAvEst     := iif( jParams["lAvEst"]     != nil, jParams["lAvEst"]    , .T. )
+    lLibPar    := iif( jParams["lLibPar"]    != nil, jParams["lLibPar"]   , nil )
+    lTrfLocal  := iif( jParams["lTrfLocal"]  != nil, jParams["lTrfLocal"] , nil )
+    aEmpenho   := iif( jParams["aEmpenho"]   != nil, jParams["aEmpenho"]  , nil )
+    bBlock     := iif( jParams["bBlock"]     != nil, jParams["bBlock"]    , nil )
+    aEmpPronto := iif( jParams["aEmpPronto"] != nil, jParams["aEmpPronto"], nil )
+    lTrocaLot  := iif( jParams["lTrocaLot"]  != nil, jParams["lTrocaLot"] , nil )
+    lGeraDCF   := iif( jParams["lGeraDCF"]   != nil, jParams["lGeraDCF"]  , .T. )
+    nVlrCred   := iif( jParams["nVlrCred"]   != nil, jParams["nVlrCred"]  , nil )
+    nQtdALib2  := iif( jParams["nQtdALib2"]  != nil, jParams["nQtdALib2"] , nil )
+    lLogMsg    := iif( jParams["lLogMsg"]    != nil, jParams["lLogMsg"]   , .F. )
+    lOrdSepLib := iif( jParams["lOrdSepLib"] != nil, jParams["lOrdSepLib"], .F. )
+
+    // Abre áreas
+    dbSelectArea("SC5")
+    dbSelectArea("SC6")
+
+    // Posiciona no Pedido de Venda
+    if( SC5->C5_NUM != cPedido )
+        SC5->(dbSetOrder(retOrder(,"C5_FILIAL+C5_NUM")))
+        if!( SC5->(msSeek(xFilial("SC5")+cPedido)) )
+            U_GwThrowError('The value "'+ cPedido +'" was not found on SC5 alias!')
+        endif
+    endif
+
+    // Posiciona no primeiro item do respectivo Pedido
+    SC6->(dbSetOrder(retOrder(,"C6_FILIAL+C6_NUM+C6_ITEM+C6_PRODUTO")))
+    if!( SC6->(msSeek(xFilial("SC6")+cPedido)) )
+        U_GwThrowError('The value "'+ cPedido +'" was not found on SC6 alias!')
+    endif
+
+    // Processa Liberação de Itens do Pedido
+    while !SC6->(eof()) .and. SC6->(C6_FILIAL+C6_NUM) == SC5->(C5_FILIAL+C5_NUM)
+
+        cItem := SC6->(C6_NUM+'-'+C6_ITEM)
+        if( cItens != "*" .and. !( cItem $ cItens ) )
+            SC6->(dbSkip())
+            loop // ignora itens/produtos que não devem ser liberados...
+        endif
+
+        nRegSC6   := SC6->(recno())
+        nQtdALib  := iif( nQtdALib != nil, nQtdALib, SC6->C6_QTDLIB )
+        nQtdALib2 := iif( nQtdALib2 != nil, nQtdALib, SC6->C6_QTDLIB2 )
+        if valType(nQtdALib2) == "N"
+            if nQtdALib2 == 0
+                nQtdALib2 := nil
+            endif
+        endif
+
+        nQtdLib := MaLibDoFat(;
+            nRegSC6,; // Registro do SC6
+            nQtdALib,; // Quantidade a Liberar
+            @lCredito,; // Bloqueio de Credito
+            @lEstoque,; // Bloqueio de Estoque
+            lAvCred,; // Avaliacao de Credito
+            lAvEst,; // Avaliacao de Estoque
+            lLibPar,; // Permite Liberacao Parcial
+            lTrfLocal,; // Tranfere Locais automaticamente
+            @aEmpenho,; // Empenhos ( Caso seja informado nao efetua a gravacao apenas avalia ).
+            bBlock,; // CodBlock a ser avaliado na gravacao do SC9
+            aEmpPronto,; // Array com Empenhos previamente escolhidos (impede selecao dos empenhos pelas rotinas)
+            lTrocaLot,; // Indica se apenas esta trocando lotes do SC9
+            lGeraDCF,;
+            nVlrCred,; // Valor a ser adicionado ao limite de credito
+            nQtdALib2,; // Quantidade a Liberar - segunda UM
+            lLogMsg,; // Indica se a funcao deve armazenar as mensagens de inconsistencias e alertas no processo de liberacao
+            lOrdSepLib; // Indica se existe ordem de separacao em aberto para o item que estah sendo avaliado pela funcao
+        )
+
+        // Define retorno
+        jResult[cItem] := JsonObject():New()
+            jResult[cItem]["nRegSC6"] := nRegSC6
+            jResult[cItem]["nQtdLib"] := nQtdLib
+            jResult[cItem]["lCredito"] := lCredito
+            jResult[cItem]["lEstoque"] := lEstoque
+            jResult[cItem]["aEmpenho"] := aEmpenho
+
+        SC6->(dbSkip())
+
+    enddo
+
+    // Restaura áreas
+    RestArea(jAreas["extras"][2])
+    RestArea(jAreas["extras"][1])
+    RestArea(jAreas["active"])
+
+Return jResult
