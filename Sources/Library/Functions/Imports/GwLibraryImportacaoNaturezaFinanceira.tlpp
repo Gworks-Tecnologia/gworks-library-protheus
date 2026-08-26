@@ -1,0 +1,440 @@
+#include 'totvs.ch'
+#include 'tlpp-core.th'
+
+#define NPOS_CODIGO 01
+#define NPOS_DESC   02
+#define NPOS_TIPO   03
+#define NPOS_PAI    04
+#define NPOS_USO    05
+#define NPOS_COND   06
+
+#define CRLF chr(13)+chr(10)
+#define CRLF2 CRLF+CRLF
+
+Static aDados__ as array
+Static cRegistered__ as character
+Static cInvalido__ as character
+Static cAutoGrLog__ as character
+
+using namespace Gworks.Library.Classes
+using namespace Gworks.Library.Utils
+
+namespace Gworks.Library.Functions
+
+/*/{Protheus.doc} ImportarNatFin // Gworks.Library.Functions.U_ImportarNatFin
+Função para importar arquivo csv de Natureza Financeira, conforme layout:
+    [01] - ED_CODIGO  TIPO:C - Código da Natureza Financeira
+    [02] - ED_DESCRIC TIPO:C - Descrição da Natureza Financeira
+    [03] - ED_TIPO    TIPO:C - Tipo (1 - Sintética / 2 - Analítica)
+    [04] - ED_PAI     TIPO:C - Código da Natureza Financeira Superior (Pai) - Opcional
+    [05] - ED_USO     TIPO:C - Uso da Natureza Financeira
+    [06] - ED_COND    TIPO:C - Condição (R - Receita / D - Despesa)
+
+@type function
+@version 12.1.2410
+@author TOTVS
+@since 8/26/2026
+/*/
+User Function ImportarNatFin()
+
+    Local lResult as logical
+
+    Private cTarget_ := '/totvs/import/minerasul_natureza.csv' as character
+    Private oError_ := GwError():New() as object
+    Private oLog_ := GwConsoleLog():New() as object
+    Private jMessage_ := U_GwGetMessage() as json
+    Private lProduction_ := empty(GetSrvProfString("SpecialKey","")) as logical
+    Private lBlind_ := (isBlind() .or. type('CEMPANT') == 'U' ) as logical
+
+    if lBlind_
+        UserException("GWORKS.LIBRARY.FUNCTIONS.U_IMPORTARNATFIN - Invalid rpc call...")
+    endif
+
+    // Recicla aDados__ de processamentos anteriores
+    if !empty(aDados__)
+        fwFreeVar(aDados__)
+    endif
+
+    aDados__ := {}
+    cRegistered__ := ''
+    cInvalido__ := ''
+    cAutoGrLog__ := ''
+
+    try
+
+        if( ( empty(cTarget_) .and. !fGetFile() ) .or. !file(cTarget_) )
+
+            jMessage_['cState'] := "WARNING"
+            jMessage_['cError'] := "Arquivo inválido ou não selecionado!"
+            jMessage_['cSuggestion'] := "Selecione um arquivo válido e tente novamente."
+            jMessage_['cTitle'] := "Atenção!"
+            jMessage_['lError'] := .F.
+            jMessage_['cDetails'] := ""
+
+            U_GwSetMessage(oError_, oLog_, jMessage_)
+
+            return
+
+        endif
+
+        processa({|| lResult := fProcess()}, "Importando arquivo...", "Aguarde...")
+        if!( lResult )
+            return
+        endif
+
+    catch _varError
+
+        if!( oError_:lError )
+
+            jMessage_['cState'] := "FAULT"
+            jMessage_['cError'] := "Falha inesperada!"
+            jMessage_['cSuggestion'] := "Favor contactar o suporte técnico."
+            jMessage_['cTitle'] := "Falha!"
+            jMessage_['lError'] := .T.
+            jMessage_['cDetails'] := ;
+                                    "Erro:" + _varError:Description +CRLF2+;
+                                    "Stack:" + _varError:errorStack
+
+            U_GwSetMessage(oError_, oLog_, jMessage_)
+
+        endif
+
+    endtry
+
+    if lResult
+        fWAlertSuccess("Arquivo processado com sucesso.", "Sucesso!")
+    endif
+
+    oError_:Clear()
+    oLog_:Clear()
+
+Return
+
+/*/{Protheus.doc} fGetFile
+Obtém o arquivo a ser importado.
+@type function
+@version 12.1.2410
+@author TOTVS
+@since 8/26/2026
+@return logical, Retorna .T. (true) para indicar sucesso.
+/*/
+Static Function fGetFile as logical
+
+    Local lResult := .T. as logical
+
+    do case
+    case cValToChar(getRemoteType()) $ '0,1'
+        cTarget_ := tFileDialog("Arquivos CSV (*.csv)","Seleção de Arquivo",,'C:\Temp\',.F.,)
+
+    case cValToChar(getRemoteType()) == '2'
+        cTarget_ := tFileDialog("Arquivos CSV (*.csv)","Seleção de Arquivo",,'l:/tmp/',.F.)
+
+    otherwise
+        lResult := .F.
+
+    endcase
+
+Return lResult
+
+/*/{Protheus.doc} fProcess
+Função para processamento da importação do arquivo.
+@type function
+@version 12.1.2410
+@author TOTVS
+@since 8/26/2026
+@return logical, Retorna .T. (true) para indicar sucesso e .F. (false) em caso de falhas.
+/*/
+Static Function fProcess as logical
+
+    Local lResult as logical
+    Local nI as numeric
+    Local nHDL as numeric
+    Local nLinha as numeric
+    Local cBuffer as character
+    Local aBuffer as array
+
+    nHDL := FT_FUSE(cTarget_)
+    if nHDL < 0
+
+        jMessage_['cState'] := "FAULT"
+        jMessage_['cError'] := "Falha ao abrir arquivo!"
+        jMessage_['cSuggestion'] := "Verifique o arquivo selecionado e tente novamente."
+        jMessage_['cTitle'] := "Atenção!"
+        jMessage_['lError'] := .T.
+        jMessage_['cDetails'] := ""
+
+        U_GwSetMessage(oError_, oLog_, jMessage_)
+
+        return .F.
+
+    endif
+
+    while .not. FT_FEOF()
+
+        cBuffer := FT_FREADLN()
+        aBuffer := strToKArr2(cBuffer,';',.T.)
+
+        if empty(aBuffer)
+            FT_FSKIP()
+            Loop // ignora linhas vazias
+        endif
+
+        nLinha++
+
+        if( nLinha == 1 )
+            FT_FSKIP()
+            loop // ignora cabeçalho (primeira linha com conteúdo)
+        else
+            if!( fReadData(@aBuffer, allTrim(str(nLinha))) )
+                exit
+            endif
+        endif
+
+        FT_FSKIP()
+
+    enddo
+
+    FT_FUSE()
+
+    if empty(aDados__)
+
+        jMessage_['cState'] := "WARNING"
+        jMessage_['cError'] := "Nenhum dado encontrado no arquivo!"
+        jMessage_['cSuggestion'] := "Verifique se o arquivo contém linhas de dados além do cabeçalho."
+        jMessage_['cTitle'] := "Atenção!"
+        jMessage_['lError'] := .F.
+        jMessage_['cDetails'] := ""
+
+        U_GwSetMessage(oError_, oLog_, jMessage_)
+
+        return .F.
+
+    endif
+
+    procregua(len(aDados__))
+    cRegistered__ := ''
+    cInvalido__ := ''
+    cAutoGrLog__ := ''
+    for nI := 1 To Len(aDados__)
+        incproc()
+        fCadastrarNatFin( aDados__[nI], allTrim(str(nI)) )
+    next
+
+    lResult := empty(cAutoGrLog__)
+
+    if !empty(cRegistered__)
+
+        jMessage_['cState'] := "WARNING"
+        jMessage_['cError'] := "Naturezas Financeiras já cadastradas!"
+        jMessage_['cSuggestion'] := "Não é possível atualizar dados de Naturezas Financeiras já cadastradas."
+        jMessage_['cTitle'] := "Atenção!"
+        jMessage_['lError'] := .F.
+        jMessage_['cDetails'] := cRegistered__
+
+        U_GwSetMessage(oError_, oLog_, jMessage_)
+
+    endif
+
+    if !empty(cInvalido__)
+
+        jMessage_['cState'] := "WARNING"
+        jMessage_['cError'] := "Naturezas Financeiras com Tipo ou Condição inválidos!"
+        jMessage_['cSuggestion'] := "Favor verificar as Naturezas Financeiras listadas a seguir. Tipo: 1 - Sintética / 2 - Analítica. Condição: R - Receita / D - Despesa."
+        jMessage_['cTitle'] := "Atenção!"
+        jMessage_['lError'] := .F.
+        jMessage_['cDetails'] := "TIPO/CONDICAO INVALIDOS: " + CRLF + cInvalido__
+
+        U_GwSetMessage(oError_, oLog_, jMessage_)
+
+    endif
+
+    if !empty(cAutoGrLog__)
+
+        jMessage_['cState'] := "FAULT"
+        jMessage_['cError'] := "Falha ao efetivar importação via ExecAuto!"
+        jMessage_['cSuggestion'] := "Corrija os erros criticados no log a seguir e tente novamente."
+        jMessage_['cTitle'] := "Atenção!"
+        jMessage_['lError'] := .F.
+        jMessage_['cDetails'] := "EXECAUTO ERRO LIST: " + CRLF + cAutoGrLog__
+
+        U_GwSetMessage(oError_, oLog_, jMessage_)
+
+    endif
+
+Return lResult
+
+/*/{Protheus.doc} fReadData
+Obtém os dados de uma determinada linha do arquivo e os correlaciona com a estrutura Json presente em jData__.
+@type function
+@version 12.1.2410
+@author TOTVS
+@since 8/26/2026
+@param aLinha, array, Linha a ser processada.
+@param cLinha, character, Número da linha correspondente.
+/*/
+Static Function fReadData( aLinha as array, cLinha as character )
+
+    Local lResult := .T. as logical
+    Local nCol as numeric // coluna
+    Local xValue as variant
+
+    if empty(aLinha)
+
+        jMessage_['cState'] := "FAULT"
+        jMessage_['cError'] := "Linha "+ ( '"'+cLinha+'"' ) +" vazia..."
+        jMessage_['cSuggestion'] := "Verifique o arquivo e tente novamente."
+        jMessage_['cTitle'] := "Atenção!"
+        jMessage_['lError'] := .T.
+        jMessage_['cDetails'] := ;
+                                "[01] ED_CODIGO  - Código da Natureza Financeira" + CRLF +;
+                                "[02] ED_DESCRIC - Descrição da Natureza Financeira" + CRLF +;
+                                "[03] ED_TIPO    - Tipo (1 - Sintética / 2 - Analítica)" + CRLF +;
+                                "[04] ED_PAI     - Código da Natureza Financeira Superior (Pai)" + CRLF +;
+                                "[05] ED_USO     - Uso da Natureza Financeira" + CRLF +;
+                                "[06] ED_COND    - Condição (R - Receita / D - Despesa)"
+
+        U_GwSetMessage(oError_, oLog_, jMessage_)
+
+        return .F.
+
+    endif
+
+    for nCol:=1 to len(aLinha)
+
+        xValue := aLinha[nCol]
+
+        if empty(xValue)
+
+            xValue := " "
+
+        else
+
+            do case
+                case nCol == NPOS_CODIGO ; xValue := upper(fFormatCodigo(xValue))
+                case nCol == NPOS_DESC   ; xValue := upper(allTrim(decodeUtf8(LEFT(xValue,60))))
+                case nCol == NPOS_TIPO   ; xValue := allTrim(LEFT(xValue,1))
+                case nCol == NPOS_PAI    ; xValue := upper(fFormatCodigo(xValue))
+                case nCol == NPOS_USO    ; xValue := allTrim(LEFT(xValue,1))
+                case nCol == NPOS_COND   ; xValue := upper(allTrim(LEFT(xValue,1)))
+            endcase
+
+        endif
+
+        aLinha[nCol] := xValue // devolve valor tratado para o array aLinha
+
+    next
+
+    if !fValidNatureza( @aLinha )
+        cInvalido__ +=;
+                    "CODIGO: " + aLinha[ NPOS_CODIGO ] + ' - ' +;
+                    "DESCRICAO: " + aLinha[ NPOS_DESC ] + ' - ' +;
+                    "TIPO: " + aLinha[ NPOS_TIPO ] + ' - ' +;
+                    "CONDICAO: " + aLinha[ NPOS_COND ] + CRLF
+    endif
+
+    aAdd( aDados__, aLinha )
+
+Return lResult
+
+/*/{Protheus.doc} fCadastrarNatFin
+Função auxiliar para gravação da Natureza Financeira na tabela SED do banco de dados.
+@type function
+@version 12.1.2410
+@author TOTVS
+@since 8/26/2026
+@param aLinha, array, Linha de dados a serem gravados.
+@param cLinha, character, Linha a ser gravada em formato de texto.
+/*/
+Static Function fCadastrarNatFin( aLinha as array, cLinha as character ) as logical
+
+    Local aAuto as array
+
+    // Valida se a Natureza Financeira (ED_CODIGO) informada ja existe na tabela SED
+    SED->( dbSelectArea("SED"), dbSetOrder(1), dbGoTop() )
+    if( SED->( msSeek( xFilial("SED") + aLinha[ NPOS_CODIGO ] ) ) )
+        cRegistered__ += ;
+                        "CODIGO: " + aLinha[ NPOS_CODIGO ] + ' - ' +;
+                        "DESCRICAO: "+ aLinha[ NPOS_DESC ] + CRLF
+        return .T.
+    endif
+
+    aAuto := {;
+        {"ED_CODIGO" , aLinha[ NPOS_CODIGO ], Nil},;
+        {"ED_DESCRIC", aLinha[ NPOS_DESC ]  , Nil},;
+        {"ED_TIPO"   , aLinha[ NPOS_TIPO ]  , Nil},;
+        {"ED_PAI"    , aLinha[ NPOS_PAI ]   , Nil},;
+        {"ED_USO"    , aLinha[ NPOS_USO ]   , Nil},;
+        {"ED_COND"   , aLinha[ NPOS_COND ]  , Nil},;
+        {"ED_MSBLQL" , "2"                  , Nil} ;
+    }
+
+    BEGIN TRANSACTION
+
+        Private lMsErroAuto as logical
+        Private lMsHelpAuto as logical
+        Private lAutoErrNoFile as logical
+
+        oError_:SetExecAutoVariables()
+
+        msExecAuto({|x,y| Fina010(x,y)},aAuto,3)
+
+        if( lMsErroAuto )
+            oError_:lError := .T.
+            disarmTransaction()
+            SED->(rollBackSx8())
+            break
+
+        else
+            ConfirmSx8()
+        endif
+
+    END TRANSACTION
+
+    if( oError_:lError )
+
+        oError_:SetAutoGRLogFromExecAuto("FINA010/Linha:" + cLinha) // captura erro do executo
+
+        if!empty(cAutoGrLog__)
+            cAutoGrLog__ += CRLF // se ja existe um log de erro, adiciona uma quebra de linha
+        endif
+
+        cAutoGrLog__ += oError_:cAutoGrLog // concatena o log de erro com o erro capturado do executo
+
+        oError_:Clear() // limpa o log de erro
+
+    endif
+
+Return .T.
+
+/*/{Protheus.doc} fValidNatureza
+Valida se o Tipo (ED_TIPO) e a Condição (ED_COND) da Natureza Financeira informada são válidos.
+Tipo: 1 - Sintética / 2 - Analítica. Condição: R - Receita / D - Despesa.
+@type function
+@version 12.1.2410
+@author TOTVS
+@since 8/26/2026
+@param aLinha, array, Linha de dados.
+@return logical, Retorna .T. (true) para dados válidos ou .F. (false) para dados inválidos.
+/*/
+Static Function fValidNatureza( aLinha as array ) as logical
+
+Return( aLinha[ NPOS_TIPO ] $ "1;2" .and. aLinha[ NPOS_COND ] $ "R;D" )
+
+/*/{Protheus.doc} fFormatCodigo
+Função auxiliar para formatar o código da Natureza Financeira, removendo separadores decimais.
+@type function
+@version 12.1.2410
+@author TOTVS
+@since 8/26/2026
+@param cCodigo, character, Código a ser formatado.
+@return character, Código formatado.
+/*/
+Static Function fFormatCodigo( cCodigo as character ) as character
+
+    cCodigo := allTrim(cCodigo)
+    cCodigo := replace(cCodigo, '.', '')
+    cCodigo := replace(cCodigo, '-', '')
+    cCodigo := replace(cCodigo, '/', '')
+    cCodigo := replace(cCodigo, '\', '')
+
+Return cCodigo
