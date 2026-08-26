@@ -39,7 +39,7 @@ User Function ImportarNatFin()
 
     Local lResult as logical
 
-    Private cTarget_ := '/totvs/import/minerasul_natureza.csv' as character
+    Private cTarget_ := '' as character
     Private oError_ := GwError():New() as object
     Private oLog_ := GwConsoleLog():New() as object
     Private jMessage_ := U_GwGetMessage() as json

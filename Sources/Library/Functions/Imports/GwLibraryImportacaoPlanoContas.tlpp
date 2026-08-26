@@ -36,7 +36,7 @@ User Function ImportarPLContas() // GWORKS.LIBRARY.FUNCTIONS.IMPORTARPC
 
     Local lResult as logical
 
-    Private cTarget_ := 'l:/tmp/totvs/minerasul_plano_contas.csv' as character
+    Private cTarget_ := '' as character
     Private oError_ := GwError():New() as object
     Private oLog_ := GwConsoleLog():New() as object
     Private jMessage_ := U_GwGetMessage() as json
