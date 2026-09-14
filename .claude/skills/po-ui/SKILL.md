@@ -1,12 +1,12 @@
 ---
 name: po-ui
-description: "Build Angular front-ends with PO UI, the TOTVS open-source component library (packages `@po-ui/ng-components`, `@po-ui/ng-templates`, `@po-ui/style`, `@po-ui/ng-code-editor`, `@po-ui/ng-sync`, `@po-ui/ng-storage`). Covers the version matrix against Angular, the `ng add`/`ng generate` schematics, the full component catalog (po-table, po-field family, po-page family, po-menu, po-toolbar, po-modal, po-chart, po-widget...), the dynamic CRUD templates (po-page-dynamic-table / -edit / -detail / -search, po-page-login, po-page-job-scheduler), the services (PoNotificationService, PoDialogService, PoI18nService, PoThemeService), and the REST contract those components expect (hasNext/items, page/pageSize, order, error envelope) including how to serve it from a Protheus TLPP endpoint. Use whenever the user says 'po-ui', 'poui', 'PO UI', 'portinari', 'po-table', 'po-page-dynamic-table', 'cria uma tela PO UI', 'CRUD Angular TOTVS', 'tela Angular para o Protheus', or when writing/reviewing Angular code that imports from @po-ui/*."
+description: "Build Angular front-ends with PO UI, the TOTVS open-source component library (packages `@po-ui/ng-components`, `@po-ui/ng-templates`, `@po-ui/style`, `@po-ui/ng-code-editor`, `@po-ui/ng-sync`, `@po-ui/ng-storage`). Covers the version matrix against Angular, the `ng add`/`ng generate` schematics, the full component catalog (po-table, po-field family, po-page family, po-menu, po-toolbar, po-modal, po-chart, po-widget...), the dynamic CRUD templates (po-page-dynamic-table / -edit / -detail / -search, po-page-login, po-page-job-scheduler), the services (PoNotificationService, PoDialogService, PoI18nService, PoThemeService), and the REST contract those components expect (hasNext/items, page/pageSize, order, error envelope) including how to serve it from a Protheus TLPP endpoint. Use whenever the user says 'po-ui', 'poui', 'PO UI', 'portinari', 'po-table', 'po-page-dynamic-table', 'cria uma tela PO UI', 'CRUD Angular TOTVS', 'tela Angular para o Protheus', or when writing/reviewing Angular code that imports from @po-ui/*. Also covers running a PO UI app EMBEDDED in Protheus via `@totvs/protheus-lib-core` and `@totvs/po-theme` (ProAppConfigService, ProJsToAdvplService, ProSessionInfoService, ProAuthService, packaging to `.app`, opening it from AdvPL with `FWCallApp`) — trigger on 'protheus-lib-core', 'FWCallApp', 'app dentro do Protheus', 'app web no SmartClient', 'ProAppConfigService'."
 license: Internal
 metadata:
   domain: Angular / TOTVS PO UI
   maintainer: Gworks - Giovani
   category: Frontend Framework Reference
-  verified_against: "@po-ui/* 21.30.1 (source: github.com/po-ui/po-angular, master)"
+  verified_against: "@po-ui/* 21.30.1 (github.com/po-ui/po-angular, master); @totvs/protheus-lib-core 21.1.2 + @totvs/po-theme 21.30.1 (npm typings + TDN pageId 911865819)"
   upstream_docs: https://po-ui.io/documentation
 ---
 
@@ -25,6 +25,8 @@ PO UI is TOTVS's open-source Angular design system — the successor to THF/Port
 | `@po-ui/ng-sync` | Offline-first sync engine (schema + `PoSyncService`) for mobile/PWA. |
 | `@po-ui/ng-storage` | Local storage abstraction used by `ng-sync`. |
 | `@po-ui/mcp` | Official MCP server exposing po-ui.io docs. See [Live documentation](#live-documentation). |
+| `@totvs/po-theme` | TOTVS theme layer on top of `@po-ui/style`. Versioned in lockstep with PO UI. |
+| `@totvs/protheus-lib-core` | **Not part of PO UI** — the bridge that lets a PO UI app run *inside* Protheus (`FWCallApp`) and read the live ERP session. See [protheus-integration.md](references/protheus-integration.md). |
 
 ## Version matrix — check this first
 
@@ -44,6 +46,8 @@ PO UI `21.x` pairs with Angular `21.x`. **Never mix majors.** The verified-good 
 "@po-ui/ng-components":              "21.30.1",
 "@po-ui/style":                      "21.30.1",    // must match ng-components exactly
 "@po-ui/ng-templates":               "21.30.1",    // must match ng-components exactly
+"@totvs/po-theme":                   "21.30.1",    // Protheus-embedded apps only; same lockstep
+"@totvs/protheus-lib-core":          "21.1.2",     // Protheus-embedded apps only
 "rxjs":                              "~7.8.1",
 "tslib":                             "^2.6.2",
 "zone.js":                           "~0.15.0",
@@ -85,6 +89,7 @@ The static catalog in this skill is a snapshot of **21.30.1**. Component `@Input
 - Any Angular file that imports from `@po-ui/*`, or any request to build/alter a PO UI screen.
 - Choosing between a hand-built page and a dynamic template → see [Which page component](#which-page-component).
 - Wiring a PO UI screen to a back-end → the components impose a specific REST contract; see `references/api-contract.md`. **This matters in this repo**: a Protheus TLPP endpoint must be written to that shape or `po-table`/`po-lookup`/`po-page-dynamic-table` silently show nothing.
+- Packaging the app to run **inside** Protheus (`FWCallApp`, `.app`, the AdvPL bridge) → [protheus-integration.md](references/protheus-integration.md).
 - Reviewing PO UI code → see [Gotchas](#gotchas).
 - Writing a screen from scratch → [patterns.md](references/patterns.md) has working recipes for the app shell, a paged list, a full dynamic CRUD, forms, lookup, notifications and theming.
 
@@ -190,9 +195,18 @@ Full API detail in [components-reference.md](references/components-reference.md)
 8. **`po-code-editor` is a separate, heavy package.** Do not add `@po-ui/ng-code-editor` unless a code editor is actually required.
 9. **Never import a PO UI component class.** They are `standalone: false`, so `imports: [PoTableComponent]` fails to compile. Import `PoTableModule` (or `PoModule`) instead — including inside standalone components.
 
-## Protheus back-end integration
+## Protheus integration
 
-This repository is a Protheus/AdvPL library, so PO UI screens here are usually fronting TLPP REST endpoints. Two things to get right, both detailed in `references/api-contract.md`:
+A PO UI app can relate to Protheus in two ways, and they need different things:
+
+| Mode | Description | Reference |
+|---|---|---|
+| **Standalone web app** | Ordinary Angular app on a web server, calling TLPP REST endpoints. | [api-contract.md](references/api-contract.md) |
+| **Embedded Protheus app** | Packaged as a `.app`, opened from SmartClient by `FWCallApp`, with a live channel to the AdvPL layer and access to the real ERP session (company, branch, module, user, token). | [protheus-integration.md](references/protheus-integration.md) |
+
+The embedded mode adds `@totvs/protheus-lib-core` (+ `@totvs/po-theme`, `subsink`, `@totvs/common-assets`) and the `ProAppConfigService` / `ProJsToAdvplService` / `ProSessionInfoService` family. **`@totvs/protheus-lib-core` is only published for Angular 14, 15, 17, 19 and 21** — there is no 16, 18 or 20 build, so it constrains the Angular version for that mode.
+
+Either way the REST side is the same. Two things to get right, both detailed in [api-contract.md](references/api-contract.md):
 
 - **Response shape.** A TLPP endpoint feeding a PO UI list must emit `{"hasNext": ..., "items": [...]}` and the `{code, message, detailedMessage}` error envelope — not the bare `{"data": [...]}` some in-house APIs use. Reuse `tlpp-rest-endpoint-generator` for the endpoint and this skill for the contract.
 - **Query parameters.** PO UI sends `page`, `pageSize`, `order` (with `-` for descending) and `property=value` filters. Map `page`/`pageSize` onto the SQL pagination and always compute `hasNext` by asking for one row more than `pageSize`.
