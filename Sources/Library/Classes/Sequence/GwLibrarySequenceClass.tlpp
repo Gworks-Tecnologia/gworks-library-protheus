@@ -1,6 +1,10 @@
 #include "TOTVS.ch"
 #include "MsObject.ch"
 
+#define SEQ_LOCK_RETRY 300 // tentativas de obtencao do semaforo do contador
+#define SEQ_LOCK_SLEEP 100 // intervalo entre tentativas, em milissegundos
+#define SEQ_FLD_CHARS "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_"
+
 using namespace Gworks.Library.Utils
 using namespace Gworks.library.Functions
 
@@ -12,6 +16,10 @@ Classe para geração de numeração sequêncial.
 @version 12.1.2310
 @author Gworks - Giovani Soares
 @since 6/20/2024
+@obs Observações
+    O controle é mantido na tabela ZGS, com chave ZGS_FILIAL+ZGS_FAMI+ZGS_CAMPO+ZGS_PREFIX.
+    A seção crítica (leitura do contador, incremento e gravação) é protegida por um semáforo
+    nomeado pela chave do contador, obtido ANTES da leitura e liberado APÓS o commit.
 /*/
 Class GwSequence
 
@@ -23,30 +31,40 @@ Class GwSequence
     */
 
     Protected Data aArea as array default {}
-    Protected Data nLenCampo as numeric default 0
-    Protected Data nLenPrefixo as numeric default 0
-    Protected Data nLenFamilia as numeric default 0
+    Protected Data aAreaZGS as array default {}
+
+    // tamanhos das colunas da tabela de controle (ZGS)
+    Protected Data nLenKeyCampo as numeric default 0
+    Protected Data nLenKeyPrefix as numeric default 0
+    Protected Data nLenKeyFami as numeric default 0
     Protected Data nLenSequen as numeric default 0
-    Protected Data cSequen as character default ""
+
+    // características do campo-alvo, conforme dicionário SX3
+    Protected Data nLenCampo as numeric default 0
     Protected Data cTypeCampo as character default ""
 
+    Protected Data cSequen as character default ""
     Protected Data cCampo as character default ""
     Protected Data cPrefixo as character default ""
     Protected Data cFamilia as character default ""
+    Protected Data cLockKey as character default ""
     Protected Data lReboot as logical default .T.
 
     // Construtor
     Public Method New() Constructor
 
     // Métodos públicos da classe
-    Public Method GetSequence() as character
+    Public Method GetSequence() as variant
 
     // Métodos privados da classe
-    Private Method StartSequence() as logical
-    Private Method IncrementSequence(_lInclui) as character
+    Private Method StartSequence()
+    Private Method IncrementSequence( _lInclui ) as character
     Private Method GetDBSequence( _cCampo, _cPrefixo, _nTamCampo ) as character
-    Private Method GetFieldStruct( _cCampo ) as numeric
+    Private Method GetFieldStruct()
     Private Method CommitSequence( _cSequen )
+    Private Method SetLock() as logical
+    Private Method ClearLock()
+    Private Method Sx3Size( _cField ) as numeric
 
 EndClass
 
@@ -56,44 +74,68 @@ Cria instância da classe.
 @version 12.1.2310
 @author Gworks - Giovani Soares
 @since 6/20/2024
-@param _cArgCampo, character, Nome do Campo conforme dicionário SX3 para geração do nro. sequêncial (obrigatório).
+@param _cCampo, character, Nome do Campo conforme dicionário SX3 para geração do nro. sequêncial (obrigatório).
 @param _cPrefixo, character, Prefixo a ser anexado ao código sequêncial.
 @param _cFamilia, character, Se informado, permite diversas sequências para um mesmo campo.
-@param _lReboot, logical,
+@param _lReboot, logical, Se .T. inicializa um contador novo a partir do maior valor existente na tabela do campo.
 @return variant, Instância do objeto.
 /*/
 Method New( _cCampo as character, _cPrefixo as character, _cFamilia as character, _lReboot as logical ) Class GWSequence
 
     Default _cCampo := ""
-    Default _cPrefixo := Space(nLenPrefixo)
-    Default _cFamilia := Space(nLenFamilia) // nome da familia do campo
+    Default _cPrefixo := ""
+    Default _cFamilia := ""
     Default _lReboot := .T. // atualiza o controle sequêncial com base no banco de dados
 
-    ::nLenCampo := TamSx3( "ZGS_CAMPO" )[1]
-    ::nLenPrefixo := TamSx3( "ZGS_PREFIX" )[1]
-    ::nLenFamilia := TamSx3( "ZGS_FAMI" )[1]
-    ::nLenSequen := TamSx3( "ZGS_SEQUEN" )[1]
-    ::cSequen := ""
-
-    ::cCampo := _cCampo
-    ::cPrefixo := _cPrefixo
-    ::cFamilia := _cFamilia
-    ::lReboot := _lReboot
-
-    if Empty(::cCampo)
+    if Empty(_cCampo)
         UserException("GWSequence:New - invalid parameters!")
     endif
 
-    ::cCampo   := PadR( ::cCampo  , ::nLenCampo  , " " )
-    ::cPrefixo := PadR( ::cPrefixo, ::nLenPrefixo, " " )
-    ::cFamilia := PadR( ::cFamilia, ::nLenFamilia, " " )
-    ::cSequen  := PadR( ::cSequen , ::nLenSequen , " " )
+    // tamanhos das colunas da tabela de controle
+    ::nLenKeyCampo := ::Sx3Size("ZGS_CAMPO")
+    ::nLenKeyPrefix := ::Sx3Size("ZGS_PREFIX")
+    ::nLenKeyFami := ::Sx3Size("ZGS_FAMI")
+    ::nLenSequen := ::Sx3Size("ZGS_SEQUEN")
 
+    if ::nLenKeyCampo <= 0 .Or. ::nLenSequen <= 0
+        UserException("GWSequence:New - control table ZGS not found in data dictionary!")
+    endif
+
+    ::cCampo := Upper(AllTrim(_cCampo))
+    ::cPrefixo := AllTrim(_cPrefixo)
+    ::cFamilia := AllTrim(_cFamilia)
+    ::lReboot := _lReboot
+    ::cSequen := ""
+
+    // define ::nLenCampo e ::cTypeCampo a partir do campo-alvo
     ::GetFieldStruct()
 
-    if( ::cTypeCampo == "N" .And. allTrim(::cPrefixo) > "" )
+    // Empty() e não comparação com "": o operador > com string vazia depende do SET EXACT
+    if( ::cTypeCampo == "N" .And. !Empty(::cPrefixo) )
         UserException("GWSequence:New - prefix not compatible with numeric fields")
     endif
+
+    // qualquer um destes casos geraria truncamento silencioso na chave ou no contador
+    do case
+        case Len(::cCampo) > ::nLenKeyCampo
+            UserException("GWSequence:New - field name exceeds ZGS_CAMPO size (" + cValToChar(::nLenKeyCampo) + ")!")
+        case Len(::cPrefixo) > ::nLenKeyPrefix
+            UserException("GWSequence:New - prefix exceeds ZGS_PREFIX size (" + cValToChar(::nLenKeyPrefix) + ")!")
+        case Len(::cFamilia) > ::nLenKeyFami
+            UserException("GWSequence:New - family exceeds ZGS_FAMI size (" + cValToChar(::nLenKeyFami) + ")!")
+        case ::nLenCampo > ::nLenSequen
+            UserException("GWSequence:New - field " + ::cCampo + " exceeds ZGS_SEQUEN size (" + cValToChar(::nLenSequen) + ")!")
+        case Len(::cPrefixo) >= ::nLenCampo
+            UserException("GWSequence:New - prefix leaves no room for the sequence in field " + ::cCampo + "!")
+    endcase
+
+    // recurso do semáforo: um por contador, nunca o valor gerado
+    ::cLockKey := "GWSEQ|" + ::cFamilia + "|" + ::cCampo + "|" + ::cPrefixo
+
+    // conteúdo definitivo das colunas-chave
+    ::cCampo := PadR( ::cCampo  , ::nLenKeyCampo , " " )
+    ::cPrefixo := PadR( ::cPrefixo, ::nLenKeyPrefix, " " )
+    ::cFamilia := PadR( ::cFamilia, ::nLenKeyFami  , " " )
 
 Return Self
 
@@ -103,49 +145,118 @@ Obtem a sequência correspondente aos parâmetros de construção do objeto.
 @version 12.1.2310
 @author Gworks - Giovani Soares
 @since 6/20/2024
-@return character, Numeração sequêncial.
+@return variant, Numeração sequêncial, caractere ou numérica conforme o tipo do campo-alvo.
 /*/
-Method GetSequence() Class GWSequence as character
+Method GetSequence() Class GWSequence as variant
 
-    Local xResult as variant
-    Local lFound := .F. as logical
+    Local xResult := nil as variant
+    Local cError := "" as character
+    Local lInclui := .F. as logical
 
     ::aArea := GetArea()
+    ::aAreaZGS := {}
 
-    DbSelectArea("ZGS")
-    ZGS->(DbSetOrder(1)) // ZGS_FILIAL+ZGS_FAMI+ZGS_CAMPO+ZGS_PREFIX
-    ZGS->(DbGoTop())
-    if ZGS->(MsSeek(xFilial("ZGS")+::cFamilia+::cCampo+::cPrefixo))
-        lFound := .T.
-    endif
+    // o semáforo cobre toda a seção crítica, inclusive a pesquisa da chave
+    ::SetLock()
 
-    BEGIN TRANSACTION
+    TRY
+
+        DbSelectArea("ZGS")
+        ::aAreaZGS := ZGS->(GetArea())
+        ZGS->(DbSetOrder(1)) // ZGS_FILIAL+ZGS_FAMI+ZGS_CAMPO+ZGS_PREFIX
+
+        BEGIN TRANSACTION
+
+            TRY
+
+                lInclui := !ZGS->(MsSeek(xFilial("ZGS")+::cFamilia+::cCampo+::cPrefixo))
+
+                if lInclui
+                    ::StartSequence()
+                endif
+
+                ::cSequen := ::IncrementSequence(lInclui)
+
+            CATCH oErrTrn
+
+                DisarmTransaction()
+                cError := oErrTrn:Description
+
+            ENDTRY
+
+        END TRANSACTION
+
+        if !Empty(cError)
+            UserException("GWSequence:GetSequence - " + cError)
+        endif
+
+        if Empty(::cSequen)
+            UserException("GWSequence:GetSequence - fault for generate sequential for field " + AllTrim(::cCampo))
+        endif
 
         do case
-
-            case lFound
-
-                ::cSequen := ::IncrementSequence(.F.)
-
-            case !lFound .And. ::StartSequence()
-
-                ::cSequen := ::IncrementSequence(.T.)
-
-            otherwise
-                UserException("GWSequence:GetSequence - fault for generate sequential for field " + ::cCampo)
-
+            case ::cTypeCampo == "N"  ; xResult := Val(::cSequen)
+            case ::cTypeCampo == "C"  ; xResult := ::cSequen
         endcase
 
-    END TRANSACTION
+    CATCH oErrSeq
 
-    do case
-        case ::cTypeCampo == "N"  ; xResult := val(::cSequen)
-        case ::cTypeCampo == "C"  ; xResult := ::cSequen
-    endcase
+        THROW oErrSeq
 
-    RestArea(::aArea)
+    FINALLY
+
+        ::ClearLock()
+
+        if !Empty(::aAreaZGS)
+            RestArea(::aAreaZGS)
+        endif
+
+        RestArea(::aArea)
+
+    ENDTRY
 
 Return xResult
+
+/*/{Protheus.doc} GWSequence::SetLock
+Método interno para obter o semáforo exclusivo do contador.
+@type method
+@version 12.1.2310
+@author Gworks - Giovani Soares
+@since 6/20/2024
+@return logical, Retorna 'true' quando o semáforo é obtido; caso contrário gera exceção.
+/*/
+Method SetLock() Class GWSequence as logical
+
+    Local lResult := .F. as logical
+    Local nTry := 0 as numeric
+
+    while !lResult .And. nTry < SEQ_LOCK_RETRY
+        if !( lResult := LockByName( ::cLockKey, .T., .T. ) )
+            nTry++
+            Sleep( SEQ_LOCK_SLEEP )
+        endif
+    enddo
+
+    if !lResult
+        UserException("GWSequence:SetLock - timeout waiting for sequence lock [" + ::cLockKey + "]!")
+    endif
+
+Return lResult
+
+/*/{Protheus.doc} GWSequence::ClearLock
+Método interno para liberar o semáforo exclusivo do contador.
+@type method
+@version 12.1.2310
+@author Gworks - Giovani Soares
+@since 6/20/2024
+/*/
+Method ClearLock() Class GWSequence
+
+    if !Empty(::cLockKey)
+        UnLockByName( ::cLockKey, .T., .T. )
+    endif
+
+Return
 
 /*/{Protheus.doc} GWSequence::StartSequence
 Método interno para inicializar uma numeração se a mesma não existir.
@@ -153,15 +264,25 @@ Método interno para inicializar uma numeração se a mesma não existir.
 @version 12.1.2310
 @author Gworks - Giovani Soares
 @since 6/20/2024
-@return logical, Retorna 'true' para indicar sucesso e 'false' caso contrário.
 /*/
-Method StartSequence() Class GWSequence as logical
+Method StartSequence() Class GWSequence
 
-    Local cPrefixo  := ""  as character
+    Local cPrefixo := AllTrim(::cPrefixo) as character
+    Local cSeqIni := "" as character
+    Local nLenSeq := 0 as numeric
 
-    if ::nLenCampo <= 0
-        Return .F.
+    nLenSeq := ::nLenCampo - Len(cPrefixo)
+
+    // a consulta ao maior valor é feita fora do RecLock para não segurar o registro
+    if ::lReboot
+        cSeqIni := ::GetDBSequence( AllTrim(::cCampo), cPrefixo, ::nLenCampo )
     endif
+
+    if Empty(cSeqIni)
+        cSeqIni := cPrefixo + StrZero(1,nLenSeq)
+    endif
+
+    DbSelectArea("ZGS")
 
     RecLock("ZGS",.T.)
 
@@ -170,17 +291,11 @@ Method StartSequence() Class GWSequence as logical
         ZGS->ZGS_CAMPO := ::cCampo
         ZGS->ZGS_PREFIX := ::cPrefixo
         ZGS->ZGS_TIPO := ::cTypeCampo
-        cPrefixo := AllTrim(::cPrefixo)
-
-        if ::lReboot
-            ZGS->ZGS_SEQUEN := ::GetDBSequence(::cCampo, ::cPrefixo, ::nLenCampo)
-        else
-            ZGS->ZGS_SEQUEN := cPrefixo+StrZero(1,::nLenCampo-Len(cPrefixo))
-        endif
+        ZGS->ZGS_SEQUEN := PadR( cSeqIni, ::nLenSequen )
 
     ZGS->(MsUnLock())
 
-Return .T.
+Return
 
 /*/{Protheus.doc} GWSequence::IncrementSequence
 Incrementa sequêncial.
@@ -192,26 +307,41 @@ Incrementa sequêncial.
 @return character, Squencial resultante.
 /*/
 Method IncrementSequence( _lInclui ) Class GWSequence as character
-    Default _lInclui := .F.
+
     Local cResult := "" as character
     Local cPrefixo := "" as character
     Local cSequence := "" as character
-    Local lLock := .F. as logical
-    while !lLock
-        cPrefixo  := AllTrim(ZGS->ZGS_PREFIX)
-        cSequence := AllTrim(Replace(ZGS->ZGS_SEQUEN,cPrefixo,""))
-        do case
-            case !_lInclui ; cResult := cPrefixo + Soma1(cSequence)
-            case  _lInclui ; cResult := cPrefixo + cSequence
-        endcase
-        if LockByName(cResult,.T.,.T.)
-            ::CommitSequence(cResult)
-            UnLockByname(cResult,.T.,.T.)
-            lLock := .T.
-        else
-            sleep(100)
+    Local cNext := "" as character
+
+    Default _lInclui := .F.
+
+    // descarta buffer desatualizado da workarea quando o registro já existia
+    if !_lInclui
+        ZGS->(DbGoTo(ZGS->(Recno())))
+    endif
+
+    cPrefixo := AllTrim(ZGS->ZGS_PREFIX)
+
+    // remoção do prefixo por posição: Replace() trocaria também ocorrências dentro dos dígitos
+    cSequence := AllTrim(SubStr(AllTrim(ZGS->ZGS_SEQUEN),Len(cPrefixo)+1))
+
+    if Empty(cSequence)
+        UserException("GWSequence:IncrementSequence - corrupted counter for field " + AllTrim(::cCampo) + "!")
+    endif
+
+    if _lInclui
+        cResult := cPrefixo + cSequence
+    else
+        cNext := Soma1(cSequence)
+        // Soma1() preserva o tamanho: se não cresceu, a faixa deu a volta
+        if !( cNext > cSequence )
+            UserException("GWSequence:IncrementSequence - sequence overflow for field " + AllTrim(::cCampo) + "!")
         endif
-    enddo
+        cResult := cPrefixo + cNext
+    endif
+
+    ::CommitSequence(cResult)
+
 Return cResult
 
 /*/{Protheus.doc} GWSequence::GetDBSequence
@@ -223,47 +353,76 @@ Métodfo interno para obter o último número utilizado no Banco de Dados.
 @param _cCampo, character, Nome do campo desejado.
 @param _cPrefixo, character, Prefixo.
 @param _nTamCampo, numeric, Tamanho do campo.
-@return character, Numeração conforme Banco de Dados.
+@return character, Numeração conforme Banco de Dados, ou "" quando não for possível determiná-la.
 /*/
 Method GetDBSequence( _cCampo, _cPrefixo, _nTamCampo ) Class GWSequence as character // nao considera a familia
 
     Local cAlias := "" as character
     Local cTable := "" as character
-    Local cFilSQL := "" as character
-    Local cPrxFil := "" as character
+    Local cFilFld := "" as character
+    Local cFilVal := "" as character
     Local cFieldSQL := "" as character
     Local cTableSQL := "" as character
     Local cWhereSQL := "" as character
     Local cMaxSqlSeq := "" as character
     Local cResult := "" as character
+    Local nLenSeq := 0 as numeric
+    Local nI := 0 as numeric
 
     Default _cCampo := ""
     Default _cPrefixo := ""
+    Default _nTamCampo := 0
 
-    if Empty(_cCampo) .Or. Empty(_nTamCampo)
+    if Empty(_cCampo) .Or. _nTamCampo <= 0
         Return ""
     endif
 
-    _cCampo := AllTrim(_cCampo)
+    _cCampo := Upper(AllTrim(_cCampo))
     _cPrefixo := AllTrim(_cPrefixo)
+    nLenSeq := _nTamCampo - Len(_cPrefixo)
 
-    U_GwOpenDictionary("SX3","SX3DIC")
-    DbSelectArea("SX3DIC")
-    SX3DIC->(DbSetOrder(2))
-    SX3DIC->(DbGoTop())
-    if !SX3DIC->(MsSeek(Upper(_cCampo)))
+    // o nome do campo entra cru na montagem do SQL: só aceita caracteres de identificador
+    for nI:=1 to Len(_cCampo)
+        if !( SubStr(_cCampo,nI,1) $ SEQ_FLD_CHARS )
+            Return ""
+        endif
+    next
+
+    if At("_",_cCampo) < 2
         Return ""
     endif
 
-    cTable := SX3DIC->X3_ARQUIVO
-    cPrxFil := Upper(cTable)
-    cPrxFil := if(SubStr(cPrxFil,1,1) == "S", SubStr(cPrxFil,2,2), cPrxFil)
-    cFilSQL := cPrxFil + "_FILIAL"
+    if U_GwOpenDictionary("SX3","SX3DIC")
 
-    cFieldSQL := "%MAX(" + _cCampo + ") %"
+        TRY
+            SX3DIC->(DbSetOrder(2)) // X3_CAMPO
+            if SX3DIC->(MsSeek(PadR(_cCampo,::Sx3Size("X3_CAMPO"))))
+                cTable := AllTrim(SX3DIC->X3_ARQUIVO)
+            endif
+        CATCH oErrDic
+            THROW oErrDic
+        FINALLY
+            if Select("SX3DIC") > 0
+                SX3DIC->(DbCloseArea())
+            endif
+        ENDTRY
+
+    endif
+
+    if Empty(cTable)
+        Return ""
+    endif
+
+    // o prefixo das colunas vem do próprio campo (B1_COD -> B1_FILIAL), não do nome da tabela
+    cFilFld := SubStr(_cCampo,1,At("_",_cCampo)-1) + "_FILIAL"
+
+    // filial preenchida com espaços em tabela compartilhada: "= ''" é NULL no Oracle
+    cFilVal := PadR( xFilial(cTable), Max(::Sx3Size(cFilFld),1) )
+
+    cFieldSQL := "%MAX(TBL." + _cCampo + ")%"
     cTableSQL := "%"+RetSqlName(cTable)+"%"
-    cWhereSQL += "%TBL." + cFilSQL + " = '" + xFilial(cTable) + "' AND "
-    cWhereSQL += if(!Empty(_cPrefixo), "TBL." + _cCampo + " LIKE '" + Upper(_cPrefixo) + "%' AND ", "")
+    cWhereSQL := "%TBL." + cFilFld + " = '" + cFilVal + "' AND "
+    cWhereSQL += if(!Empty(_cPrefixo), "TBL." + _cCampo + " LIKE '" + Upper(StrTran(_cPrefixo,"'","''")) + "%' AND ", "")
     cWhereSQL += "TBL.D_E_L_E_T_ = ' ' %"
     cAlias := GetNextAlias()
     BeginSQL Alias cAlias
@@ -275,40 +434,67 @@ Method GetDBSequence( _cCampo, _cPrefixo, _nTamCampo ) Class GWSequence as chara
             %exp:cWhereSQL%
     EndSQL
 
-    DbSelectArea(cAlias)
+    TRY
 
-    if !(cAlias)->(EOF()) .And. !Empty((cAlias)->MAXSEQ)
-        if ::cTypeCampo == "N"
-            cMaxSqlSeq := cValToChar((cAlias)->MAXSEQ)
-        else
-            cMaxSqlSeq := (cAlias)->MAXSEQ
+        if !(cAlias)->(EOF()) .And. !Empty((cAlias)->MAXSEQ)
+
+            if ::cTypeCampo == "N"
+                cMaxSqlSeq := AllTrim(cValToChar((cAlias)->MAXSEQ))
+            else
+                cMaxSqlSeq := AllTrim((cAlias)->MAXSEQ)
+            endif
+
+            cMaxSqlSeq := SubStr( cMaxSqlSeq, Len(_cPrefixo)+1 )
+
+            // normaliza a largura: Soma1() preserva o tamanho da string recebida
+            cMaxSqlSeq := PadL( AllTrim(cMaxSqlSeq), nLenSeq, "0" )
+
+            cResult := _cPrefixo + Soma1(cMaxSqlSeq)
+
         endif
-        cResult := Replace( cMaxSqlSeq, _cPrefixo )
-        cResult := Soma1(cResult)
-        cResult := _cPrefixo+cResult
-    else
-        cResult := _cPrefixo+StrZero(1,_nTamCampo-Len(_cPrefixo))
-    endif
 
-    (cAlias)->(DbCloseArea())
+    CATCH oErrSql
+
+        THROW oErrSql
+
+    FINALLY
+
+        if Select(cAlias) > 0
+            (cAlias)->(DbCloseArea())
+        endif
+
+    ENDTRY
 
 Return cResult
 
 /*/{Protheus.doc} GWSequence::GetFieldStruct
-Método interno para obter o tamanho do campo informado para geração sequêncial.
+Método interno para obter o tamanho e o tipo do campo informado para geração sequêncial.
 @type method
 @version 12.1.2310
 @author Gweorks - Giovani
 @since 6/20/2024
 /*/
-Method GetFieldStruct() Class GWSequence as numeric
-    Local aStruct := {} as array
-    aStruct := TamSx3(::cCampo)
+Method GetFieldStruct() Class GWSequence
+
+    Local aStruct := TamSx3(::cCampo) as array
+
+    if ValType(aStruct) != "A" .Or. Len(aStruct) < 3
+        UserException("GWSequence:GetFieldStruct - field " + ::cCampo + " not found in data dictionary!")
+    endif
+
     ::nLenCampo := aStruct[1]
     ::cTypeCampo := aStruct[3]
-    if !(::cTypeCampo $ "C/N") .Or. aStruct[2] > 0
-        UserException("GWSequence:GetFieldStruct - invalid data type!")
-    endif
+
+    // comparação direta: "" $ "C/N" retorna .T. e deixaria passar campo inexistente
+    do case
+        case !( ::cTypeCampo == "C" .Or. ::cTypeCampo == "N" )
+            UserException("GWSequence:GetFieldStruct - invalid data type!")
+        case ::nLenCampo <= 0
+            UserException("GWSequence:GetFieldStruct - invalid field size!")
+        case aStruct[2] > 0
+            UserException("GWSequence:GetFieldStruct - decimals are not allowed!")
+    endcase
+
 Return
 
 /*/{Protheus.doc} GWSequence::CommitSequence
@@ -317,9 +503,36 @@ Método interno para salvar/confirmar a numeração sequêncial.
 @version 12.1.2310
 @author giovani
 @since 6/20/2024
+@param _cSequen, character, Sequêncial a ser gravado.
 /*/
 Method CommitSequence(_cSequen as character) Class GWSequence
+
+    if ZGS->(EOF()) .Or. !( AllTrim(ZGS->ZGS_CAMPO) == AllTrim(::cCampo) )
+        UserException("GWSequence:CommitSequence - ZGS positioning lost!")
+    endif
+
     RecLock("ZGS",.F.)
-        ZGS->ZGS_SEQUEN := AllTrim(_cSequen)
+        ZGS->ZGS_SEQUEN := PadR( AllTrim(_cSequen), ::nLenSequen )
     ZGS->(MsUnLock())
+
 Return
+
+/*/{Protheus.doc} GWSequence::Sx3Size
+Método interno para obter o tamanho de um campo do dicionário sem gerar exceção.
+@type method
+@version 12.1.2310
+@author Gworks - Giovani Soares
+@since 6/20/2024
+@param _cField, character, Nome do campo.
+@return numeric, Tamanho do campo, ou 0 caso não exista.
+/*/
+Method Sx3Size( _cField ) Class GWSequence as numeric
+
+    Local aStruct := TamSx3(_cField) as array
+    Local nResult := 0 as numeric
+
+    if ValType(aStruct) == "A" .And. Len(aStruct) >= 1 .And. ValType(aStruct[1]) == "N"
+        nResult := aStruct[1]
+    endif
+
+Return nResult

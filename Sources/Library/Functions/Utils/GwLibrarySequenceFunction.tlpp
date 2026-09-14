@@ -4,8 +4,6 @@ using namespace Gworks.Library.Classes
 
 namespace Gworks.Library.Functions
 
-Static oSequence__ := nil as object
-
 /*/{Protheus.doc} GwGetSequence
 Função para criar números sequênciais com possibilidade de fazer o controle sequêncial por prefixos.
 @type function
@@ -26,20 +24,27 @@ Função para criar números sequênciais com possibilidade de fazer o controle sequ
 /*/
 User Function GwGetSequence( cCampo as character, cPrefixo as character, cFamilia as character, lReboot as logical, lEmpCode as logical )
 
+    Local xRet as variant
+    Local oSequence as object
+
     Default cCampo := ""
     Default cPrefixo := ""
     Default cFamilia := ""
     Default lReboot := .T.
     Default lEmpCode := .T.
 
-    Local xRet as variant
-
     if lEmpCode
         cFamilia := cEmpAnt+AllTrim(cFamilia)
     endif
 
-    oSequence__ := GwSequence():New( cCampo, cPrefixo, cFamilia, lReboot )
+    oSequence := GwSequence():New( cCampo, cPrefixo, cFamilia, lReboot )
 
-    xRet := oSequence__:GetSequence()
+    TRY
+        xRet := oSequence:GetSequence()
+    CATCH oError
+        THROW oError
+    FINALLY
+        FwFreeObj(oSequence)
+    ENDTRY
 
 Return xRet

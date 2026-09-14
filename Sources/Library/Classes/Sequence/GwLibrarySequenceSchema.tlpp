@@ -1,0 +1,180 @@
+#include "tlpp-core.th"
+
+#define ZGS_ALIAS "ZGS"
+
+using namespace Gworks.Library.Classes
+
+namespace Gworks.Library.Metadata
+
+/*/{Protheus.doc} GwSequenceSchema
+Valida/cria os metadados da tabela ZGS, utilizada pela classe GwSequence como controle
+de numeração sequêncial próprio (independente do SX8/SXE).
+@type function
+@version 12.1.2310
+@author Gworks - Giovani Soares
+@since 9/14/2026
+@return logical, Retorna .T. (true) caso os metadados estejam íntegros/criados e .F. (false) caso contrário.
+@obs Observações
+    O commit é idempotente: apenas as diferenças em relação ao dicionário são gravadas,
+    portanto a função pode ser chamada a cada execução da rotina que consome o GwSequence.
+@example
+    - if U_GwSequenceSchema() ; cCodigo := U_GwGetSequence("B1_COD","CHAPA","ROCHAS") ; endif
+/*/
+User Function GwSequenceSchema()
+
+    Local cError := "" as character
+    Local lResult := .F. as logical
+    Local lOwnMsg := ( Type("oMessage_") != "O" ) as logical
+    Local oMsg as object
+
+    BEGIN SEQUENCE
+
+        if!( lResult := fZGSSchema( @cError ) )
+            BREAK
+        endif
+
+        dbSelectArea( ZGS_ALIAS )
+
+    END SEQUENCE
+
+    if!( lResult )
+
+        // a classe de mensageria é opcional no escopo do chamador
+        if lOwnMsg
+            oMsg := GwMessagingClass():New()
+        else
+            oMsg := oMessage_
+        endif
+
+        oMsg:SetProperty( "error_state", .T. )
+        oMsg:SetProperty( "error_message", "Falha ao validar/criar metadados!" )
+        oMsg:SetProperty( "error_suggestion", "Favor contactar o suporte técnico." )
+        oMsg:SetProperty( "error_title", "Falha!" )
+        oMsg:SetProperty( "error_style", "HELP" )
+        oMsg:SetProperty( "error_details", cError )
+        oMsg:SetProperty( "log_state", "ERROR")
+        oMsg:Display()
+
+        if lOwnMsg
+            fwFreeObj(oMsg)
+        endif
+
+    endif
+
+Return lResult
+
+/*/{Protheus.doc} fZGSSchema
+Monta e commita o metadado da tabela ZGS (Controle de Numeração Sequêncial).
+@type function
+@version 12.1.2310
+@author Gworks - Giovani Soares
+@since 9/14/2026
+@param cRetError, character, Retorna a descrição da falha, quando houver (passar por referência "@").
+@return logical, Retorna .T. (true) em caso de sucesso e .F. (false) caso contrário.
+/*/
+Static Function fZGSSchema( cRetError as character )
+
+    Local lResult := .F. as logical
+
+    Private oMeta_ := GwMetaData():New() as object
+
+    Default cRetError := ""
+
+    fSetTables()
+
+    fSetFields()
+
+    fSetIndexes()
+
+    if!( lResult := oMeta_:CommitData() )
+        cRetError := "GwSequenceSchema - Fault to create ZGS metadata."
+    endif
+
+    fwFreeObj(oMeta_)
+
+Return lResult
+
+/*/{Protheus.doc} fSetTables
+Metadados da tabela (SX2).
+@type function
+@version 12.1.2310
+@author Gworks - Giovani Soares
+@since 9/14/2026
+/*/
+Static Function fSetTables()
+
+    Local jTable as json
+
+    jTable := JsonObject():New()
+        jTable["alias"] := ZGS_ALIAS
+        jTable["name"] := "Controle de Sequência"
+        jTable["name_sp"] := "Control de Secuencia"
+        jTable["name_eng"] := "Sequence Control"
+        jTable["sharing_branch"] := "E"
+        jTable["sharing_unit"] := "E"
+        jTable["sharing_company"] := "E"
+        jTable["unique_key"] := "ZGS_FILIAL+ZGS_FAMI+ZGS_CAMPO+ZGS_PREFIX"
+    oMeta_:AddTable( jTable )
+    fwFreeVar(jTable)
+
+Return
+
+/*/{Protheus.doc} fSetFields
+Metadados dos campos (SX3).
+@type function
+@version 12.1.2310
+@author Gworks - Giovani Soares
+@since 9/14/2026
+@obs Observações
+    ZGS_FILIAL é gerado automaticamente pelo AddTable() com a ordem "01".
+    Os tamanhos aqui definidos são lidos em tempo de execução pela classe GwSequence:
+        - ZGS_CAMPO  deve comportar o maior nome de campo do SX3 (X3_CAMPO = 10).
+        - ZGS_SEQUEN deve comportar o maior campo-alvo a ser sequenciado, com prefixo.
+/*/
+Static Function fSetFields()
+
+    Local nI as integer
+    Local aFields := {} as array
+    Local cOrder := "01" as character
+    Local cComboTipo as character
+
+    aAdd( aFields, {"alias": ZGS_ALIAS, "order": (cOrder:=soma1(cOrder)), "name": "ZGS_FAMI"  , "type": "C", "size": 20, "decimal": 0, "title": "Família"  , "description": "Família da Sequência" , "picture": "@!", "visual": "V", "context": "R", "requisite": false, "used": true, "used_brw": true, "dataset": "", "vld_user": "", "combo_box": "", "init": "", "init_brw": "", "when": "", "folder": "", "level": 1} )
+    aAdd( aFields, {"alias": ZGS_ALIAS, "order": (cOrder:=soma1(cOrder)), "name": "ZGS_CAMPO" , "type": "C", "size": 10, "decimal": 0, "title": "Campo"    , "description": "Campo do Dicionário"  , "picture": "@!", "visual": "V", "context": "R", "requisite": true , "used": true, "used_brw": true, "dataset": "", "vld_user": "", "combo_box": "", "init": "", "init_brw": "", "when": "", "folder": "", "level": 1} )
+    aAdd( aFields, {"alias": ZGS_ALIAS, "order": (cOrder:=soma1(cOrder)), "name": "ZGS_PREFIX", "type": "C", "size": 10, "decimal": 0, "title": "Prefixo"  , "description": "Prefixo da Sequência" , "picture": "@!", "visual": "V", "context": "R", "requisite": false, "used": true, "used_brw": true, "dataset": "", "vld_user": "", "combo_box": "", "init": "", "init_brw": "", "when": "", "folder": "", "level": 1} )
+    aAdd( aFields, {"alias": ZGS_ALIAS, "order": (cOrder:=soma1(cOrder)), "name": "ZGS_TIPO"  , "type": "C", "size": 1 , "decimal": 0, "title": "Tipo"     , "description": "Tipo do Campo"        , "picture": "@!", "visual": "V", "context": "R", "requisite": true , "used": true, "used_brw": true, "dataset": "", "vld_user": "", "combo_box": "", "init": "", "init_brw": "", "when": "", "folder": "", "level": 1} )
+    aAdd( aFields, {"alias": ZGS_ALIAS, "order": (cOrder:=soma1(cOrder)), "name": "ZGS_SEQUEN", "type": "C", "size": 30, "decimal": 0, "title": "Sequência", "description": "Último Seq. Gerado"   , "picture": "@!", "visual": "V", "context": "R", "requisite": true , "used": true, "used_brw": true, "dataset": "", "vld_user": "", "combo_box": "", "init": "", "init_brw": "", "when": "", "folder": "", "level": 1} )
+
+    cComboTipo := ;
+        "C=Caractere;"+; // sequêncial retornado como string, admite prefixo
+        "N=Numérico" // sequêncial retornado com Val(), não admite prefixo
+    aFields[ aScan(aFields,{|x| x["name"] == "ZGS_TIPO" })]["combo_box"] := cComboTipo
+
+    for nI:=1 to len(aFields)
+        oMeta_:AddField( aFields[nI] )
+    next
+
+Return .T.
+
+/*/{Protheus.doc} fSetIndexes
+Metadados dos índices (SIX).
+@type function
+@version 12.1.2310
+@author Gworks - Giovani Soares
+@since 9/14/2026
+@obs Observações
+    A ordem 1 é a chave utilizada pelo MsSeek() da classe GwSequence e não deve ser alterada.
+/*/
+Static Function fSetIndexes()
+
+    Local nI as integer
+    Local aIndexes := {} as array
+    Local cOrder := "0" as character
+
+    aAdd( aIndexes, {"alias": ZGS_ALIAS, "order": (cOrder:=soma1(cOrder)), "key": "ZGS_FILIAL+ZGS_FAMI+ZGS_CAMPO+ZGS_PREFIX", "name": "Família+Campo", "nickname": "", "show_seek": true } )
+    aAdd( aIndexes, {"alias": ZGS_ALIAS, "order": (cOrder:=soma1(cOrder)), "key": "ZGS_FILIAL+ZGS_CAMPO+ZGS_PREFIX"         , "name": "Campo+Prefixo", "nickname": "", "show_seek": true } )
+
+    for nI:=1 to len(aIndexes)
+        oMeta_:AddIndex( aIndexes[nI] )
+    next
+
+Return .T.
