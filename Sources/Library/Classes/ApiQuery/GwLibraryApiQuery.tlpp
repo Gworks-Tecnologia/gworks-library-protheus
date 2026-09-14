@@ -26,7 +26,7 @@ namespace Gworks.Library.Classes
         - A formatacao dos valores por tipo de coluna e feita em U_GWQTOJSON.
         - Consumidor atual: relatorios HTML, via ProtheusBridge.query em
           Temp\Report\WebApp\relatorios\assets\preload\advpltojs.js.
-    @example
+    @sample
         // ---- requisicao ------------------------------------------------
         // POST http://<host>:<porta>/rest/gwquery/query
         // Content-Type: application/json
@@ -151,7 +151,7 @@ Return lRet
           e a mensagem de TCSQLError().
         - O comando e enviado direto ao banco: nao passa por LogExec, gatilhos
           ou integridade do dicionario.
-    @example
+    @sample
         // ---- requisicao ------------------------------------------------
         // POST http://<host>:<porta>/rest/gwquery/upd
         // Content-Type: application/json
@@ -256,7 +256,7 @@ Return lRet
           vale para colunas cujo nome exista no SX3; colunas calculadas ou
           com apelido fora do dicionario caem na regra de numerico/texto.
         - Colunas de tipo diferente de D/N/C nao entram no objeto da linha.
-    @example
+    @sample
         Local oJson as json
 
         oJson := U_GWQTOJSON("SELECT A1_COD, A1_NOME FROM SA1010 WHERE D_E_L_E_T_ = ' '")
