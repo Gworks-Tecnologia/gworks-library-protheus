@@ -1,0 +1,309 @@
+#include 'totvs.ch'
+#include 'tlpp-core.th'
+#include "topconn.ch"
+#include "protheus.ch"
+
+namespace Gworks.Library.Classes
+
+/*/{Protheus.doc} GwApiQuery
+    API REST generica de consulta SQL, escrita em TLPP nativo (@post/oRest).
+    Recebe uma instrucao SELECT no corpo da requisicao, executa e devolve o
+    resultado como um array de objetos JSON - um objeto por linha, com os
+    nomes das colunas em MAIUSCULO.
+    @type Function
+    @author Gwork - Eduardo Deroce
+    @since 26/08/2026
+    @version 1.0
+    @return logical, .T. quando a consulta e respondida com sucesso, .F.
+            quando a requisicao e respondida com falha (HTTP 400).
+    @obs Observacoes
+        - Rota....: POST /gwquery/query
+        - Entrada.: {"query": "<SQL>"}
+        - Saida...: {"data": [ {"<COLUNA>": <valor>, ...}, ... ]}
+        - Falha...: HTTP 400 com {"erro": true, "msg": "<descricao>"}
+        - Fora de um ambiente ja preparado (Type("cEmpAnt") <> "C") a rotina
+          abre a empresa/filial 01/0101 via RpcSetEnv e encerra no finally.
+        - A formatacao dos valores por tipo de coluna e feita em U_GWQTOJSON.
+        - Consumidor atual: relatorios HTML, via ProtheusBridge.query em
+          Temp\Report\WebApp\relatorios\assets\preload\advpltojs.js.
+    @example
+        // ---- requisicao ------------------------------------------------
+        // POST http://<host>:<porta>/rest/gwquery/query
+        // Content-Type: application/json
+        //
+        // {
+        //     "query": "SELECT A1_COD, A1_NOME, A1_LC FROM SA1010 WHERE D_E_L_E_T_ = ' '"
+        // }
+
+        // ---- resposta (HTTP 200) ---------------------------------------
+        // {
+        //     "data": [
+        //         { "A1_COD": "000001", "A1_NOME": "CLIENTE TESTE", "A1_LC": 15000 },
+        //         { "A1_COD": "000002", "A1_NOME": "OUTRO CLIENTE", "A1_LC": 0 }
+        //     ]
+        // }
+
+        // ---- resposta de falha (HTTP 400) ------------------------------
+        // {
+        //     "erro": true,
+        //     "msg": "Body vazio ou invalido - informe {'query': '<SQL>'}."
+        // }
+
+        // ---- consumo em JavaScript (relatorios HTML) -------------------
+        // const resp = await fetch("/rest/gwquery/query", {
+        //     method : "POST",
+        //     headers: { "Content-Type": "application/json" },
+        //     body   : JSON.stringify({ query: "SELECT A1_COD, A1_NOME FROM SA1010" })
+        // });
+        // const { data } = await resp.json();
+
+        // ---- consumo em AdvPL/TLPP (FWRest) ----------------------------
+        Local oClient as object
+        Local oResult as json
+        Local cQuery  as character
+
+        cQuery := '{"query": "SELECT A1_COD, A1_NOME FROM SA1010"}'
+
+        oClient := FWRest():New("http://<host>:<porta>/rest")
+        oClient:SetPath("/gwquery/query")
+        oClient:SetPostParams(cQuery)
+
+        if oClient:Post({"Content-Type: application/json"})
+            oResult := JsonObject():New()
+            oResult:FromJson(oClient:GetResult())
+            // oResult["data"] -> array de linhas
+        endif
+/*/
+@post('/gwquery/query')
+User Function GwApiQuery() as Logical
+
+    Local err      as Object
+    Local lRpc     as Logical
+    Local lRet     as Logical
+    Local cBody    as Character
+    Local oBody    as Json
+    Local oResp    as Json
+    Local cSql     as Character
+
+    lRet := .T.
+
+    try
+
+        If Type("cEmpAnt") <> "C"
+            RpcSetEnv("01", "0101")
+            lRpc := .T.
+        EndIf
+
+        cBody := oRest:getBodyRequest()
+        oBody := JsonObject():New()
+
+        If Empty(cBody) .Or. ValType(oBody:FromJson(cBody)) == "C" .Or. Empty(oBody["query"])
+            err := ErrorClass():New()
+            err:description := "Body vazio ou invalido - informe {'query': '<SQL>'}."
+            Throw err
+        EndIf
+
+        cSql  := oBody["query"]
+        oResp := U_GWQTOJSON(cSql)
+
+        oRest:setResponse(EncodeUTF8(oResp:ToJson()))
+
+    catch err
+
+        oResp := JsonObject():New()
+        oResp["erro"] := .T.
+        If !Empty(err:description)
+            oResp["msg"] := AllTrim(err:description)
+        Else
+            oResp["msg"] := "Erro desconhecido"
+        EndIf
+
+        oRest:setStatusCode(400)
+        oRest:setFault(EncodeUTF8(oResp:ToJson()))
+        lRet := .F.
+
+    finally
+
+        If lRpc
+            RpcClearEnv()
+        EndIf
+
+    endtry
+
+Return lRet
+
+/*/{Protheus.doc} U_GWQUPD
+    API REST generica de escrita (INSERT/UPDATE/DELETE) via TcSqlExec.
+    Contrapartida de escrita da rota de consulta GwApiQuery. Nao e utilizada
+    pelos relatorios HTML, que consomem apenas a consulta.
+    @type Function
+    @author Gwork - Eduardo Deroce
+    @since 26/08/2026
+    @version 1.0
+    @return logical, .T. quando a requisicao e respondida com sucesso, .F.
+            quando a requisicao e respondida com falha (HTTP 400).
+    @obs Observacoes
+        - Rota....: POST /gwquery/upd
+        - Entrada.: {"query": "<SQL>"}
+        - Saida...: {"query": "<SQL>", "erro": false, "msg": "sucesso"}
+        - Falha...: HTTP 400 com {"erro": true, "msg": "<descricao>"} para
+          erro de contrato; erro do banco retorna HTTP 200 com "erro": true
+          e a mensagem de TCSQLError().
+        - O comando e enviado direto ao banco: nao passa por LogExec, gatilhos
+          ou integridade do dicionario.
+    @example
+        // ---- requisicao ------------------------------------------------
+        // POST http://<host>:<porta>/rest/gwquery/upd
+        // Content-Type: application/json
+        //
+        // {
+        //     "query": "UPDATE SA1010 SET A1_LC = 0 WHERE A1_COD = '000001'"
+        // }
+
+        // ---- resposta (HTTP 200) ---------------------------------------
+        // {
+        //     "query": "UPDATE SA1010 SET A1_LC = 0 WHERE A1_COD = '000001'",
+        //     "erro" : false,
+        //     "msg"  : "sucesso"
+        // }
+/*/
+    @post('/gwquery/upd')
+Function U_GWQUPD() as Logical
+
+    Local err      as Object
+    Local lRpc     as Logical
+    Local lRet     as Logical
+    Local cBody    as Character
+    Local oBody    as Json
+    Local oResp    as Json
+    Local cSql     as Character
+    Local nStatus  as Numeric
+
+    lRet := .T.
+
+    try
+
+        If Type("cEmpAnt") <> "C"
+            RpcSetEnv("01", "0101")
+            lRpc := .T.
+        EndIf
+
+        cBody := oRest:getBodyRequest()
+        oBody := JsonObject():New()
+
+        If Empty(cBody) .Or. ValType(oBody:FromJson(cBody)) == "C" .Or. Empty(oBody["query"])
+            err := ErrorClass():New()
+            err:description := "Body vazio ou invalido - informe {'query': '<SQL>'}."
+            Throw err
+        EndIf
+
+        cSql    := oBody["query"]
+        nStatus := TcSqlExec(cSql)
+
+        oResp          := JsonObject():New()
+        oResp["query"] := cSql
+        oResp["erro" ] := (nStatus < 0)
+        If nStatus < 0
+            oResp["msg"] := "TCSQLError() " + TCSQLError()
+        Else
+            oResp["msg"] := "sucesso"
+        EndIf
+
+        oRest:setResponse(EncodeUTF8(oResp:ToJson()))
+
+    catch err
+
+        oResp := JsonObject():New()
+        oResp["erro"] := .T.
+        If !Empty(err:description)
+            oResp["msg"] := AllTrim(err:description)
+        Else
+            oResp["msg"] := "Erro desconhecido"
+        EndIf
+
+        oRest:setStatusCode(400)
+        oRest:setFault(EncodeUTF8(oResp:ToJson()))
+        lRet := .F.
+
+    finally
+
+        If lRpc
+            RpcClearEnv()
+        EndIf
+
+    endtry
+
+Return lRet
+
+/*/{Protheus.doc} GWQTOJSON
+    Executa "cSql" via TCQUERY e devolve um Json no formato {"data": [...]},
+    com um objeto por linha e as colunas em MAIUSCULO.
+    Formatacao aplicada por tipo de coluna:
+        - Data....: SET DATEFORMAT "dd/mm/yyyy" + StoD/cValToChar (string).
+        - Numerico: valor repassado direto, sem conversao.
+        - Texto...: AllTrim, removendo o preenchimento do campo.
+    Publica (User Function, nao Static) para permitir reuso por outros pontos
+    do sistema sem depender da rota REST GwApiQuery.
+    @type Function
+    @author Gwork - Eduardo Deroce
+    @since 26/08/2026
+    @version 1.0
+    @param cSql, character, Instrucao SELECT a ser executada.
+    @return json, Objeto {"data": [ {"<COLUNA>": <valor>, ...}, ... ]}. O
+            array vem vazio quando a consulta nao retorna linhas.
+    @obs Observacoes
+        - A identificacao de data usa o dicionario (TamSX3), portanto so
+          vale para colunas cujo nome exista no SX3; colunas calculadas ou
+          com apelido fora do dicionario caem na regra de numerico/texto.
+        - Colunas de tipo diferente de D/N/C nao entram no objeto da linha.
+    @example
+        Local oJson as json
+
+        oJson := U_GWQTOJSON("SELECT A1_COD, A1_NOME FROM SA1010 WHERE D_E_L_E_T_ = ' '")
+
+        // oJson["data"][1]["A1_COD"]  -> "000001"
+        // oJson["data"][1]["A1_NOME"] -> "CLIENTE TESTE"
+/*/
+User Function GWQTOJSON(cSql as Character) as Json
+
+    Local aCampos    as Array
+    Local nX         as Numeric
+    Local oJson      as Json
+    Local oLinha     as Json
+    Local qGwQuery   as Character
+
+    SET(_SET_DATEFORMAT, "dd/mm/yyyy")
+
+    qGwQuery := ""
+    TCQUERY cSql New Alias qGwQuery
+
+    aCampos := qGwQuery->(DbStruct())
+
+    oJson := JsonObject():New()
+    oJson["data"] := {}
+
+    While qGwQuery->(!Eof())
+
+        oLinha := JsonObject():New()
+
+        For nX := 1 To Len(aCampos)
+
+            If FieldPos(aCampos[nX][1]) > 0 .And. Len(TamSX3(aCampos[nX][1])) > 0 .And. TamSX3(aCampos[nX][1])[3] == "D"
+                oLinha[aCampos[nX][1]] := cValToChar(StoD(&("qGwQuery->" + aCampos[nX][1])))
+            ElseIf aCampos[nX][2] == "N"
+                oLinha[aCampos[nX][1]] := &("qGwQuery->" + aCampos[nX][1])
+            ElseIf aCampos[nX][2] == "C"
+                oLinha[aCampos[nX][1]] := AllTrim(&("qGwQuery->" + aCampos[nX][1]))
+            EndIf
+
+        Next nX
+
+        Aadd(oJson["data"], oLinha)
+
+        qGwQuery->(DbSkip())
+
+    EndDo
+
+    qGwQuery->(DbCloseArea())
+
+Return oJson
