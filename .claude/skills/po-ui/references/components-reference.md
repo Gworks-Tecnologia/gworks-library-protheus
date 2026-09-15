@@ -1,14 +1,14 @@
 # `@po-ui/ng-components` — component & service reference
 
-Verified against 21.30.1 (`projects/ui/src/lib/*`). Component lists are complete for that version; property tables cover the ones you reach for constantly. For anything else, query the `@po-ui/mcp` server or read `projects/ui/src/lib/components/<name>/` — every component ships a `samples/` folder.
+Verified against 21.30.1 — names below were read from the **installed package** (`node_modules/@po-ui/ng-components/lib/**/*.d.ts` and `fesm2022/*.mjs`), not from the docs site. Property tables cover the ones you reach for constantly. For anything else, query the `@po-ui/mcp` server, grep the installed typings, or read `projects/ui/src/lib/components/<name>/` upstream — every component ships a `samples/` folder.
 
 **Reminder:** template inputs carry the `p-` prefix (`[p-columns]`), TypeScript members do not.
 
 ## Modules — what to import
 
-Components are `standalone: false`. Import a module, never a component class. A standalone Angular component puts these in its own `imports` array.
+Concrete components are `standalone: false`. Import a module, never a component class. A standalone Angular component puts these in its own `imports` array.
 
-`PoModule` pulls in everything. The granular modules, exactly as exported by `@po-ui/ng-components`:
+`PoModule` pulls in everything. The modules you normally import:
 
 ```
 PoAccordionModule    PoAvatarModule       PoBadgeModule        PoBreadcrumbModule
@@ -21,16 +21,18 @@ PoInfoModule         PoLabelModule        PoLinkModule         PoListBoxModule
 PoListViewModule     PoLoadingModule      PoLogoModule         PoMenuModule
 PoMenuPanelModule    PoModalModule        PoNavbarModule       PoOverlayModule
 PoPageModule         PoPageSlideModule    PoPopoverModule      PoPopupModule
-PoProgressModule     PoSearchModule       PoSkeletonModule     PoSlideModule
-PoStepperModule      PoSwitchModule       PoTableModule        PoTabsModule
-PoTagModule          PoTimerModule        PoToasterModule      PoToolbarModule
-PoTreeViewModule     PoWidgetModule
+PoProgressModule     PoSearchModule       PoSearchAiModule     PoSkeletonModule
+PoSlideModule        PoStepperModule      PoSwitchModule       PoTableModule
+PoTabsModule         PoTagModule          PoTimerModule        PoToasterModule
+PoToolbarModule      PoTooltipModule      PoTreeViewModule     PoWidgetModule
 ```
 
-Plus `PoDirectivesModule`, `PoPipesModule`, `PoServicesModule`, `PoInterceptorsModule`, `PoGuardsModule`, and `PoTemplatesModule` from `@po-ui/ng-templates`.
+Plus the cross-cutting ones: `PoDirectivesModule`, `PoPipesModule`, `PoServicesModule`, `PoInterceptorsModule` (`PoHttpInterceptorModule`, `PoHttpRequestModule`), `PoGuardsModule`, `PoDialogModule`, `PoNotificationModule`, `PoThemeModule`, `PoLanguageModule`, `PoUserGuideModule` — and `PoTemplatesModule` from `@po-ui/ng-templates`.
+
+`PoFieldModule` is an aggregate: the per-control modules it re-exports (`PoComboModule`, `PoCheckboxModule`, `PoCheckboxGroupModule`, `PoRadioModule`, `PoRadioGroupModule`, `PoDatepickerModule`, `PoDatetimepickerModule`, `PoTimepickerModule`, `PoCleanModule`, `PoFieldContainerModule`, …) are exported too and can be imported individually to trim the surface.
 
 Two traps:
-- **There is no `PoInputModule`/`PoSelectModule`/`PoLookupModule`.** Every `po-field/*` control lives in `PoFieldModule`.
+- **There is no `PoInputModule`/`PoSelectModule`/`PoLookupModule`.** Those controls have no module of their own — import `PoFieldModule`.
 - **`po-page-slide` has its own module** (`PoPageSlideModule`); the other `po-page-*` components are in `PoPageModule`.
 
 ## po-table
@@ -74,6 +76,36 @@ Outputs: `(p-show-more)`, `(p-sort-by)`, `(p-selected)`, `(p-unselected)`, `(p-a
 | `subtitles` | `Array<PoTableSubtitleColumn>` |
 | `detail` | `PoTableDetail` — the expandable master/detail row. |
 | `searchAiIgnore` | `boolean` |
+
+### Master/detail (expandable rows)
+
+One column carries `type: 'detail'`; its `property` names the field on each row that holds the child array.
+
+```ts
+readonly columns: Array<PoTableColumn> = [
+  { property: 'produto', label: 'Produto', width: '140px' },
+  { property: 'quantidade', label: 'Qtde.', type: 'number', format: '1.2-2' },
+  {
+    property: 'detail',            // keep this name — see below
+    label: 'Composição',
+    type: 'detail',
+    detail: {
+      typeHeader: 'top',           // 'top' | 'inline' | 'none'
+      hideSelect: true,
+      columns: [                   // PoTableDetailColumn: property, label, type, format
+        { property: 'orcamento', label: 'Orçamento' },
+        { property: 'quantidade', label: 'Qtde.', type: 'number', format: '1.2-2' }
+      ]
+    }
+  }
+];
+
+// each row: { produto: '000012', quantidade: 3730.5, detail: [ {...}, {...} ] }
+```
+
+**Name the property `detail`.** The component finds the column by `type: 'detail'` and reads rows from `row[column.property]`, so another name *appears* to work — but the columns manager (`drop()`, `verifyArrowDisabled()`) matches `property === 'detail'` literally, and column reordering misbehaves once it does not.
+
+`PoTableDetailColumn` is a reduced `PoTableColumn`: `property`, `label`, `type`, `format` only — no `labels`, no `action`, no nested `detail`. `type: 'number'` formats through Angular's `DecimalPipe` (`'1.2-2'`), so **register the locale** (`registerLocaleData(localePt, 'pt-BR')` + `{ provide: LOCALE_ID, useValue: 'pt-BR' }`) or numbers render `1,250.50` instead of `1.250,50`.
 
 ## Form fields
 
@@ -169,9 +201,18 @@ The charts guide is `docs/guides/guide-charts.md` upstream.
 
 ## Directives, pipes, interceptors
 
-- **Directive:** `p-tooltip` (with `p-tooltip-position`) — the only directive in the library.
-- **Pipes:** `poDecimal`, `poTime`.
-- **Interceptors:** `PoHttpRequestInterceptor` turns the standard error envelope into a toaster/dialog automatically — register it once and error handling stops being per-call. `PoHttpInterceptor` is the lower-level hook.
+- **Directives** (selectors as declared in the bundle):
+
+  | Selector | Class |
+  |---|---|
+  | `[p-tooltip]` (+ `p-tooltip-position`) | `PoTooltipDirective` |
+  | `[p-table-column-template]`, `[p-table-cell-template]`, `[p-table-row-template]`, `[pFrozenColumn]` | `po-table` customisation |
+  | `[p-combo-option-template]`, `[p-multiselect-option-template]` | option rendering |
+  | `[p-list-view-content-template]`, `[p-list-view-detail-template]` | `po-list-view` |
+  | `[p-menu-header-template]`, `[p-slide-content-template]`, `[p-upload-drag-drop]` | menu / slide / upload |
+
+- **Pipes:** `poDecimalFormat` (`PoDecimalFormatPipe`), `po_time` (`PoTimePipe`), `poI18n` (`PoI18nPipe`). The names are exactly these — `poDecimal` and `poTime` do not exist.
+- **Interceptors:** `PoHttpRequestInterceptorService` turns the standard error envelope into a toaster/dialog automatically — register it once and error handling stops being per-call. `PoHttpInterceptorService` is the lower-level hook. Both class names end in `Service`.
 
 ## Other packages
 

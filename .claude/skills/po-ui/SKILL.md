@@ -6,7 +6,8 @@ metadata:
   domain: Angular / TOTVS PO UI
   maintainer: Gworks - Giovani
   category: Frontend Framework Reference
-  verified_against: "@po-ui/* 21.30.1 (github.com/po-ui/po-angular, master); @totvs/protheus-lib-core 21.1.2 + @totvs/po-theme 21.30.1 (npm typings + TDN pageId 911865819)"
+  verified_against: "@po-ui/* 21.30.1 (typings + fesm2022 do pacote instalado, não só o repo) sobre Angular 21.2.23 / CLI 21.2.24 / Node 20.20.2; repetido em CLI 21.2.21 / Node 24.19.0 / npm 11.17.0; @totvs/protheus-lib-core 21.1.2 + @totvs/po-theme 21.30.1 (npm typings + TDN pageId 911865819)"
+  last_field_check: "2026-09-14 — app real criado do zero, compilado (ng build: 2.97 MB raw / 592.79 kB transferido) e testado (ng test) com este passo a passo. Esta 2a passada trocou o pin de zone.js de `npm pkg set` (confirmado sem solução: nenhuma sintaxe de escape testada evita o split no ponto) por edição direta do package.json, e documentou o unsubscribe sem guarda do po-menu no teardown de teste."
   upstream_docs: https://po-ui.io/documentation
 ---
 
@@ -30,37 +31,40 @@ PO UI is TOTVS's open-source Angular design system — the successor to THF/Port
 
 ## Version matrix — check this first
 
-PO UI `21.x` pairs with Angular `21.x`. **Never mix majors.** The verified-good set for this project:
+PO UI `21.x` pairs with Angular `21.x`. **Never mix majors.** This `package.json` was produced by `ng new` on CLI 21.2.24 and then installed and built clean with PO UI 21.30.1:
 
 ```jsonc
 // dependencies
-"@angular/animations":               "~21.2.17",
-"@angular/common":                   "~21.2.17",
-"@angular/compiler":                 "~21.2.17",
-"@angular/core":                     "~21.2.17",
-"@angular/forms":                    "~21.2.17",
-"@angular/platform-browser":         "~21.2.17",
-"@angular/platform-browser-dynamic": "~21.2.17",
-"@angular/router":                   "~21.2.17",
-"@angular/cdk":                      "^21",        // peer of @po-ui/ng-components
+"@angular/animations":               "^21.2.0",    // peer of po-ui; ng new does NOT create it
+"@angular/cdk":                      "^21.2.0",    // peer of po-ui; ng new does NOT create it
+"@angular/common":                   "^21.2.0",
+"@angular/compiler":                 "^21.2.0",
+"@angular/core":                     "^21.2.0",
+"@angular/forms":                    "^21.2.0",
+"@angular/platform-browser":         "^21.2.0",
+"@angular/platform-browser-dynamic": "^21.2.0",    // peer of po-ui; ng new does NOT create it
+"@angular/router":                   "^21.2.0",
 "@po-ui/ng-components":              "21.30.1",
 "@po-ui/style":                      "21.30.1",    // must match ng-components exactly
 "@po-ui/ng-templates":               "21.30.1",    // must match ng-components exactly
 "@totvs/po-theme":                   "21.30.1",    // Protheus-embedded apps only; same lockstep
 "@totvs/protheus-lib-core":          "21.1.2",     // Protheus-embedded apps only
 "rxjs":                              "~7.8.1",
-"tslib":                             "^2.6.2",
-"zone.js":                           "~0.15.0",
+"tslib":                             "^2.3.0",
+"zone.js":                           "~0.15.0",    // NOT the ~0.16.0 that ng new writes — see below
 
 // devDependencies
-"@angular-devkit/build-angular":     "~21.2.17",
-"@angular-devkit/schematics":        "~21.2.17",
-"@angular/cli":                      "~21.2.17",
-"@angular/compiler-cli":             "~21.2.17",
-"typescript":                        "~5.9.3"
+"@angular/build":                    "^21.2.24",   // the v21 builder package
+"@angular/cli":                      "^21.2.24",
+"@angular/compiler-cli":             "^21.2.0",
+"typescript":                        "~5.9.2"
 ```
 
-- **Node**: 20.11.x or newer.
+- **Node**: 20.11.x or newer (verified on 20.20.2 and on 24.19.0).
+- **`zone.js`**: Angular 21 accepts `~0.15.0 || ~0.16.0` and `ng new` writes `~0.16.0`; PO UI 21 peers on `~0.15.0` only. Pin `~0.15.0` — it satisfies both. Leaving 0.16 gives an `ERESOLVE` peer conflict on install. Pin it **before** the first install by editing `package.json` directly — `npm pkg set` cannot express a key containing a literal dot, see [Getting started](#getting-started).
+- **`rxjs`**: `ng new` writes `~7.8.0`, PO UI peers on `~7.8.1`. `~7.8.0` does resolve to a satisfying 7.8.x, but pinning `~7.8.1` matches the peer exactly and costs nothing.
+- **Three peers `ng new` does not create**: `@angular/animations`, `@angular/platform-browser-dynamic` and `@angular/cdk`. npm 21 prints a *deprecated* warning for the first two (Angular is phasing them out in v22) — they are still required peers of PO UI 21, so install them anyway.
+- `@angular-devkit/build-angular` is the **legacy** builder. A v21 workspace uses `@angular/build` — do not add the devkit package to a fresh project.
 - The three `@po-ui/*` runtime packages must be on the **same patch version** — `ng-components`, `style` and `ng-templates` are released in lockstep.
 - Before pinning a version for a different Angular major, read the actual peer range rather than guessing:
   `npm view @po-ui/ng-components@<major> peerDependencies`
@@ -97,28 +101,64 @@ Not for: generic Angular questions with no PO UI involvement, or the AdvPL/TLPP 
 
 ## Getting started
 
+**Angular 21 scaffolds zoneless by default and PO UI does not run zoneless** (it peers on `zone.js` and its components rely on Zone change detection). `--zoneless=false` is not optional:
+
 ```bash
-npm i -g @angular/cli@21
-ng new my-po-project --skip-install
-cd my-po-project && npm install
-ng add @po-ui/ng-components      # installs, configures the theme, imports the module,
-                                 # optionally scaffolds toolbar + menu + po-page-default
-ng add @po-ui/ng-templates       # only if you need the dynamic pages / login templates
-ng serve
+# no global install needed — npx pins the CLI major for this command
+npx -y @angular/cli@21 new my-po-project \
+  --style=css --routing=true --ssr=false \
+  --zoneless=false \
+  --skip-install --package-manager=npm \
+  --ai-config=none --skip-git --defaults
 ```
 
-`ng add` asks whether to replace `AppComponent` with a starter shell (toolbar + side menu + `po-page-default`). Answering `Y` is the fastest way to a working layout.
+The last three flags are what make this safe to run unattended: **`--ai-config=none`** answers the "Which AI tools do you want to configure?" prompt that Angular 21 otherwise raises (it will hang an agent run), `--defaults` suppresses the rest, and **`--skip-git`** stops `ng new` from initialising a nested repo — drop that one when the app really is its own repository. To put the app in a directory whose name differs from the npm package name (e.g. a PascalCase folder inside a Protheus workspace), add `--directory=MyFolderName` and keep the project name itself lower-kebab.
+
+Then, rather than `ng add`, wire it by hand — three steps, all deterministic:
+
+```bash
+cd my-po-project
+
+# Pin zone.js BEFORE installing anything — see the version matrix.
+# Do NOT use `npm pkg set dependencies.zone.js=...` — npm's dot-separated path
+# syntax treats every `.` as a nesting separator with no escape for a literal
+# one (npm 11.17.0: neither `zone\.js` nor `["zone.js"]` works — both still
+# split, or land the backslash/quotes inside the key). Edit the JSON directly:
+node -e "
+const fs = require('fs');
+const p = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+p.dependencies['zone.js'] = '~0.15.0';
+fs.writeFileSync('package.json', JSON.stringify(p, null, 2) + '\n');
+"
+grep '"zone.js"' package.json          # must show "~0.15.0"
+
+# Then install — one resolution pass, no ERESOLVE.
+npm i @po-ui/ng-components@21.30.1 @po-ui/style@21.30.1 @po-ui/ng-templates@21.30.1 \
+      @angular/animations@^21.2.0 @angular/cdk@^21.2.0 @angular/platform-browser-dynamic@^21.2.0
+```
+
+**The order matters.** After `--skip-install` nothing is on disk yet, so the first `npm i` resolves the whole tree at once — with `zone.js` still at `~0.16.0` that pass hits the PO UI peer conflict. Pin first and the install goes through clean.
+
+1. **Theme** — add to `angular.json` → `architect.build.options.styles`, *before* `src/styles.css`:
+   `"node_modules/@po-ui/style/css/po-theme-default.min.css"`
+2. **Providers** — `provideAnimations()` and, when the app talks REST, `PoHttpRequestInterceptorService` (see [patterns.md](references/patterns.md)).
+3. **Budgets** — PO UI alone is ~3 MB raw / ~600 kB transferred. The default production budget (`maximumError: 1MB` on `initial`) **fails the build**. Raise it in `angular.json` to something like `maximumWarning: 4MB` / `maximumError: 6MB`, or the first `ng build` breaks with `bundle initial exceeded maximum budget`.
+
+`ng add @po-ui/ng-components` still exists and also offers a `sidemenu` schematic that replaces `AppComponent` with a toolbar + side menu shell. It is interactive (bad for scripted/agent runs) and was not re-verified on Angular 21 — the manual path above is what was actually built and compiled.
 
 **Angular 19+ build system:** if `ng serve` fails with `Could not find the @angular/build:dev-server builder's package`, the project is on the new builder but missing the package — `npm i -D @angular/build`. Check `angular.json`: a `@angular/build:*` builder requires `@angular/build`; `@angular-devkit/build-angular` is the legacy path.
 
 ## Schematics
 
 ```bash
-ng generate @po-ui/ng-components:<name>    # po-page-list | po-page-default | po-page-edit | po-page-detail
+ng generate @po-ui/ng-components:<name>    # sidemenu | po-page-list | po-page-default
+                                           # po-page-edit | po-page-detail
 ng generate @po-ui/ng-templates:<name>     # po-page-dynamic-table | po-page-dynamic-detail | po-page-dynamic-edit
                                            # po-page-dynamic-search | po-page-job-scheduler | po-page-login
                                            # po-page-change-password | po-page-blocked-user
 ```
+
+(Names taken from each package's `schematics/collection.json` — that file is the authority if a name ever fails.)
 
 Append `--help` to any of them for the available options. Prefer generating over hand-writing the boilerplate — the schematic wires the routing module and the component skeleton consistently.
 
@@ -158,19 +198,23 @@ Full API detail in [components-reference.md](references/components-reference.md)
 
 **Services** — `PoNotificationService` `PoDialogService` `PoI18nService` `PoThemeService` `PoLanguageService` `PoMediaQueryService` `PoDateService` `PoColorService` `PoControlPositionService` `PoActiveOverlayService` `PoComponentInjectorService` `PoUserGuideService`
 
-**Directives** — `p-tooltip` (the only one; everything else is a component)
+**Directives** — `[p-tooltip]` plus the template directives that customise other components: `[p-table-column-template]` `[p-table-cell-template]` `[p-table-row-template]` `[pFrozenColumn]` `[p-combo-option-template]` `[p-multiselect-option-template]` `[p-list-view-content-template]` `[p-list-view-detail-template]` `[p-menu-header-template]` `[p-slide-content-template]` `[p-upload-drag-drop]`
 
-**Pipes** — `poDecimal` `poTime`
+**Pipes** — `poDecimalFormat`, `po_time`, `poI18n` (note the exact names: there is no `poDecimal` and no `poTime`)
 
-**Interceptors** — `PoHttpRequestInterceptor` (maps the standard error envelope to a toaster/dialog automatically), `PoHttpInterceptor`
+**Interceptors** — `PoHttpRequestInterceptorService` (maps the standard error envelope to a toaster/dialog automatically), `PoHttpInterceptorService` (the lower-level hook). Both end in `Service` — importing `PoHttpRequestInterceptor` does not compile.
 
 ## Conventions
 
 - **Selectors** are `po-*`; **classes/interfaces/enums** are `PoPascalCase`. A component's config object is almost always an interface named after it: `po-table` → `PoTableColumn`, `PoTableAction`; `po-menu` → `PoMenuItem`; `po-page-*` → `PoPageAction`, `PoBreadcrumb`.
 - **Inputs use the `p-` prefix in templates**, without it in TypeScript: `<po-table [p-columns]="columns">` binds to `@Input('p-columns') columns`. Getting this wrong is the single most common PO UI mistake — the binding silently does nothing.
 - **Grid**: `@po-ui/style` ships a 12-column grid — `po-row` + `po-sm-12 po-md-6 po-lg-4 po-xl-3`, with `po-offset-*` and `po-push-*`. Use it rather than importing another grid.
-- **Icons**: PO UI icon strings (e.g. `po-icon-user`, `ICON_ANIMATE`) or an `<ng-template>`; `po-icon` renders one standalone.
-- **PO UI components are NOT standalone** — every one is declared `standalone: false` and exported by an NgModule, even on 21.x. Consume them by importing a **module**, never the component class:
+- **Icons — PO UI 21 uses the Animalia set, not `po-icon-*`.** Anywhere a component takes an icon (`PoMenuItem.icon`, `PoPageAction.icon`, `po-icon`'s `p-icon`, `po-button`'s `p-icon`), pass either:
+  - a **token** from `AnimaliaIconDictionary`: `'ICON_REFRESH'`, `'ICON_SEARCH'`, `'ICON_DELETE'`, `'ICON_EDIT'`, `'ICON_FILTER'`, `'ICON_INFO'`, `'ICON_PLUS'`, `'ICON_CLOSE'`… (the dictionary lives in the `@po-ui/ng-components` bundle; `grep -o "ICON_[A-Z_]*: '[^']*'" node_modules/@po-ui/ng-components/fesm2022/*.mjs` lists all of them with their classes), or
+  - the **class pair** directly: `'an an-arrow-clockwise'`, `'an an-chart-bar'`, `'an-fill an-x-circle'` for the filled variant. ~1560 `an-*` glyphs ship in the theme CSS: `grep -o "an-[a-z0-9-]*" node_modules/@po-ui/style/css/po-theme-default.min.css | sort -u`.
+
+  The legacy `po-icon-*` classes are **gone** from the theme (5 leftovers, none of them glyphs). `icon: 'po-icon-refresh'` compiles, renders nothing, and gives no error — the single most likely reason an icon is "missing".
+- **PO UI components are NOT standalone** — every concrete component is declared `standalone: false` and exported by an NgModule, even on 21.x. (The abstract `Po*BaseComponent` classes are marked standalone, but they are base classes, never used in a template.) Consume them by importing a **module**, never the component class:
   - `PoModule` — everything (components, directives, pipes, services, interceptors, guards). Simplest, largest surface.
   - Granular modules — `PoTableModule`, `PoFieldModule`, `PoPageModule`, `PoButtonModule`, `PoMenuModule`, `PoModalModule`, `PoWidgetModule`, `PoChartModule`, `PoDynamicModule`, ... (full list in `references/components-reference.md`). Preferred in a standalone-component app.
   - `PoTemplatesModule` — the `@po-ui/ng-templates` pages.
@@ -186,6 +230,7 @@ Full API detail in [components-reference.md](references/components-reference.md)
 ## Gotchas
 
 1. **The `p-` prefix.** `[columns]` instead of `[p-columns]` compiles fine in a template with no matching `@Input` only when strict template checking is off — and then renders an empty component. Check this first when a component "does nothing".
+   Same family: a **boolean input still needs a binding**. `p-no-shadow` written bare passes the *string* `""` and fails Angular 21's strict template check (`Type 'string' is not assignable to type 'boolean'`). Write `[p-no-shadow]="true"`.
 2. **The collection envelope is mandatory.** `po-table` with `p-load`/`po-lookup`/`po-page-dynamic-*` expect `{ "hasNext": boolean, "items": [...] }`. A bare `[...]` array from the endpoint yields an empty grid with no error. See `references/api-contract.md`.
 3. **`hasNext` drives infinite scroll and "load more".** Returning it wrong (always `true`) makes the UI loop; omitting it disables paging entirely.
 4. **Version lockstep.** `@po-ui/style` on a different patch than `@po-ui/ng-components` produces subtly broken styling rather than an install error.
@@ -194,6 +239,11 @@ Full API detail in [components-reference.md](references/components-reference.md)
 7. **Do not scrape po-ui.io.** It is a client-rendered SPA; a fetch returns "Carregando ...". Use the MCP server or `raw.githubusercontent.com`.
 8. **`po-code-editor` is a separate, heavy package.** Do not add `@po-ui/ng-code-editor` unless a code editor is actually required.
 9. **Never import a PO UI component class.** They are `standalone: false`, so `imports: [PoTableComponent]` fails to compile. Import `PoTableModule` (or `PoModule`) instead — including inside standalone components.
+10. **Icons are `an-*`, not `po-icon-*`** — see [Conventions](#conventions). Silent failure.
+11. **Angular 21 `ng new` is zoneless and writes `zone.js@~0.16`** — both break PO UI. `--zoneless=false` and pin `zone.js@~0.15.0`, *before* the first install. **`npm pkg set` cannot do this pin** — its path syntax has no way to escape a literal `.` in a key, so `npm pkg set dependencies.zone.js="~0.15.0"` always misparses `zone.js` as nesting and writes a bogus `"zone": { "js": ... }`, leaving the real `zone.js` at `~0.16.0`. It fails silently (exit 0, no warning), so the ERESOLVE you were trying to avoid shows up on the next install anyway. Edit `package.json` directly instead — see [Getting started](#getting-started).
+12. **The default production budget fails the build** the moment PO UI is in the bundle. Raise `initial` in `angular.json` before the first `ng build`.
+13. **The master/detail column must be named `detail`.** `po-table` finds the detail column by `type: 'detail'` and reads the rows from `row[column.property]` — but the columns manager has code paths that look for `property === 'detail'` literally. Naming it anything else (`detalhes`, `items`) works until someone reorders columns. Keep `property: 'detail'` and name the array field `detail` in the model.
+14. **`po-menu` throws on teardown in a test that never ran change detection.** `PoMenuComponent.ngOnDestroy` calls `itemSubscription.unsubscribe()` / `routeSubscription.unsubscribe()` with no guard, but both are only assigned in `ngOnInit` — so destroying a fixture that never called `detectChanges()` dies with `Cannot read properties of undefined (reading 'unsubscribe')`, blamed on whichever test created the fixture. Call `fixture.detectChanges()` in every spec that instantiates a component containing `po-menu`. See [patterns.md](references/patterns.md#testing).
 
 ## Protheus integration
 

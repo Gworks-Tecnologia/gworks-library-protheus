@@ -8,44 +8,54 @@ Recipes for 21.x. All PO UI components are `standalone: false` — always import
 PoModule                 // everything at once
 PoAccordionModule PoAvatarModule PoBadgeModule PoBreadcrumbModule PoButtonGroupModule
 PoButtonModule PoCalendarModule PoChartModule PoContainerModule PoContextMenuModule
-PoContextTabsModule PoDisclaimerGroupModule PoDisclaimerModule PoDividerModule
-PoDropdownModule PoDynamicModule PoFieldModule PoFilterChipModule PoGaugeModule
-PoGridModule PoHeaderModule PoHelperModule PoIconModule PoImageModule PoInfoModule
-PoLabelModule PoLinkModule PoListBoxModule PoListViewModule PoLoadingModule PoLogoModule
-PoMenuModule PoMenuPanelModule PoModalModule PoNavbarModule PoOverlayModule PoPageModule
-PoPageSlideModule PoPopoverModule PoPopupModule PoProgressModule PoSearchModule
-PoSkeletonModule PoSlideModule PoStepperModule PoSwitchModule PoTableModule PoTabsModule
-PoTagModule PoTimerModule PoToasterModule PoToolbarModule PoTreeViewModule PoWidgetModule
+PoContextTabsModule PoDialogModule PoDisclaimerGroupModule PoDisclaimerModule
+PoDividerModule PoDropdownModule PoDynamicModule PoFieldModule PoFilterChipModule
+PoGaugeModule PoGridModule PoHeaderModule PoHelperModule PoIconModule PoImageModule
+PoInfoModule PoLabelModule PoLinkModule PoListBoxModule PoListViewModule PoLoadingModule
+PoLogoModule PoMenuModule PoMenuPanelModule PoModalModule PoNavbarModule
+PoNotificationModule PoOverlayModule PoPageModule PoPageSlideModule PoPopoverModule
+PoPopupModule PoProgressModule PoSearchModule PoSearchAiModule PoSkeletonModule
+PoSlideModule PoStepperModule PoSwitchModule PoTableModule PoTabsModule PoTagModule
+PoThemeModule PoTimerModule PoToasterModule PoToolbarModule PoTooltipModule
+PoTreeViewModule PoWidgetModule
 
 PoTemplatesModule        // @po-ui/ng-templates
 ```
 
-`PoFieldModule` covers every `po-field/*` control (input, select, combo, lookup, datepicker, upload, ...) — there is no `PoInputModule`.
+`PoFieldModule` covers every `po-field/*` control (input, select, combo, lookup, datepicker, upload, ...) — there is no `PoInputModule`, `PoSelectModule` or `PoLookupModule`. (Some per-control modules *do* exist and are re-exported by `PoFieldModule` — `PoComboModule`, `PoCheckboxModule`, `PoDatepickerModule`, … — import them individually only to trim the surface.)
 
 ## Bootstrap (standalone app, Angular 21)
 
 ```ts
-// main.ts
-import { bootstrapApplication } from '@angular/platform-browser';
-import { provideHttpClient, withInterceptorsFromDi } from '@angular/common/http';
-import { provideRouter } from '@angular/router';
+// app.config.ts
+import { registerLocaleData } from '@angular/common';
+import localePt from '@angular/common/locales/pt';
+import { HTTP_INTERCEPTORS, provideHttpClient, withInterceptorsFromDi } from '@angular/common/http';
+import { ApplicationConfig, LOCALE_ID, provideZoneChangeDetection } from '@angular/core';
 import { provideAnimations } from '@angular/platform-browser/animations';
-import { HTTP_INTERCEPTORS } from '@angular/common/http';
-import { PoHttpRequestInterceptor } from '@po-ui/ng-components';
+import { provideRouter } from '@angular/router';
+import { PoHttpRequestInterceptorService } from '@po-ui/ng-components';
 
-import { AppComponent } from './app/app.component';
-import { routes } from './app/app.routes';
+import { routes } from './app.routes';
 
-bootstrapApplication(AppComponent, {
+// po-table's type: 'number' / 'currency' / 'date' columns go through Angular's
+// DecimalPipe/DatePipe — without this they format as en-US.
+registerLocaleData(localePt, 'pt-BR');
+
+export const appConfig: ApplicationConfig = {
   providers: [
+    provideZoneChangeDetection({ eventCoalescing: true }),   // PO UI needs zone.js
     provideRouter(routes),
     provideAnimations(),
     provideHttpClient(withInterceptorsFromDi()),
+    { provide: LOCALE_ID, useValue: 'pt-BR' },
     // turns the standard PO UI error envelope into a toaster/dialog automatically
-    { provide: HTTP_INTERCEPTORS, useClass: PoHttpRequestInterceptor, multi: true }
+    { provide: HTTP_INTERCEPTORS, useClass: PoHttpRequestInterceptorService, multi: true }
   ]
-}).catch(err => console.error(err));
+};
 ```
+
+The class is `PoHttpRequestInterceptor**Service**` — the `Service`-less name does not exist and fails at compile time.
 
 ## App shell — toolbar + side menu
 
@@ -58,16 +68,20 @@ import { PoMenuModule, PoToolbarModule, PoMenuItem } from '@po-ui/ng-components'
   selector: 'app-root',
   imports: [RouterOutlet, PoToolbarModule, PoMenuModule],
   template: `
-    <po-toolbar p-title="Gworks"></po-toolbar>
-    <po-menu [p-menus]="menus" p-filter></po-menu>
-    <router-outlet></router-outlet>
+    <div class="po-wrapper">
+      <po-toolbar p-title="Gworks"></po-toolbar>
+      <po-menu [p-menus]="menus" [p-filter]="true"></po-menu>
+      <router-outlet></router-outlet>
+    </div>
   `
 })
 export class AppComponent {
+  // Icons are Animalia in PO UI 21: a dictionary token ('ICON_HOME') or the
+  // class pair ('an an-house'). `po-icon-*` renders nothing.
   readonly menus: Array<PoMenuItem> = [
-    { label: 'Início', link: '/', icon: 'po-icon-home' },
+    { label: 'Início', link: '/', icon: 'an an-house' },
     {
-      label: 'Cadastros', icon: 'po-icon-users',
+      label: 'Cadastros', icon: 'an an-users',
       subItems: [
         { label: 'Clientes',  link: '/clientes' },
         { label: 'Produtos',  link: '/produtos' }
@@ -76,6 +90,8 @@ export class AppComponent {
   ];
 }
 ```
+
+The template above wraps everything in `.po-wrapper` — `po-toolbar` and `po-menu` position themselves against it; without it the page content slides under the menu.
 
 ## A service that speaks the contract
 
@@ -212,6 +228,66 @@ export class ClientesComponent implements OnInit {
 
 `[p-show-more-disabled]="!hasNext"` is the whole reason the endpoint must return `hasNext` — see `api-contract.md`.
 
+## Read-only browse with expandable detail rows (master/detail)
+
+The shape of most "consulta" screens over an ERP: one aggregated row, the records that make it up underneath.
+
+```ts
+readonly colunas: Array<PoTableColumn> = [
+  { property: 'produto', label: 'Produto', width: '140px' },
+  { property: 'nomeProduto', label: 'Nome do produto' },
+  { property: 'quantidade', label: 'Qtde.', type: 'number', format: '1.2-2', width: '160px' },
+  { property: 'unidadeMedida', label: 'Un. medida', width: '130px' },
+  {
+    property: 'detail',          // keep this exact name — see components-reference.md
+    label: 'Composição',
+    type: 'detail',
+    detail: {
+      typeHeader: 'top',
+      hideSelect: true,
+      columns: [
+        { property: 'orcamento', label: 'Orçamento' },
+        { property: 'nomeCliente', label: 'Cliente' },
+        { property: 'quantidade', label: 'Qtde.', type: 'number', format: '1.2-2' }
+      ]
+    }
+  }
+];
+```
+
+```html
+<po-page-list p-title="Projeção de Produção" [p-actions]="acoes" [p-filter]="filtro">
+  <po-table
+    [p-columns]="colunas"
+    [p-items]="itensFiltrados"
+    [p-literals]="literaisTabela"
+    [p-loading]="carregando"
+    [p-sort]="true"
+    [p-striped]="true">
+  </po-table>
+</po-page-list>
+```
+
+```ts
+// po-page-list's search: the action receives the typed text.
+readonly filtro: PoPageFilter = {
+  action: (termo: string) => this.pesquisar(termo),
+  placeholder: 'Pesquisar por produto, orçamento ou cliente',
+  width: 4
+};
+
+readonly acoes: Array<PoPageAction> = [
+  { label: 'Atualizar', icon: 'ICON_REFRESH', action: () => this.carregar() }
+];
+
+// Bind object inputs to class fields, never to inline literals in the template:
+// `[p-literals]="{ noData: '...' }"` allocates a new object on every change
+// detection cycle and makes the component reprocess it.
+readonly literaisTabela: PoTableLiterals = { noData: 'Nenhum registro encontrado.' };
+```
+
+When a filter matches on a *detail* field, filter the master rows but leave each row's `detail` array whole — otherwise the total in the master row stops being the sum of what is displayed under it.
+
 ## Full CRUD with `po-page-dynamic-table`
 
 ```ts
@@ -333,8 +409,34 @@ toggle(): void {
 
 ```ts
 await TestBed.configureTestingModule({
-  imports: [ClientesComponent, PoPageModule, PoTableModule, HttpClientTestingModule]
+  imports: [ClientesComponent, PoPageModule, PoTableModule],
+  providers: [provideHttpClient(), provideHttpClientTesting()]   // HttpClientTestingModule is deprecated
 }).compileComponents();
 ```
 
 Assert against the bound inputs (`component.columns`, `component.items`) rather than the rendered PO UI DOM — the internal markup is not a stable contract.
+
+**Always call `fixture.detectChanges()` before the spec ends when the component contains a `po-menu`.** `PoMenuComponent.ngOnDestroy` unsubscribes without a guard:
+
+```js
+// @po-ui/ng-components 21.30.1, fesm2022
+ngOnDestroy() {
+    this.itemSubscription.unsubscribe();     // both only assigned in ngOnInit
+    this.routeSubscription.unsubscribe();
+    ...
+}
+```
+
+so a fixture that was created but never had change detection run dies during teardown with `TypeError: Cannot read properties of undefined (reading 'unsubscribe')`. The failure surfaces as `1 component threw errors during cleanup` on whichever test created the fixture — typically the trivial `should create the app`, which is exactly the one you would not suspect:
+
+```ts
+it('should create the app', () => {
+  const fixture = TestBed.createComponent(App);
+  fixture.detectChanges();          // required: runs ngOnInit so teardown has something to unsubscribe
+  expect(fixture.componentInstance).toBeTruthy();
+});
+```
+
+The default `ng new` spec omits it, so an app shell built on `po-toolbar` + `po-menu` fails its own generated test until you add the call.
+
+Angular 21 scaffolds **vitest**, not Karma (`"test-runner": "vitest"`, `@angular/build:unit-test`). Any Karma-era leftovers are dead — notably the `ng test` debug launch config pointing at `http://localhost:9876/debug.html`, which `ng new` still writes into `.vscode/launch.json`. Run a single pass with `ng test --no-watch`.
