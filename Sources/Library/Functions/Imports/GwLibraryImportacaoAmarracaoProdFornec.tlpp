@@ -1,0 +1,584 @@
+#include 'totvs.ch'
+#include 'tlpp-core.th'
+
+#define NPOS_RAIZ      01
+#define NPOS_PRODUTO   02
+#define NPOS_DESCRICAO 03
+#define NPOS_CODPRF    04
+
+#define NCOL_LAYOUT 04
+
+#define CPOS_CHARACTER "1;2;3;4"
+
+#define NPOS_FOR_COD    01
+#define NPOS_FOR_LOJA   02
+#define NPOS_FOR_NOME   03
+
+#define CRLF chr(13)+chr(10)
+#define CRLF2 CRLF+CRLF
+
+Static aDados__ as array
+Static aFornec__ as array
+Static cRegistered__ as character
+Static cSemFornec__ as character
+Static cSemProduto__ as character
+Static cInvalido__ as character
+Static nGravados__ as numeric
+Static nFanOut__ as numeric
+
+using namespace Gworks.Library.Classes
+
+namespace Gworks.Library.Functions
+
+/*/{Protheus.doc} U_ImportarAmarracaoProdFornec
+Função para importar arquivo csv de amarração Produto x Fornecedor (SA5), conforme layout:
+    [01] - RAIZ CNPJ      TIPO:C - Raiz do CNPJ do fornecedor (8 posições)
+    [02] - A5_PRODUTO     TIPO:C - Código do produto
+    [03] - A5_NOMPROD     TIPO:C - Descrição do produto
+    [04] - A5_CODPRF      TIPO:C - Código do produto no fornecedor
+
+A gravação é feita por RecLock direto na SA5 (via U_GwArrayCommit), sem ExecAuto e sem MVC.
+Todos os campos não informados no array são inicializados com CriaVar(cCampo, .T.).
+
+Como o arquivo traz apenas a RAIZ do CNPJ (8 posições) e não o CNPJ completo, uma mesma raiz
+pode corresponder a mais de um fornecedor/loja no SA2. Nesse caso a linha é replicada para
+TODOS os fornecedores localizados naquela raiz (fan-out).
+
+@type function
+@version 12.1.2410
+@author Gworks - Giovani Soares
+@since 9/17/2026
+@obs Raízes sem fornecedor cadastrado e produtos inexistentes no SB1 são ignorados e listados ao final.
+/*/
+User Function ImportarAmarracaoProdFornec()
+
+    Local lResult := .F. as logical
+
+    Private cTarget_ := 'l:/tmp/totvs/elsons_prod_vs_for_industria_ajustado.csv' as character
+    Private oError_ := GwError():New() as object
+    Private oLog_ := GwConsoleLog():New() as object
+    Private jMessage_ := U_GwGetMessage() as json
+    Private lProduction_ := empty(GetSrvProfString("SpecialKey","")) as logical
+    Private lBlind_ := (isBlind() .or. type('CEMPANT') == 'U' ) as logical
+
+    // CriaVar(cCampo,.T.) avalia o X3_RELACAO do campo. Varios inicializadores da SA5
+    // (A5_DESREF, A5_DSCTAB) testam a variavel INCLUI, que so existe no contexto
+    // MVC/browse. Sem declara-la aqui a gravacao estoura em runtime.
+    // INCLUI := .T. faz esses inicializadores resolverem como inclusao (retornam vazio).
+    Private INCLUI := .T. as logical
+    Private ALTERA := .F. as logical
+
+    if lBlind_
+        UserException("GWORKS.IMPORT.AMARRACAO.U_IMPORTARAMARRACAOPRODFORNEC - Invalid rpc call...")
+    endif
+
+    // Recicla variáveis de processamentos anteriores
+    if !empty(aDados__)
+        fwFreeVar(aDados__)
+    endif
+
+    if !empty(aFornec__)
+        fwFreeVar(aFornec__)
+    endif
+
+    aDados__ := {}
+    aFornec__ := {}
+    cRegistered__ := ''
+    cSemFornec__ := ''
+    cSemProduto__ := ''
+    cInvalido__ := ''
+    nGravados__ := 0
+    nFanOut__ := 0
+
+    try
+
+        if( ( empty(cTarget_) .and. !fGetFile() ) .or. !file(cTarget_) )
+
+            jMessage_['cState'] := "WARNING"
+            jMessage_['cError'] := "Arquivo inválido ou não selecionado!"
+            jMessage_['cSuggestion'] := "Selecione um arquivo válido e tente novamente."
+            jMessage_['cTitle'] := "Atenção!"
+            jMessage_['lError'] := .F.
+            jMessage_['cDetails'] := ""
+
+            U_GwSetMessage(oError_, oLog_, jMessage_)
+
+            return
+
+        endif
+
+        processa({|| lResult := fProcess()}, "Importando amarração Produto x Fornecedor...", "Aguarde...")
+        if!( lResult )
+            return
+        endif
+
+    catch _varError
+
+        if!( oError_:lError )
+
+            jMessage_['cState'] := "FAULT"
+            jMessage_['cError'] := "Falha inesperada!"
+            jMessage_['cSuggestion'] := "Favor contactar o suporte técnico."
+            jMessage_['cTitle'] := "Falha!"
+            jMessage_['lError'] := .T.
+            jMessage_['cDetails'] := ;
+                                    "Erro:" + _varError:Description +CRLF2+;
+                                    "Stack:" + _varError:errorStack
+
+            U_GwSetMessage(oError_, oLog_, jMessage_)
+
+        endif
+
+    endtry
+
+    if lResult
+
+        fWAlertSuccess( ;
+            "Importação concluída." + CRLF2 +;
+            "Linhas válidas lidas do arquivo: " + allTrim(str(len(aDados__))) + CRLF +;
+            "Amarrações avaliadas (após fan-out): " + allTrim(str(nFanOut__)) + CRLF +;
+            "Registros gravados na SA5: " + allTrim(str(nGravados__)), ;
+            "Sucesso!" )
+
+    endif
+
+    oError_:Clear()
+    oLog_:Clear()
+
+Return
+
+/*/{Protheus.doc} fGetFile
+Obtem o arquivo a ser importado.
+@type function
+@version 12.1.2410
+@author Gworks - Giovani Soares
+@since 9/17/2026
+@return logical, Retorna .T. (true) para indicar sucesso.
+/*/
+Static Function fGetFile as logical
+
+    Local lResult := .T. as logical
+
+    do case
+    case cValToChar(getRemoteType()) $ '0,1'
+        cTarget_ := tFileDialog("Arquivos CSV (*.csv)","Seleção de Arquivo",,'C:\Temp\',.F.,)
+
+    case cValToChar(getRemoteType()) == '2'
+        cTarget_ := tFileDialog("Arquivos CSV (*.csv)","Seleção de Arquivo",,'/temp/',.F.)
+
+    otherwise
+        lResult := .F.
+
+    endcase
+
+Return lResult
+
+/*/{Protheus.doc} fProcess
+Função para processamento da importação do arquivo.
+@type function
+@version 12.1.2410
+@author Gworks - Giovani Soares
+@since 9/17/2026
+@return logical, Retorna .T. (true) para indicar sucesso e .F. (false) em caso de falhas.
+/*/
+Static Function fProcess as logical
+
+    Local lResult := .F. as logical
+    Local lData := .T. as logical // so vira .F. se fReadData falhar (arquivo vazio cai no teste de aDados__)
+    Local nI as numeric
+    Local nHDL as numeric
+    Local nLinha := 0 as numeric
+    Local cBuffer as character
+    Local aBuffer as array
+
+    nHDL := FT_FUSE(cTarget_)
+    if nHDL < 0
+
+        jMessage_['cState'] := "FAULT"
+        jMessage_['cError'] := "Falha ao abrir arquivo!"
+        jMessage_['cSuggestion'] := "Verifique o arquivo selecionado e tente novamente."
+        jMessage_['cTitle'] := "Atenção!"
+        jMessage_['lError'] := .T.
+        jMessage_['cDetails'] := ""
+
+        U_GwSetMessage(oError_, oLog_, jMessage_)
+
+        return .F.
+
+    endif
+
+    while .not. FT_FEOF()
+
+        nLinha++
+        cBuffer := FT_FREADLN()
+        aBuffer := strToKArr2(cBuffer,';',.T.)
+
+        if empty(aBuffer)
+            FT_FSKIP()
+            Loop // ignora linhas vazias
+        endif
+
+        if( nLinha == 1 )
+            FT_FSKIP()
+            loop // ignora cabeçalho (linha 1)
+        else
+            if!( lData := fReadData(@aBuffer, allTrim(str(nLinha))) )
+                exit
+            endif
+        endif
+
+        FT_FSKIP()
+
+    enddo
+
+    FT_FUSE()
+
+    if!( lData )
+        return .F.
+    endif
+
+    if empty(aDados__)
+
+        jMessage_['cState'] := "WARNING"
+        jMessage_['cError'] := "Nenhuma linha válida encontrada no arquivo!"
+        jMessage_['cSuggestion'] := "Verifique o layout do arquivo e tente novamente."
+        jMessage_['cTitle'] := "Atenção!"
+        jMessage_['lError'] := .F.
+        jMessage_['cDetails'] := fLayout()
+
+        U_GwSetMessage(oError_, oLog_, jMessage_)
+
+        return .F.
+
+    endif
+
+    procregua(len(aDados__))
+    for nI := 1 To Len(aDados__)
+        incproc("Gravando " + allTrim(str(nI)) + "/" + allTrim(str(len(aDados__))) + "...")
+        if!( lResult := fGravarAmarracao( aDados__[nI], allTrim(str(nI)) ) )
+            exit
+        endif
+    next
+
+    if !empty(cInvalido__)
+
+        jMessage_['cState'] := "WARNING"
+        jMessage_['cError'] := "Linhas ignoradas por layout inválido!"
+        jMessage_['cSuggestion'] := "Verifique as linhas listadas a seguir."
+        jMessage_['cTitle'] := "Atenção!"
+        jMessage_['lError'] := .F.
+        jMessage_['cDetails'] := "LINHAS INVALIDAS: " + CRLF + cInvalido__
+
+        U_GwSetMessage(oError_, oLog_, jMessage_)
+
+    endif
+
+    if !empty(cSemProduto__)
+
+        jMessage_['cState'] := "WARNING"
+        jMessage_['cError'] := "Produtos não localizados no cadastro (SB1)!"
+        jMessage_['cSuggestion'] := "Cadastre os produtos listados a seguir e reprocesse o arquivo."
+        jMessage_['cTitle'] := "Atenção!"
+        jMessage_['lError'] := .F.
+        jMessage_['cDetails'] := "PRODUTOS INEXISTENTES: " + CRLF + cSemProduto__
+
+        U_GwSetMessage(oError_, oLog_, jMessage_)
+
+    endif
+
+    if !empty(cSemFornec__)
+
+        jMessage_['cState'] := "WARNING"
+        jMessage_['cError'] := "Raízes de CNPJ sem fornecedor cadastrado (SA2)!"
+        jMessage_['cSuggestion'] := "Cadastre os fornecedores das raízes listadas a seguir e reprocesse o arquivo."
+        jMessage_['cTitle'] := "Atenção!"
+        jMessage_['lError'] := .F.
+        jMessage_['cDetails'] := "RAIZES SEM FORNECEDOR: " + CRLF + cSemFornec__
+
+        U_GwSetMessage(oError_, oLog_, jMessage_)
+
+    endif
+
+    if !empty(cRegistered__)
+
+        jMessage_['cState'] := "WARNING"
+        jMessage_['cError'] := "Amarrações já cadastradas!"
+        jMessage_['cSuggestion'] := "Não é possível atualizar amarrações já existentes na SA5."
+        jMessage_['cTitle'] := "Atenção!"
+        jMessage_['lError'] := .F.
+        jMessage_['cDetails'] := "JA CADASTRADAS: " + CRLF + cRegistered__
+
+        U_GwSetMessage(oError_, oLog_, jMessage_)
+
+    endif
+
+Return lResult
+
+/*/{Protheus.doc} fReadData
+Lê os dados de uma determinada linha do arquivo, trata os valores e acumula em aDados__.
+@type function
+@version 12.1.2410
+@author Gworks - Giovani Soares
+@since 9/17/2026
+@param aLinha, array, Linha a ser processada.
+@param cLinha, character, Número da linha correspondente.
+@return logical, Retorna .T. (true) para indicar sucesso e .F. (false) em caso de falhas.
+/*/
+Static Function fReadData( aLinha as array, cLinha as character ) as logical
+
+    Local lResult := .T. as logical
+    Local nCol as numeric // coluna
+    Local xValue as variant
+
+    if empty(aLinha)
+
+        jMessage_['cState'] := "FAULT"
+        jMessage_['cError'] := "Linha "+ ( '"'+cLinha+'"' ) +" vazia..."
+        jMessage_['cSuggestion'] := "Verifique o arquivo e tente novamente."
+        jMessage_['cTitle'] := "Atenção!"
+        jMessage_['lError'] := .T.
+        jMessage_['cDetails'] := fLayout()
+
+        U_GwSetMessage(oError_, oLog_, jMessage_)
+
+        return .F.
+
+    endif
+
+    if( len(aLinha) < NCOL_LAYOUT )
+
+        jMessage_['cState'] := "FAULT"
+        jMessage_['cError'] := "Linha "+ ( '"'+cLinha+'"' ) +" com número de colunas inválido...";
+                               + " (esperado: " + allTrim(str(NCOL_LAYOUT)) + ", lido: " + allTrim(str(len(aLinha))) + ")"
+        jMessage_['cSuggestion'] := "Verifique o layout do arquivo e tente novamente."
+        jMessage_['cTitle'] := "Atenção!"
+        jMessage_['lError'] := .T.
+        jMessage_['cDetails'] := fLayout()
+
+        U_GwSetMessage(oError_, oLog_, jMessage_)
+
+        return .F.
+
+    endif
+
+    for nCol:=1 to len(aLinha)
+
+        xValue := aLinha[nCol]
+
+        if empty(xValue)
+
+            if allTrim(str(nCol)) $ CPOS_CHARACTER
+                xValue := " "
+            endif
+
+        else
+
+            do case
+                case nCol == NPOS_RAIZ      ; xValue := padL(fSoNumero(xValue), 8, "0")
+                case nCol == NPOS_PRODUTO   ; xValue := upper(allTrim(LEFT(xValue, TamSX3("A5_PRODUTO")[1])))
+                case nCol == NPOS_DESCRICAO ; xValue := upper(allTrim(LEFT(xValue, TamSX3("A5_NOMPROD")[1])))
+                case nCol == NPOS_CODPRF    ; xValue := upper(allTrim(LEFT(xValue, TamSX3("A5_CODPRF")[1])))
+            endcase
+
+        endif
+
+        aLinha[nCol] := xValue // devolve valor tratado para o array aLinha
+
+    next
+
+    // Raiz e produto são obrigatórios: sem eles a linha não tem chave de gravação
+    if( empty(aLinha[ NPOS_RAIZ ]) .or. empty(aLinha[ NPOS_PRODUTO ]) )
+
+        cInvalido__ += ;
+                        "Linha " + cLinha + " - " +;
+                        "RAIZ: " + aLinha[ NPOS_RAIZ ] + ' - ' +;
+                        "PRODUTO: " + aLinha[ NPOS_PRODUTO ] + CRLF
+
+        return .T. // linha ignorada, processamento continua
+
+    endif
+
+    aAdd( aDados__, aLinha )
+
+Return lResult
+
+/*/{Protheus.doc} fGravarAmarracao
+Grava a amarração Produto x Fornecedor na SA5 via RecLock, replicando a linha para todos os
+fornecedores localizados na raiz de CNPJ informada.
+@type function
+@version 12.1.2410
+@author Gworks - Giovani Soares
+@since 9/17/2026
+@param aLinha, array, Linha de dados a ser gravada.
+@param cLinha, character, Número da linha correspondente.
+@return logical, Retorna .T. (true) para indicar sucesso e .F. (false) em caso de falhas.
+/*/
+Static Function fGravarAmarracao( aLinha as array, cLinha as character ) as logical
+
+    Local aArea := getArea() as array
+    Local aFor as array
+    Local aData as array
+    Local nI as numeric
+    Local cFilSA5 := xFilial("SA5") as character
+    Local cProduto := padR(aLinha[ NPOS_PRODUTO ], TamSX3("A5_PRODUTO")[1]) as character
+
+    // O produto precisa existir no cadastro antes de receber amarração
+    SB1->( dbSelectArea("SB1"), dbSetOrder(1) )
+    if!( SB1->( msSeek( xFilial("SB1") + padR(aLinha[ NPOS_PRODUTO ], TamSX3("B1_COD")[1]) ) ) )
+
+        cSemProduto__ += ;
+                        "Linha " + cLinha + " - " +;
+                        "PRODUTO: " + aLinha[ NPOS_PRODUTO ] + CRLF
+
+        restArea(aArea)
+
+        return .T.
+
+    endif
+
+    aFor := fGetFornec( aLinha[ NPOS_RAIZ ] )
+
+    if empty(aFor)
+
+        cSemFornec__ += ;
+                        "Linha " + cLinha + " - " +;
+                        "RAIZ: " + aLinha[ NPOS_RAIZ ] + ' - ' +;
+                        "PRODUTO: " + aLinha[ NPOS_PRODUTO ] + CRLF
+
+        restArea(aArea)
+
+        return .T.
+
+    endif
+
+    SA5->( dbSelectArea("SA5"), dbSetOrder(1) ) // A5_FILIAL+A5_FORNECE+A5_LOJA+A5_PRODUTO+A5_FABR+A5_FALOJA+A5_REFGRD
+
+    for nI := 1 to len(aFor)
+
+        nFanOut__++
+
+        if( SA5->( msSeek( cFilSA5 + aFor[nI][ NPOS_FOR_COD ] + aFor[nI][ NPOS_FOR_LOJA ] + cProduto ) ) )
+
+            cRegistered__ += ;
+                            "FORNEC: " + aFor[nI][ NPOS_FOR_COD ] + '/' + aFor[nI][ NPOS_FOR_LOJA ] + ' - ' +;
+                            "PRODUTO: " + aLinha[ NPOS_PRODUTO ] + CRLF
+
+            loop
+
+        endif
+
+        aData := {;
+            {"A5_FILIAL" , cFilSA5                    },;
+            {"A5_FORNECE", aFor[nI][ NPOS_FOR_COD ]   },;
+            {"A5_LOJA"   , aFor[nI][ NPOS_FOR_LOJA ]  },;
+            {"A5_NOMEFOR", aFor[nI][ NPOS_FOR_NOME ]  },;
+            {"A5_PRODUTO", aLinha[ NPOS_PRODUTO ]     },;
+            {"A5_NOMPROD", aLinha[ NPOS_DESCRICAO ]   },;
+            {"A5_CODPRF" , aLinha[ NPOS_CODPRF ]      };
+        }
+
+        // A5_NOMERED não entra no array: existe no SX3 mas não na tabela física.
+        // O GwArrayCommit percorre a DbStruct(), então o valor seria descartado em silêncio.
+        // Grava por RecLock, inicializando os demais campos com CriaVar(cCampo, .T.)
+        if U_GwArrayCommit( "SA5", aData )
+            nGravados__++
+        endif
+
+    next
+
+    restArea(aArea)
+
+Return .T.
+
+/*/{Protheus.doc} fGetFornec
+Localiza no SA2 todos os fornecedores cuja raiz de CNPJ corresponde a informada.
+O resultado é mantido em cache (aFornec__) para evitar releitura do SA2 a cada linha.
+@type function
+@version 12.1.2410
+@author Gworks - Giovani Soares
+@since 9/17/2026
+@param cRaiz, character, Raiz do CNPJ (8 posições).
+@return array, Array no formato {{ A2_COD, A2_LOJA, A2_NOME }}.
+/*/
+Static Function fGetFornec( cRaiz as character ) as array
+
+    Local aResult := {} as array
+    Local aArea := getArea() as array
+    Local nPos as numeric
+    Local nTamRaiz := len(cRaiz) as numeric
+    Local cFilSA2 := xFilial("SA2") as character
+    Local nTamNome := TamSX3("A5_NOMEFOR")[1] as numeric
+
+    nPos := aScan( aFornec__, {|x| x[1] == cRaiz} )
+    if( nPos > 0 )
+        restArea(aArea)
+        return aFornec__[nPos][2]
+    endif
+
+    SA2->( dbSelectArea("SA2"), dbSetOrder(3) ) // A2_FILIAL+A2_CGC
+    SA2->( dbSeek( cFilSA2 + cRaiz, .T. ) )     // soft seek: posiciona no 1o CNPJ da raiz
+
+    while SA2->( !eof() ) .and. ;
+          SA2->A2_FILIAL == cFilSA2 .and. ;
+          left(SA2->A2_CGC, nTamRaiz) == cRaiz
+
+        aAdd( aResult, {;
+            SA2->A2_COD,;
+            SA2->A2_LOJA,;
+            upper(allTrim(LEFT(SA2->A2_NOME, nTamNome)));
+        })
+
+        SA2->( dbSkip() )
+
+    enddo
+
+    aAdd( aFornec__, { cRaiz, aResult } )
+
+    restArea(aArea)
+
+Return aResult
+
+/*/{Protheus.doc} fLayout
+Devolve a descrição do layout esperado do arquivo, usada nas mensagens de crítica.
+@type function
+@version 12.1.2410
+@author Gworks - Giovani Soares
+@since 9/17/2026
+@return character, Texto descritivo do layout.
+/*/
+Static Function fLayout() as character
+Return ;
+    "Layout esperado (CSV separado por ';', 1a linha = cabeçalho):" + CRLF2 +;
+    "[01] - RAIZ CNPJ      TIPO:C - Raiz do CNPJ do fornecedor (8 posições)" + CRLF +;
+    "[02] - COD. PRODUTO   TIPO:C - Código do produto (SB1 / A5_PRODUTO)" + CRLF +;
+    "[03] - DESCRICAO      TIPO:C - Descrição do produto (A5_NOMPROD)" + CRLF +;
+    "[04] - COD.FABRICANTE TIPO:C - Código do produto no fornecedor (A5_CODPRF)"
+
+/*/{Protheus.doc} fSoNumero
+Função auxiliar para remover pontuação e caracteres não numéricos.
+@type function
+@version 12.1.2410
+@author Gworks - Giovani Soares
+@since 9/17/2026
+@param cValue, character, Valor a ser tratado.
+@return character, Valor contendo apenas dígitos.
+/*/
+Static Function fSoNumero( cValue as character ) as character
+
+    Local cResult := "" as character
+    Local cChar as character
+    Local nI as numeric
+
+    cValue := allTrim(cValue)
+
+    for nI := 1 to len(cValue)
+
+        cChar := subStr(cValue, nI, 1)
+
+        if isDigit(cChar)
+            cResult += cChar
+        endif
+
+    next
+
+Return cResult
