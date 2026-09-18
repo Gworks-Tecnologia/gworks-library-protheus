@@ -1,0 +1,28 @@
+#include "totvs.ch"
+
+namespace Gworks.Templates.APITrace.Functions
+
+/*/{Protheus.doc} GetTraceAlias
+Retorna o Alias da tabela a ser usado.
+Se não informado via parâmetro GW_ALIASES (json, ex.: {"api-trace":"ZGB"}), assume o valor padrão "ZGT".
+@type function
+@version 12.1.2510
+@author Gworks - Giovani
+@since 9/18/2026
+@return character, Alias usado.
+/*/
+User Function GetTraceAlias()
+
+    Local cAlias := "ZGT" as character
+    Local cAliases := SuperGetMv("GW_ALIASES",.F.,'{"api-trace":"ZGT"}') as character
+    Local jAliases := JsonObject():New() as json
+
+    // GW_ALIASES é um json com o alias de cada tabela, ex.: {"api-trace":"ZGB"}...
+    jAliases:FromJson( cAliases )
+    if( valType(jAliases["api-trace"]) == "C" .and. !empty(jAliases["api-trace"]) )
+        cAlias := upper(allTrim(jAliases["api-trace"]))
+    endif
+
+    fwFreeVar( jAliases )
+
+Return cAlias

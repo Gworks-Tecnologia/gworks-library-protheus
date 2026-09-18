@@ -41,27 +41,13 @@ Static Function fInit()
     jConfig___[ 'api-trace' ][ 'viewdef' ] := 'Gworks.Templates.APITrace.Forms.Main.ApiTraceMainForm'
     jConfig___[ 'api-trace' ][ 'actions' ] := 'ViewDef.Gworks.Templates.APITrace.Forms.Main.ApiTraceMainForm'
 
-    lInit__ := .T.
-
-Return
-
-/*/{Protheus.doc} fSetDynamicConfig
-Função auxiliar para definir as configurações que dependem da opção roteada pelo Controller.
-@type function
-@version 12.1.2410
-@author Gworks - Giovani
-@since 9/18/2026
-@param nOpc, numeric, Opção roteada pelo Controller (oControllerEnum___).
-/*/
-Static Function fSetDynamicConfig( nOpc as integer )
-
-    if( nOpc == oControllerEnum___:GetEnum('StartMainBrowse') )
+    if( nOpc___ == oControllerEnum___:GetEnum('StartMainBrowse') )
 
         jConfig___[ 'api-trace' ][ 'MODEL_FIELDS' ] := JsonObject():New()
         jConfig___[ 'api-trace' ][ 'MODEL_FIELDS' ][ 'cAlias' ] := jAliases_["api-trace"]["alias"]
         jConfig___[ 'api-trace' ][ 'MODEL_FIELDS' ][ 'cId' ] := 'MODEL_FIELDS'
         jConfig___[ 'api-trace' ][ 'MODEL_FIELDS' ][ 'cDescription' ] := 'API Trace'
-        jConfig___[ 'api-trace' ][ 'MODEL_FIELDS' ][ 'bFields' ] := &('{|cCampo| !(allTrim(cCampo) $ "'+jAliases_['api-trace']['prefix']+'_FILIAL" ) }')
+        jConfig___[ 'api-trace' ][ 'MODEL_FIELDS' ][ 'bFields' ] := {|cCampo| !(allTrim(cCampo) $ 'ZGR_FILIAL' ) }
         jConfig___[ 'api-trace' ][ 'MODEL_FIELDS' ][ 'aPK' ]:={ jAliases_["api-trace"]["prefix"]+'_FILIAL',;
                                                                 jAliases_["api-trace"]["prefix"]+'_CID',;
                                                                 jAliases_["api-trace"]["prefix"]+'_DATA',;
@@ -79,20 +65,20 @@ Static Function fSetDynamicConfig( nOpc as integer )
 
     endif
 
+    lInit__ := .T.
+
 Return
 
-User Function ApiTraceMainForm( nOpc as integer )
+User Function ApiTraceMainForm()
 
     Local xReturn as variant
 
-    fSetDynamicConfig( nOpc )
-
     do case
-        case( nOpc == oControllerEnum___:GetEnum('StartMainBrowse') )
+        case( nOpc___ == oControllerEnum___:GetEnum('StartMainBrowse') )
 
             xReturn := Gworks.Templates.APITrace.Forms.Main.U_BrowseDef()
 
-        case( nOpc == oControllerEnum___:GetEnum('GetMenuDef') )
+        case( nOpc___ == oControllerEnum___:GetEnum('GetMenuDef') )
 
             xReturn := Gworks.Templates.APITrace.Forms.Main.U_MenuDef()
 
@@ -125,7 +111,7 @@ User Function BrowseDef()
 
 Return
 
-Static Function fSetChange( nOpc as integer )
+Static Function fSetChange()
 
     Local jAreas as json
     Local nOrder as integer
@@ -134,7 +120,7 @@ Static Function fSetChange( nOpc as integer )
     jAreas := JsonObject():New()
     jAreas["active"] := ZC9->(getArea())
 
-    if( nOpc != oControllerEnum___:GetEnum('StartMainFormItems') )
+    if( nOpc___ != oControllerEnum___:GetEnum('StartMainFormItems') )
         return
     endif
 

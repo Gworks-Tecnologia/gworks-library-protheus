@@ -4,69 +4,83 @@
 using namespace Gworks.Library.Classes
 using namespace Gworks.Library.Functions
 using namespace Gworks.Templates.APITrace.Metadata
+using namespace Gworks.Templates.APITrace.Functions
 using namespace Gworks.Templates.APITrace.Forms.Main
 
 namespace Gworks.Templates.APITrace.Controllers
 
-User Function Controller( nOpc as integer, xParam as variant )
+Static lInit__ := .F. as logical
 
-	Default nOpc := iif( empty(nOpc) .and. type("nOpc___")=="N", nOpc___, 0 )
+User Function Controller( nOpc as integer, xParam as variant, aEnv as array )
 
 	Local xResult as variant
+	Local lInitCall := !lInit__ as logical // .T. se esta chamada declarar as Private (chamada de primeiro nível)
 
-	Local cGW_ALIASES as character
-	Local jGW_ALIASES := JsonObject():New() as json
+	Default nOpc := 0
+	Default xParam := nil
+	Default aEnv := nil
 
-	Private lProduction_ := empty(GetSrvProfString("SpecialKey","")) as logical
-	Private lBlind_ := isBlind() .or. type("cFilAnt") == "U" as logical
-	Private lRpcSetEnv_ := .F. as logical
-	Private jAliases_ := JsonObject():New() as json
-	Private oMessage_ := GwMessagingClass():New() as object
-	Private oError_ := oMessage_:GetObject("error") as object
+	if lInitCall
 
-	fSetEnvironment(xParam)
+		Private lProduction_ := empty(GetSrvProfString("SpecialKey","")) as logical
+		Private lBlind_ := isBlind() as logical
+		Private lNoEnv_ := type("cFilAnt") == "U" as logical
+		Private lRpcSetEnv_ := .F. as logical
+		Private jAliases_ := JsonObject():New() as json
+		Private oMessage_ := GwMessagingClass():New() as object
+		Private oError_ := oMessage_:GetObject("error") as object
 
-	cGW_ALIASES := SuperGetMv("GW_ALIASES",.F.,'{"api-trace":"ZGT"}')
-	jGW_ALIASES:FromJson(cGW_ALIASES)
+		lInit__ := .T.
 
-	jAliases_["api-trace"] := JsonObject():New()
-	jAliases_["api-trace"]["alias"] := jGW_ALIASES["api-trace"]
-	jAliases_["api-trace"]["prefix"] := U_SxUtilGetFieldPrefixByAlias(jAliases_["api-trace"]["alias"],.F.)
+	endif
+
+	fSetEnvironment(aEnv)
+
+	fSetAlias()
 
 	do case
 
 		case nOpc == oControllerEnum___:GetEnum('MetadataConfig')
-			U_MetadataConfig()
+			xResult := U_MetadataConfigService()
 
 		case nOpc == oControllerEnum___:GetEnum('StartMainBrowse')
-			U_ApiTraceMainForm()
+			U_ApiTraceMainForm( nOpc )
+
+		case nOpc == oControllerEnum___:GetEnum('GetMenuDef')
+			xResult := U_ApiTraceMainForm( nOpc )
+
+		case nOpc == oControllerEnum___:GetEnum('GetTraceAlias')
+			xResult := U_GetTraceAlias()
 
 	otherwise
 		U_GwThrowError("Invalid value for nOpc!")
 
 	endcase
 
-	fResetEnvironment()
+	fResetEnvironment( lInitCall )
 
 Return xResult
 
-Static Function fSetEnvironment( xParam as variant )
+Static Function fSetEnvironment( aEnv as array )
 
-	Default xParam := {"01","01"}
-
-	Local cRpcEmpresa := xParam[1] as character
-	Local cRpcFilial := xParam[2] as character
+	Local cRpcEmpresa := '' as character
+	Local cRpcFilial := '' as character
 	Local cRpcUser as variant
 	Local cRpcPassword as variant
 	Local cRpcMod := 'OMS' as character
 	Local cRpcRotina := 'PreCarga' as character
 	Local aRpcTables := {'SB1'} as array
 
-	if valType(xParam) != "A"
-		U_GwThrowError("xParam must be an array!")
+	Default aEnv := {"01","01"}
+
+	cRpcEmpresa := aEnv[1]
+	cRpcFilial := aEnv[2]
+
+	if valType(aEnv) != "A"
+		U_GwThrowError("aEnv must be an array!")
 	endif
 
-	if lBlind_ .and. !lRpcSetEnv_ .and. !fwIsInCallStack("U_GMNUEXEC")
+	if lNoEnv_ .and. !lRpcSetEnv_ .and. !fwIsInCallStack("U_GMNUEXEC")
 
 		if empty(cRpcEmpresa) .or. empty(cRpcFilial)
 			U_GwThrowError("Blind execution without company group and branch code!")
@@ -87,10 +101,32 @@ Static Function fSetEnvironment( xParam as variant )
 
 Return
 
-Static Function fResetEnvironment()
+Static Function fResetEnvironment( lInitCall as logical )
 
-	if lRpcSetEnv_
-		RpcClearEnv()
+	// Somente a chamada que declarou as Private (primeiro nível) desfaz o ambiente
+	// e libera o lInit__; chamadas aninhadas reaproveitam o contexto da chamada externa.
+	if lInitCall
+
+		if lRpcSetEnv_
+			RpcClearEnv()
+		endif
+
+		lInit__ := .F.
+
 	endif
+
+Return
+
+Static Function fSetAlias()
+
+	Local cAlias  as character
+	Local cPrefix as character
+
+	cAlias := U_GetTraceAlias()
+	cPrefix := U_SxUtilGetFieldPrefixByAlias(cAlias,.F.)
+
+	jAliases_["api-trace"] := JsonObject():New()
+    jAliases_["api-trace"]["alias"] := cAlias
+    jAliases_["api-trace"]["prefix"] := cPrefix
 
 Return

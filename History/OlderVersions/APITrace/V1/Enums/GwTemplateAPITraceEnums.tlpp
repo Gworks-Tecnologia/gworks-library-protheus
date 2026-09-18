@@ -12,6 +12,5 @@ User Function GetControllerEnum()
     oEnum:SetEnum( "MetadataConfig", "Inicializar metadados." )
     oEnum:SetEnum( "StartMainBrowse", "Inicializar formulário." )
     oEnum:SetEnum( "GetMenuDef", "Retornar lista de opções do formulário." )
-    oEnum:SetEnum( "GetTraceAlias", "Retornar Alias da tabela SQL utilizada." )
 
 Return oEnum

@@ -9,6 +9,10 @@ namespace Gworks.Templates.APITrace.Apps
 Static lInit__ := iif( lInit__ == nil .or. !lInit, fInit(), .T. ) as logical
 Static Function fInit()
 
+	if type('nOpc___') == 'U'
+        Public nOpc___ as numeric
+    endif
+
 	if type('oControllerEnum___') == 'U'
 		Public oControllerEnum___ := U_GetControllerEnum()
 	endif
@@ -17,14 +21,20 @@ Static Function fInit()
 
 Return
 
-User Function MetadataConfig( xParam as variant )
-Return( U_Controller( oControllerEnum___:GetEnum('MetadataConfig'), xParam ) )
+User Function MetadataConfig()
+
+	nOpc___ := oControllerEnum___:GetEnum('MetadataConfig')
+
+Return( U_Controller( nOpc___ ) )
 
 User Function StartMainBrowse()
-Return( U_Controller( oControllerEnum___:GetEnum('StartMainBrowse') ) )
+
+	nOpc___ := oControllerEnum___:GetEnum('StartMainBrowse')
+
+Return( U_Controller( nOpc___ ) )
 
 User Function Menudef()
-Return( U_Controller( oControllerEnum___:GetEnum('GetMenuDef') ) )
 
-User Function TraceAlias()
-Return( U_Controller( oControllerEnum___:GetEnum('GetTraceAlias') ) )
+    nOpc___ := oControllerEnum___:GetEnum('GetMenuDef')
+
+Return( U_Controller( nOpc___ ) )
