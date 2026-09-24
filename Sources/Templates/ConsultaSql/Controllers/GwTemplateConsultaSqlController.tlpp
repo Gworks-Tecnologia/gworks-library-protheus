@@ -1,0 +1,188 @@
+#include "totvs.ch"
+#include "tlpp-core.th"
+
+// Nome do arquivo onde o retorno e gravado (diretorio: ver
+// U_ConsultaSqlTempFile). Scripts/pth-query.* le com este mesmo nome.
+#define CONSULTASQL_ARQ_RETORNO "consultasql-retorno.json"
+
+using namespace Gworks.Library.Classes
+using namespace Gworks.Library.Functions
+using namespace Gworks.Templates.ConsultaSql.Services
+using namespace Gworks.Templates.ConsultaSql.Functions
+
+namespace Gworks.Templates.ConsultaSql.Controllers
+
+/*/{Protheus.doc} ConsultaSqlController
+Dispatcher unico do projeto: resolve ambiente e roteia o nOpc para um Service.
+@type function
+@version 12.1.2510
+@author Gworks - Giovani
+@since 9/16/2026
+@param nOpc, numeric, Acao a executar (ver ConsultaSqlControllerEnum).
+@param xParam, variant, Parametros da chamada.
+@param jRpc, json, Ambiente a montar quando nao houver um.
+@return variant, O que o Service devolveu.
+/*/
+User Function ConsultaSqlController( nOpc as integer, xParam as variant, jRpc as json )
+
+	Local xResult as variant
+
+	// "print" abre o dialogo na tela; "file" grava em disco. O modo de arquivo
+	// e o que interessa AQUI: a janela do webapp e desenhada em PIXEL, e um
+	// resultado de consulta com muitas linhas aparece CORTADO, sem DOM de onde
+	// ler o resto. Em arquivo o JSON vem inteiro, e e justamente esta rota que
+	// costuma devolver resultado grande.
+	Local cVarMode := "file" as character
+	Local cArquivo := "" as character
+
+	// Declaracao ANTES de qualquer Default: o compilador do AdvPL exige que todo
+	// Local venha antes do primeiro comando executavel, e Default e comando.
+	Default nOpc := iif( empty(nOpc) .and. type("nConsultaSqlOpc___")=="N", nConsultaSqlOpc___, 0 )
+
+	// Privates criadas A CADA CHAMADA, SEM guarda de Static.
+	//
+	// Private no AdvPL tem escopo DINAMICO: existe enquanto a funcao que a
+	// declarou nao retornar. Quando o Controller devolve, estas variaveis morrem
+	// junto. Guardar a criacao atras de uma Static (que sobrevive ao retorno)
+	// seria um defeito de estreia tardia -- a primeira chamada funcionaria, a
+	// Static ficaria .T., e da segunda em diante as Privates nao seriam
+	// recriadas: oMessage_ nao existiria mais e o primeiro Service a reportar
+	// erro estouraria. Numa rotina de menu isso nunca aparece, porque cada
+	// execucao e uma pilha nova; num pool de threads REST, aparece no segundo
+	// request. Recriar seis variaveis por chamada custa menos que esse bug.
+	//
+	// Elas sao visiveis em toda a pilha abaixo, e o Service REUSA estas
+	// instancias: recriar oMessage_/oError_ la embaixo quebraria a checagem "nao
+	// reportar duas vezes" do try/catch.
+	Private lProduction_ := empty(GetSrvProfString("SpecialKey","")) as logical
+	Private lBlind_ := isBlind() as logical
+	Private lRpcSetEnv_ := .F. as logical
+	Private oMessage_ := GwMessagingClass():New() as object
+	Private oError_ := oMessage_:GetObject("error") as object
+
+	// Exibir o retorno na tela SO quando existe tela. Em execucao sem interface
+	// -- REST, job -- o MostraErro abaixo e um dialogo modal esperando um clique
+	// que nunca vem, e a requisicao ficaria pendurada ate o timeout.
+	Private lVarInfo_ := !lBlind_ as logical
+	Private cVarInfo := "" as character
+
+	fSetEnvironment( jRpc )
+
+	do case
+
+		case nOpc == oConsultaSqlEnum___:GetEnum('Executar')
+			xResult := U_ConsultaSqlExecutarService(xParam)
+
+	otherwise
+		U_GwThrowError("Invalid value for nOpc!")
+	endcase
+
+	if lVarInfo_
+
+		do case
+			case valType(xResult) == "U"; cVarInfo := "null"
+			case valType(xResult) == "J"; cVarInfo := xResult:toJson()
+			otherwise
+				cVarInfo := VarInfo(xResult)
+		endcase
+
+		if cVarMode == "print"
+
+			AutoGRLog(cVarInfo) // define msg
+
+			MostraErro() // exibe msg
+
+			AutoGRLog("") // zera msg
+
+		elseif cVarMode == "file"
+
+			// NOME FIXO, de proposito. Um nome com timestamp seria mais seguro
+			// contra concorrencia, mas quem le este arquivo e um agente/script
+			// de fora, que precisa saber o caminho ANTES de a chamada acontecer
+			// -- com nome variavel ele teria de adivinhar ou varrer diretorio.
+			// Isto e ferramenta de depuracao, roda uma chamada por vez; se dois
+			// desenvolvedores depurarem juntos, um sobrescreve o outro, e o
+			// preco e refazer a chamada.
+			// O diretorio e o separador de cada sistema (e o prefixo "l:" no
+			// Linux, que faz o arquivo nascer no disco de quem chamou) sao
+			// calculados num ponto so -- ver U_ConsultaSqlTempFile.
+			cArquivo := U_ConsultaSqlTempFile( CONSULTASQL_ARQ_RETORNO )
+
+			// O caminho tambem vai para o console: quando a gravacao falha, saber
+			// EM QUE MAQUINA se procurou e metade do diagnostico.
+			if MemoWrite( cArquivo, cVarInfo )
+				ConOut( "[ConsultaSql] retorno gravado em: " + cArquivo + " (" + cValToChar( len(cVarInfo) ) + " bytes)" )
+			else
+				ConOut( "[ConsultaSql] FALHA ao gravar em: " + cArquivo )
+			endif
+
+		endif
+
+		xResult := nil
+
+	endif
+
+	fResetEnvironment()
+
+Return xResult
+
+/*/{Protheus.doc} fSetEnvironment
+Monta o ambiente quando nao houver um.
+@type function
+@version 12.1.2510
+@author Gworks - Giovani
+@since 9/16/2026
+@param jRpc, json, Empresa, filial, modulo e tabelas a abrir.
+@obs Monta SO quando nao ha ambiente: sem cFilAnt nao ha empresa, filial nem
+     tabelas abertas, e a consulta abaixo falharia. Com cFilAnt valido (menu do
+     ERP, ou REST com PrepareIn no appserver.ini) nao se toca em nada --
+     preparar duas vezes e pior do que nao preparar.
+
+@obs A filial default e "04", de 2 caracteres, como neste ERP. Filial invalida
+     faz o RpcSetEnv responder "Muitos usuarios", que parece problema de licenca
+     e nao e -- ja custou tempo neste repositorio.
+/*/
+Static Function fSetEnvironment( jRpc as json )
+
+	Default jRpc := JsonObject():New()
+
+	jRpc["cRpcEmpresa"]  := iif( jRpc["cRpcEmpresa"]  != nil, jRpc["cRpcEmpresa"] , "01"          )
+	jRpc["cRpcFilial"]   := iif( jRpc["cRpcFilial"]   != nil, jRpc["cRpcFilial"]  , "04"          )
+	jRpc["cRpcUser"]     := iif( jRpc["cRpcUser"]     != nil, jRpc["cRpcUser"]    , nil           )
+	jRpc["cRpcPassword"] := iif( jRpc["cRpcPassword"] != nil, jRpc["cRpcPassword"], nil           )
+	jRpc["cRpcMod"]      := iif( jRpc["cRpcMod"]      != nil, jRpc["cRpcMod"]     , "PCP"         )
+	jRpc["cRpcRotina"]   := iif( jRpc["cRpcRotina"]   != nil, jRpc["cRpcRotina"]  , "ConsultaSql" )
+	jRpc["aRpcTables"]   := iif( jRpc["aRpcTables"]   != nil, jRpc["aRpcTables"]  , {}            )
+
+	if( ( type("cFilAnt") == "U" .or. empty(cFilAnt) ) .and. !lRpcSetEnv_ .and. !fwIsInCallStack("U_GMNUEXEC") )
+
+		RpcSetEnv( ;
+			jRpc["cRpcEmpresa"],;
+			jRpc["cRpcFilial"],;
+			jRpc["cRpcUser"],;
+			jRpc["cRpcPassword"],;
+			jRpc["cRpcMod"],;
+			jRpc["cRpcRotina"],;
+			jRpc["aRpcTables"] ;
+		)
+
+		lRpcSetEnv_ := .T.
+
+	endif
+
+Return
+
+/*/{Protheus.doc} fResetEnvironment
+Encerra o ambiente, se foi este Controller que o montou.
+@type function
+@version 12.1.2510
+@author Gworks - Giovani
+@since 9/16/2026
+/*/
+Static Function fResetEnvironment()
+
+	if lRpcSetEnv_
+		RpcClearEnv()
+	endif
+
+Return

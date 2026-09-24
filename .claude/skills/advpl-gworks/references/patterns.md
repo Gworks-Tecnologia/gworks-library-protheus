@@ -322,3 +322,72 @@ oMessage_:Display()
 ```
 
 Both ultimately bottom out in `GwError:ShowError()`, which is blind-safe (`IsBlind()` suppresses GUI alert paths automatically) — so error/log code written against either style is safe to call from REST endpoints, jobs, or interactive screens without branching on execution context yourself.
+
+## Templates: File Names and Namespaces
+
+The convention behind `Templates/APITrace` and `Templates/ConsultaSql` (the second follows the first) — use it for every new `Templates/<App>`:
+
+- **File name**: `GwTemplate<App><Layer>.tlpp` (`GwTemplateConsultaSqlController.tlpp`, `GwTemplateAPITraceApps.tlpp`). A layer with more than one file adds the piece's name (`GwTemplateConsultaSqlExecutarService.tlpp`, `GwTemplateAPITraceMainFormModel.tlpp`).
+- **Namespace**: `Gworks.Templates.<App>.<Layer>`. It names the *layer*, not every folder level — `Services/ExecutarService/…` is `Gworks.Templates.ConsultaSql.Services`, `Common/Functions/…` is `…ConsultaSql.Functions`, `Forms/Main/Models/…` is `Gworks.Templates.APITrace.Forms.Main`.
+
+| Folder | Namespace (ConsultaSql) | Holds |
+|---|---|---|
+| `Apps/` | `Gworks.Templates.ConsultaSql.Apps` | Menu/IDE entry points: resolve the enum, call the Controller |
+| `Api/` | `Gworks.Templates.ConsultaSql.Api` | REST entry point, sibling of `Apps`: read the body, map the result to a status code. No business rule |
+| `Controllers/` | `…Controllers` | Environment setup and routing to the Service |
+| `Services/` | `…Services` | The rule/pipeline for one action |
+| `Common/Functions/` | `…Functions` | Shared helpers |
+| `Enums/` | `…Enums` | Routing table |
+
+- **Public names** drop the `Template` word: class `GwConsultaSqlApi` (`Gw<App>Api`), route `@Post("/GwConsultaSql/consultas")`. The `Gw` prefix keeps a short, generic name from colliding with another application in the same RPO.
+- `User Function`s of the layer keep a prefixed, application-specific name (`U_ConsultaSqlController`, `U_ConsultaSqlPostConsulta`).
+- Crossing layers means crossing namespaces: each file declares `using namespace` for the layers it calls (see the next section).
+
+## Namespaced `User Function` Calls
+
+A `User Function` declared inside a `namespace` **is global** — it is registered in the RPO like any other. What exists is a **current AppServer limitation**: the **first call** to it, made by its bare `U_` name from code that does not `using namespace` it, is not dispatched. The call **compiles cleanly** and fails at runtime with `InterFunctionCall: cannot find function U_X in AppMap`; later calls work. A **job** whose function is declared under a namespace has the same problem on its first call.
+
+The workaround used in this code is `using namespace <that namespace>` in the caller (the ConsultaSql Service does it for `U_GwApiQuery`). The fully-qualified form, `Gworks.Library.Functions.U_GwPosicione(...)`, is also valid syntax, but whether it avoids the limitation was not tested. Which event counts as the "first call" (per thread, per server start, per RPO load) is not established here.
+
+How to tell: it looks exactly like "the source was not compiled", and a recompile changes nothing. Since only the first call fails, **calling again is a cheap test** — if the second attempt works, this is the limitation. Otherwise compare the `using namespace` lines of a file that works against the one that fails.
+
+```advpl
+using namespace Gworks.Library.Classes             // U_GwApiQuery
+using namespace Gworks.Templates.ConsultaSql.Functions   // U_ConsultaSqlTempFile
+
+lOk := U_GwApiQuery( cSql, @jDados )
+```
+
+The same qualification works from outside AdvPL: the Protheus WebApp `P=` parameter accepts `Gworks.Templates.ConsultaSql.Apps.U_ConsultaSqlPostConsulta` (used by the `advpl-tlpp-exec-sql-query` skill).
+
+## Client Temp Files (`GetTempPath` + the `l:` prefix)
+
+When a routine has to exchange a file with something outside Protheus (a script, a browser, the user), do not hard-code `/tmp/` or `C:\temp\`. Compute it from `GetTempPath()`, which answers for the **client** machine, and mind two things:
+
+1. **The separator depends on the client OS**, read from the string itself: `GetTempPath()` starts with `/` on Linux (`/tmp/`), otherwise it is a Windows path (`C:\…\Temp\`, assumed — not yet confirmed live) and the separator is `\`.
+2. **On a Linux client the path needs the `l:` prefix** (`l:/tmp/x`). The prefix chooses the *machine*, not the syntax: `l:/tmp/x` (Linux) and `c:\tmp\x` (Windows) — "absolute" in TDN's naming — go to the **client**; a path with no prefix is "relative" and goes to the **server**, under its `Protheus_Data`. Getting it wrong raises **no error**: the write lands on the server and the read returns empty, "file not found" for a file sitting exactly where you put it.
+
+Reference implementation — one helper, so every reader and writer agrees (`Templates/ConsultaSql/Common/Functions/GwTemplateConsultaSqlFunctions.tlpp`, namespace `Gworks.Templates.ConsultaSql.Functions`):
+
+```advpl
+User Function ConsultaSqlTempFile( cNome as character ) as character
+    Local cPath := "" as character
+    Local cSep  := "\" as character
+    Default cNome := ""
+    cPath := allTrim( GetTempPath() )
+    do case
+        case lower( left(cPath, 3) ) == "l:/"        // already prefixed
+            cSep := "/"
+        case left(cPath, 1) == "/"                   // Unix: prefix and separator
+            cSep  := "/"
+            cPath := "l:" + cPath
+    endcase
+    if !empty(cPath) .and. !( right(cPath, 1) $ "/\" )
+        cPath += cSep
+    endif
+Return cPath + cNome
+```
+
+- It is only meaningful for calls **with a client** (menu, WebApp). A REST or job thread has no client disk for `l:` to point at.
+- Fixed file names are fine when a script must know the path before the call, but two runs overwrite each other; add a unique suffix if runs can overlap.
+- The helper is not in `Gworks.Library.*`. If a second module needs it, promote it to `Gworks.Library.Functions` rather than copying it.

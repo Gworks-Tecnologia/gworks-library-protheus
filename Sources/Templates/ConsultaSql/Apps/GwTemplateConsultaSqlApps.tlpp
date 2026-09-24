@@ -1,0 +1,66 @@
+#include "totvs.ch"
+
+using namespace Gworks.Templates.ConsultaSql.Enums
+using namespace Gworks.Templates.ConsultaSql.Controllers
+
+namespace Gworks.Templates.ConsultaSql.Apps
+
+// ---------------------------------------------------------------------------
+// Porta de entrada do MENU/IDE. Irma da Api (porta HTTP): as duas expoem
+// exatamente as MESMAS acoes, 1 para 1, e nenhuma das duas implementa nada --
+// so resolvem o enum e chamam o Controller.
+//
+//      Apps  --\
+//               >--> Controller --> Service --> U_GwApiQuery --> Banco
+//      Api   --/
+//
+// Os nomes espelham os metodos de GwConsultaSqlApi de proposito: a mesma acao tem
+// o mesmo nome nas duas portas. Quando uma ganhar uma acao nova, a ausencia na
+// outra fica obvia na revisao -- e da para exercitar qualquer endpoint pela IDE,
+// sem subir REST, chamando a funcao de mesmo nome.
+//
+// E esse e o motivo pratico de existirem as duas portas: deixar a rota REST de
+// pe no appserver e trabalhoso -- ha casos em que so responde depois de
+// reiniciar o servico. Exercitando a acao pela Apps, a regra fica provada ANTES
+// do HTTP entrar na conta: se roda aqui e falha na rota, o problema esta na
+// casca da Api (oRest, annotation, ambiente), nunca no Service.
+//
+// Nomes prefixados: User Function e global no RPO, e Public e VARIAVEL global
+// dentro da thread em execucao (nao cruza threads). Em ambos os casos um nome
+// curto colidiria com o de outra aplicacao -- no RPO, ou na mesma thread.
+// ---------------------------------------------------------------------------
+
+Static lInit__ := iif( lInit__ == nil .or. !lInit__, fInit(), .T. ) as logical
+Static Function fInit()
+
+	if type('nConsultaSqlOpc___') == 'U'
+		Public nConsultaSqlOpc___ as numeric
+	endif
+
+	if type('oConsultaSqlEnum___') == 'U'
+		Public oConsultaSqlEnum___ := U_ConsultaSqlControllerEnum()
+	endif
+
+	lInit__ := .T.
+
+Return
+
+/*/{Protheus.doc} ConsultaSqlPostConsulta
+Executa uma instrucao SELECT e devolve o resultado em json.
+@type function
+@version 12.1.2510
+@author Gworks - Giovani
+@since 9/16/2026
+@param xParam, variant, { query } ou a propria instrucao como texto.
+@return json, { ok, data: { hasNext, items } }.
+@obs Espelha GwConsultaSqlApi:PostConsulta().
+@sample
+    // Pela IDE, passando o SQL cru:
+    U_ConsultaSqlPostConsulta("SELECT A1_COD, A1_NOME FROM SA1010 WHERE D_E_L_E_T_ = ' '")
+/*/
+
+User Function ConsultaSqlPostConsulta( xParam as variant )
+
+	nConsultaSqlOpc___ := oConsultaSqlEnum___:GetEnum('Executar')
+
+Return( U_ConsultaSqlController( nConsultaSqlOpc___, xParam ) )

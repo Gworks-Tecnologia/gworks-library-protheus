@@ -1,0 +1,230 @@
+#include 'totvs.ch'
+#include 'tlpp-core.th'
+#include 'tlpp-rest.th'
+
+using namespace Gworks.Templates.ConsultaSql.Enums
+using namespace Gworks.Templates.ConsultaSql.Controllers
+
+namespace Gworks.Templates.ConsultaSql.Api
+
+// ---------------------------------------------------------------------------
+// A API e a CAMADA DE ENTRADA DO REST, irma da Apps -- nao uma camada acima
+// dela. As duas fazem a mesma coisa por portas diferentes: a Apps e a porta do
+// menu/IDE, esta e a porta HTTP. Ambas so resolvem o enum e chamam o
+// Controller, que roteia ate o Service.
+//
+//      Apps  --\
+//               >--> Controller --> Service --> U_GwApiQuery --> Banco
+//      Api   --/
+//
+// NENHUM metodo daqui monta query, valida regra ou toca no banco. Isso nao e
+// organizacao: e o que faz o teste pela Apps valer. Se a validacao "so aceita
+// SELECT" morasse aqui, a porta da IDE passaria por baixo dela e exercitaria um
+// contrato mais frouxo que o da rota -- e a recusa apareceria so no HTTP,
+// justamente onde e mais caro descobrir. Por isso ela mora no Service.
+//
+// O que SOBRA para esta camada e o que e de HTTP mesmo: ler o corpo, traduzir o
+// resultado em status code, montar o envelope.
+//
+// AUTENTICACAO nao e feita aqui. Quem autentica e o proprio REST Server do
+// Protheus, pela configuracao do appserver.ini.
+//
+// ATENCAO: esta rota executa SQL que chega de fora. Ela so aceita consulta (a
+// recusa esta no Service), mas ainda assim expoe leitura irrestrita da base a
+// quem alcancar o endpoint -- entao quem libera o acesso decide, de verdade,
+// quem pode ler tudo. Nao publicar sem essa decisao tomada.
+// ---------------------------------------------------------------------------
+
+Class GwConsultaSqlApi
+
+    Public Method New() Constructor
+
+    // POST e nao GET de proposito: a instrucao vai no CORPO. Em querystring ela
+    // apareceria no log de acesso do servidor e no historico de qualquer proxy
+    // pelo caminho, e uma consulta carrega nome de tabela, filtro e, as vezes,
+    // dado de negocio.
+    @Post("/GwConsultaSql/consultas")
+    Public Method PostConsulta() as logical
+
+    // -----------------------------------------------------------------------
+    // Internos -- composicao de requisicao e resposta
+    // -----------------------------------------------------------------------
+
+    Private Method Executar( cAcao as character, xParam as variant ) as logical
+    Private Method LerCorpo() as json
+    Private Method Responder( jResult as json, nSucesso as numeric ) as logical
+    Private Method Erro( nStatus as numeric, cMensagem as character, cDetalhe as character ) as character
+    Private Method Enviar( nStatus as numeric, cCorpo as character ) as logical
+
+EndClass
+
+/*/{Protheus.doc} GwConsultaSqlApi::New
+Metodo construtor da classe.
+@type method
+@version 12.1.2510
+@author Gworks - Giovani
+@since 9/16/2026
+@return object, Retorna instancia da classe.
+@obs Semeia a Public do enum com a MESMA guarda do fInit() da Apps -- as duas
+     portas compartilham a variavel de proposito, entao so existe uma instancia
+     por sessao. Nao da para contar com a Apps ter feito isso: num processo REST
+     ela pode nunca ser carregada, e o Controller le a Public direto no do case.
+/*/
+Method New() Class GwConsultaSqlApi
+
+    if type('oConsultaSqlEnum___') == 'U'
+        Public oConsultaSqlEnum___ := U_ConsultaSqlControllerEnum()
+    endif
+
+Return Self
+
+/*/{Protheus.doc} GwConsultaSqlApi::PostConsulta
+Executa uma instrucao SELECT e devolve o resultado em json.
+@type method
+@version 12.1.2510
+@author Gworks - Giovani
+@since 9/16/2026
+@return logical, Sempre .T. -- ver GwConsultaSqlApi::Enviar.
+@obs Entrada: {"query": "<SELECT ...>"}.
+@obs Saida..: {"hasNext": false, "items": [ {"<COLUNA>": <valor>, ...}, ... ]}.
+@obs Espelhado por U_ConsultaSqlPostConsulta() na Apps.
+/*/
+Method PostConsulta() as logical Class GwConsultaSqlApi
+Return ::Executar( 'Executar', ::LerCorpo() )
+
+/*/{Protheus.doc} GwConsultaSqlApi::Executar
+Resolve o enum, chama o Controller e responde.
+@type method
+@version 12.1.2510
+@author Gworks - Giovani
+@since 9/16/2026
+@param cAcao, character, Nome da acao no enum do Controller.
+@param xParam, variant, Parametros ja extraidos da requisicao.
+@return logical, Sempre .T.
+/*/
+Method Executar( cAcao as character, xParam as variant ) as logical Class GwConsultaSqlApi
+
+    Local jResult := nil as json
+
+    // A mesma guarda do construtor, de novo. Nao e redundancia defensiva a
+    // esmo: se o REST Server chamar o metodo anotado sem passar pelo New(), a
+    // Public do enum nao existe e o Controller estoura no do case -- falha que
+    // so apareceria em producao, no primeiro request.
+    if type('oConsultaSqlEnum___') == 'U'
+        Public oConsultaSqlEnum___ := U_ConsultaSqlControllerEnum()
+    endif
+
+    if xParam == nil
+        return ::Enviar( 400, ::Erro( 400, "Corpo da requisicao ausente ou invalido.", ;
+                                           "Envie um JSON valido no corpo da requisicao." ) )
+    endif
+
+    jResult := U_ConsultaSqlController( oConsultaSqlEnum___:GetEnum(cAcao), xParam )
+
+Return ::Responder( jResult, 200 )
+
+/*/{Protheus.doc} GwConsultaSqlApi::LerCorpo
+Interpreta o corpo da requisicao como json.
+@type method
+@version 12.1.2510
+@author Gworks - Giovani
+@since 9/16/2026
+@return json, Corpo interpretado, ou nil quando nao e json valido.
+@obs "E json valido?" e a UNICA coisa que esta camada pergunta sobre o corpo --
+     isso e forma, e forma e assunto de HTTP. Se a instrucao esta vazia, se e
+     mesmo uma consulta: quem decide e o Service.
+/*/
+Method LerCorpo() as json Class GwConsultaSqlApi
+
+    Local jBody := JsonObject():New() as json
+    Local cBody := "" as character
+
+    cBody := oRest:getBodyRequest()
+
+    if empty(cBody)
+        return nil
+    endif
+
+    if !empty( jBody:fromJson(cBody) )
+        return nil
+    endif
+
+Return jBody
+
+/*/{Protheus.doc} GwConsultaSqlApi::Responder
+Traduz o retorno do Controller em resposta HTTP.
+@type method
+@version 12.1.2510
+@author Gworks - Giovani
+@since 9/16/2026
+@param jResult, json, { ok, data } ou { ok, status, message, detailedMessage }.
+@param nSucesso, numeric, Status a usar quando deu certo.
+@return logical, Sempre .T.
+@obs O Service diz se deu certo pelo PROPRIO RETORNO, e nao por oError_: as
+     Privates do Controller morrem junto com a pilha dele, entao esta camada nao
+     teria como consultar oError_ depois da chamada. Ver U_ConsultaSqlOk.
+/*/
+Method Responder( jResult as json, nSucesso as numeric ) as logical Class GwConsultaSqlApi
+
+    Local nStatus := 500 as numeric
+
+    if valType(jResult) != "J" .or. jResult["ok"] == nil
+        return ::Enviar( 500, ::Erro( 500, "Resposta invalida do processamento.", ;
+                                           "Favor contactar o suporte tecnico." ) )
+    endif
+
+    if jResult["ok"]
+        return ::Enviar( nSucesso, jResult["data"]:toJson() )
+    endif
+
+    nStatus := iif( jResult["status"] == nil, 400, jResult["status"] )
+
+Return ::Enviar( nStatus, ::Erro( nStatus, jResult["message"], jResult["detailedMessage"] ) )
+
+/*/{Protheus.doc} GwConsultaSqlApi::Erro
+Monta o envelope de erro que o PO UI entende.
+@type method
+@version 12.1.2510
+@author Gworks - Giovani
+@since 9/16/2026
+@param nStatus, numeric, Status HTTP.
+@param cMensagem, character, Mensagem principal.
+@param cDetalhe, character, Detalhamento.
+@return character, JSON do erro.
+@obs {code, message, detailedMessage} e exatamente o que o
+     PoHttpRequestInterceptorService transforma em toaster sozinho.
+/*/
+Method Erro( nStatus as numeric, cMensagem as character, cDetalhe as character ) as character Class GwConsultaSqlApi
+
+    Local jErro := JsonObject():New() as json
+
+    Default cMensagem := "Falha no processamento."
+    Default cDetalhe  := ""
+
+    jErro["code"]            := cValToChar(nStatus)
+    jErro["message"]         := cMensagem
+    jErro["detailedMessage"] := cDetalhe
+
+Return jErro:toJson()
+
+/*/{Protheus.doc} GwConsultaSqlApi::Enviar
+Escreve a resposta HTTP.
+@type method
+@version 12.1.2510
+@author Gworks - Giovani
+@since 9/16/2026
+@param nStatus, numeric, Status HTTP.
+@param cCorpo, character, Corpo ja serializado.
+@return logical, SEMPRE .T.
+@obs O .T. nao e descuido nem otimismo: devolver .F. faz o REST Server responder
+     "internal server error" e DESCARTAR o corpo -- inclusive o corpo de erro que
+     acabou de ser montado. O status code e quem diz se deu certo; o retorno do
+     metodo diz apenas que a resposta foi escrita.
+/*/
+Method Enviar( nStatus as numeric, cCorpo as character ) as logical Class GwConsultaSqlApi
+
+    oRest:setKeyHeaderResponse( "Content-Type", "application/json" )
+
+    oRest:setStatusResponse( nStatus, cCorpo )
+
+Return .T.

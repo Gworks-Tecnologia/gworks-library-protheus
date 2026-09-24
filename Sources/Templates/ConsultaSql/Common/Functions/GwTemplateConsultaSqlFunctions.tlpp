@@ -1,0 +1,268 @@
+#include "totvs.ch"
+
+#define CONSULTASQL_CRLF chr(13) + chr(10)
+#define CONSULTASQL_CRLF2 CONSULTASQL_CRLF + CONSULTASQL_CRLF
+
+namespace Gworks.Templates.ConsultaSql.Functions
+
+/*/{Protheus.doc} ConsultaSqlTexto
+Prepara um texto para entrar num JSON.
+@type function
+@version 12.1.2510
+@author Gworks - Giovani
+@since 9/16/2026
+@param xValor, variant, Conteudo a preparar.
+@return character, Texto sem espacos nas pontas, em UTF-8.
+@obs O PROTHEUS E CP1252 E JSON E UTF-8. Mensagem de erro do Protheus vem em
+     portugues, com acento, e o byte do c-cedilha nao e UTF-8 valido -- passar
+     isso direto para um JsonObject faz o toJson() falhar na serializacao, sem
+     dizer qual campo. Em string ASCII o EncodeUTF8 nao altera nada, entao o
+     custo de aplicar sempre e zero.
+/*/
+User Function ConsultaSqlTexto( xValor as variant )
+
+	Local cTexto := "" as character
+
+	if xValor == nil
+		return ""
+	endif
+
+	cTexto := allTrim( cValToChar( xValor ) )
+
+	if empty(cTexto)
+		return ""
+	endif
+
+Return EncodeUTF8(cTexto)
+
+/*/{Protheus.doc} ConsultaSqlOk
+Empacota um retorno de sucesso no contrato interno { ok, data }.
+@type function
+@version 12.1.2510
+@author Gworks - Giovani
+@since 9/16/2026
+@param xData, variant, Conteudo util do retorno.
+@return json, { ok: .T., data: xData }.
+@obs Quem chama o Controller e a porta (Api ou Apps), e as Privates
+     oMessage_/oError_ morrem junto com a pilha dele -- a porta NAO consegue
+     ler oError_:lError depois do retorno. Entao o resultado precisa dizer, ele
+     mesmo, se deu certo.
+/*/
+User Function ConsultaSqlOk( xData as variant )
+
+	Local jResult := JsonObject():New() as json
+
+	Default xData := JsonObject():New()
+
+	jResult["ok"]   := .T.
+	jResult["data"] := xData
+
+Return jResult
+
+/*/{Protheus.doc} ConsultaSqlColecao
+Monta o envelope de colecao que os componentes do PO UI exigem.
+@type function
+@version 12.1.2510
+@author Gworks - Giovani
+@since 9/16/2026
+@param aItens, array, Linhas do resultado.
+@param lHasNext, logical, Se existe pagina seguinte.
+@return json, { hasNext, items }.
+@obs Array puro NAO serve para o po-table: ele renderiza vazio, sem erro no
+     console e sem mensagem nenhuma. Como esta rota devolve resultado de SELECT
+     arbitrario, e provavel que alguem aponte uma tela para ela -- o envelope
+     evita o modo de falha mais caro de diagnosticar que existe ali.
+
+@obs hasNext e sempre .F. e isso e verdade, nao simplificacao: a consulta nao
+     tem paginacao, entao nao existe pagina seguinte. Quem precisar paginar faz
+     no proprio SQL.
+/*/
+User Function ConsultaSqlColecao( aItens as array, lHasNext as logical )
+
+	Local jColecao := JsonObject():New() as json
+
+	Default aItens   := {}
+	Default lHasNext := .F.
+
+	jColecao["hasNext"] := lHasNext
+	jColecao["items"]   := aItens
+
+Return jColecao
+
+/*/{Protheus.doc} ConsultaSqlErro
+Empacota uma falha ESPERADA e a reporta pelo canal padrao do projeto.
+@type function
+@version 12.1.2510
+@author Gworks - Giovani
+@since 9/16/2026
+@param cMensagem, character, O que deu errado, em linguagem de usuario.
+@param cSugestao, character, O que a pessoa pode fazer a respeito.
+@param cDetalhe, character, Texto longo (SQL, pilha de erro).
+@param nStatus, numeric, Status HTTP sugerido a porta. Default 400.
+@return json, { ok: .F., status, message, detailedMessage }.
+@obs Faz as DUAS coisas de proposito: alimenta oMessage_ (que a Apps exibe na
+     IDE e o log registra) e devolve o envelope que a Api transforma em corpo
+     de erro. Assim a mesma falha aparece igual pelas duas portas.
+/*/
+User Function ConsultaSqlErro( cMensagem as character, cSugestao as character, cDetalhe as character, nStatus as numeric )
+
+	Local jResult := JsonObject():New() as json
+
+	Default cMensagem := "Falha no processamento."
+	Default cSugestao := "Revise a instrucao informada e tente novamente."
+	Default cDetalhe  := ""
+	Default nStatus   := 400
+
+	jResult["ok"]             := .F.
+	jResult["status"]         := nStatus
+	jResult["message"]        := U_ConsultaSqlTexto( cMensagem )
+	jResult["detailedMessage"]:= U_ConsultaSqlTexto( cDetalhe )
+
+	// oMessage_ nasce no Controller. Chamada fora daquela pilha (um teste
+	// solto) nao deve estourar por causa do relato.
+	//
+	// COM lVarInfo_ LIGADO O DIALOGO NAO ABRE. Nao e para esconder o erro -- ao
+	// contrario: nesse modo o Controller ja exibe o JSON inteiro no fim, e o
+	// JSON carrega message E detailedMessage, que e mais do que este Help
+	// mostra. Abrir os dois faz o primeiro, modal, bloquear a tela ANTES do
+	// segundo, e quem esta inspecionando fica justamente sem o detalhe.
+	if type("oMessage_") == "O" .and. !( type("lVarInfo_") == "L" .and. lVarInfo_ )
+
+		oMessage_:SetProperty( "error_state", .T. )
+		oMessage_:SetProperty( "error_message", cMensagem )
+		oMessage_:SetProperty( "error_suggestion", cSugestao )
+		oMessage_:SetProperty( "error_title", "Consulta SQL" )
+		oMessage_:SetProperty( "error_style", "HELP" )
+		oMessage_:SetProperty( "error_details", cDetalhe )
+		oMessage_:SetProperty( "log_state", "ERROR" )
+		oMessage_:Display()
+
+	endif
+
+Return jResult
+
+/*/{Protheus.doc} ConsultaSqlFalhaInesperada
+Trata o catch do Service -- a rede de seguranca, nao o erro previsto.
+@type function
+@version 12.1.2510
+@author Gworks - Giovani
+@since 9/16/2026
+@param oErro, object, Objeto de erro capturado pelo catch.
+@return json, Envelope de erro com status 500.
+@obs Checa antes se a falha JA foi reportada: falha esperada e relatada pelo
+     proprio codigo via [ConsultaSqlErro], e reportar de novo aqui faria o
+     usuario ver a mesma coisa duas vezes.
+/*/
+User Function ConsultaSqlFalhaInesperada( oErro as object )
+
+	Local cDetalhe := "" as character
+
+	cDetalhe := "Erro: " + oErro:description + CONSULTASQL_CRLF2 + ;
+	            "Stack: " + oErro:errorStack
+
+	if type("oMessage_") == "O" .and. oMessage_:GetObject("error"):lError
+		return U_ConsultaSqlErro( "Falha no processamento.", "Favor contactar o suporte tecnico.", cDetalhe, 500 )
+	endif
+
+Return U_ConsultaSqlErro( "Falha inesperada!", "Favor contactar o suporte tecnico.", cDetalhe, 500 )
+
+/*/{Protheus.doc} ConsultaSqlParamTexto
+Extrai um parametro de texto, venha ele como json ou cru.
+@type function
+@version 12.1.2510
+@author Gworks - Giovani
+@since 9/16/2026
+@param xParam, variant, Parametros da chamada.
+@param cNome, character, Nome da chave a procurar.
+@return character, Conteudo, ou "" quando ausente.
+@obs Existe porque as duas portas entregam formatos diferentes: a Api monta um
+     json com o corpo da requisicao; a Apps, chamada pela IDE, costuma receber
+     o valor cru. Sem este ponto unico, o Service repetiria o mesmo "se e json
+     pega assim, senao assado".
+/*/
+User Function ConsultaSqlParamTexto( xParam as variant, cNome as character )
+
+	Default cNome := ""
+
+	if valType(xParam) == "J" .and. xParam[cNome] != nil
+		return allTrim( cValToChar( xParam[cNome] ) )
+	endif
+
+	// Chamada direta pela IDE passando so o valor.
+	if valType(xParam) == "C"
+		return allTrim(xParam)
+	endif
+
+Return ""
+
+/*/{Protheus.doc} ConsultaSqlTempFile
+Caminho completo de um arquivo no diretorio temporario do CLIENT.
+@type function
+@version 12.1.2510
+@author Gworks - Giovani
+@since 9/24/2026
+@param cNome, character, Nome do arquivo, sem diretorio.
+@return character, Caminho pronto para MemoRead/MemoWrite.
+@sample
+    // Linux:   l:/tmp/consultasql.sql
+    // Windows: C:\Users\fulano\AppData\Local\Temp\consultasql.sql
+    cArquivo := U_ConsultaSqlTempFile( "consultasql.sql" )
+
+@obs Ponto UNICO onde o caminho da temp e calculado. A consulta (lida pelo
+     Service) e o retorno (gravado pelo Controller) moram no mesmo diretorio, e
+     quem grava/le do outro lado (Scripts/pth-query.*) usa o temp do proprio
+     sistema. Se cada ponto montasse o caminho a sua maneira, bastava um
+     divergir para o arquivo nascer num disco e ser procurado em outro.
+
+@obs O SISTEMA OPERACIONAL VEM DO PROPRIO GetTempPath(), NAO DE UMA CHAMADA A
+     PARTE. Ele devolve o caminho no formato da maquina do CLIENT: "/tmp/" no
+     Linux, "C:\...\Temp\" no Windows. Comecou com "/" e Unix; senao e Windows.
+     Perguntar o SO por outra funcao (GetRemoteType) criaria uma segunda fonte
+     de verdade, que pode discordar da primeira -- e o caminho do GetTempPath()
+     ja foi confirmado ao vivo, pelo webapp (ver Scripts/pth-query.sh).
+
+@obs O PREFIXO "l:" ESCOLHE A MAQUINA, NAO A SINTAXE DO CAMINHO. Na
+     nomenclatura do TDN:
+       - caminho ABSOLUTO -- "l:/tmp/x" (linux) ou "c:\tmp\x" (windows): o
+         disco do CLIENT, a maquina que fez a chamada;
+       - caminho RELATIVO -- "/tmp/x", sem prefixo: o disco do SERVER, e
+         relativo ao Protheus_Data dele.
+     O GetTempPath() devolve "/tmp/", certo para o sistema operacional e ERRADO
+     para o que se quer aqui: sem o prefixo o arquivo iria parar dentro do
+     Protheus_Data do servidor, fora do alcance de quem chamou, e a leitura
+     devolveria vazio SEM erro. No Windows o caminho ja e absoluto: sem prefixo.
+
+@obs Pensada para chamada COM cliente (menu, webapp). Em execucao sem
+     interface (REST, job) nao ha disco de cliente para o "l:" apontar.
+/*/
+User Function ConsultaSqlTempFile( cNome as character ) as character
+
+	Local cPath := "" as character
+	Local cSep  := "\" as character
+
+	Default cNome := ""
+
+	cPath := allTrim( GetTempPath() )
+
+	do case
+
+		// Ja veio com o prefixo (alguma build): so falta o separador certo. O
+		// terceiro caractere distingue do drive L: do Windows ("L:\temp").
+		case lower( left(cPath, 3) ) == "l:/"
+			cSep := "/"
+
+		// Cliente Unix: prefixo + separador "/".
+		case left(cPath, 1) == "/"
+			cSep  := "/"
+			cPath := "l:" + cPath
+
+	endcase
+
+	// Separador no fim: nem toda build devolve. Concatenar sem conferir gera
+	// "...tmpconsultasql.json", um arquivo que nasce no diretorio de cima e
+	// some da vista.
+	if !empty(cPath) .and. !( right(cPath, 1) $ "/\" )
+		cPath += cSep
+	endif
+
+Return cPath + cNome

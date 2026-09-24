@@ -1,0 +1,213 @@
+#include "totvs.ch"
+
+// Sentinela que substitui a instrucao na URL. Ver o @obs da rotina.
+#define CONSULTASQL_SENTINELA "RUNQUERY"
+
+// Nome do arquivo onde quem chama grava a instrucao (diretorio: ver
+// U_ConsultaSqlTempFile). Scripts/pth-query.* grava com este mesmo nome.
+#define CONSULTASQL_ARQ_CONSULTA "consultasql.sql"
+
+// U_GwApiQuery vive neste namespace. User Function dentro de namespace E global,
+// mas o AppServer tem uma limitacao: sem o using, a PRIMEIRA chamada pelo nome
+// U_ nao e despachada. A chamada COMPILA e so quebra em runtime, com
+// "InterFunctionCall: cannot find function U_GWAPIQUERY in AppMap"; as chamadas
+// seguintes funcionam. O mesmo vale para um job declarado sob namespace.
+using namespace Gworks.Library.Classes
+using namespace Gworks.Templates.ConsultaSql.Functions
+
+namespace Gworks.Templates.ConsultaSql.Services
+
+/*/{Protheus.doc} ConsultaSqlExecutarService
+Executa uma instrucao SELECT e devolve o resultado em json.
+@type function
+@version 12.1.2510
+@author Gworks - Giovani
+@since 9/16/2026
+@param xParam, variant, { query } ou a propria instrucao como texto.
+@return json, { ok, data: { hasNext, items } }.
+
+@obs Nao consulta tabela nem monta SQL: o trabalho e da U_GwApiQuery
+     (Gworks/Library/Classes/ApiQuery), que ja resolve ambiente, executa e
+     formata o resultado por tipo de coluna. O que ESTE Service acrescenta e o
+     que a biblioteca nao tem como saber: a validacao de entrada, a recusa do
+     que nao e consulta, e o envelope { ok, data } que as duas portas esperam.
+
+@obs A U_GwApiQuery roda nos dois modos. Aqui ela e sempre chamada no modo
+     DIRETO (com o SQL por parametro), nunca pelo oRest -- mesmo quando a
+     chamada chegou pela Api. Quem falou HTTP foi a porta; daqui para baixo
+     ninguem sabe que HTTP existe, e e isso que permite exercitar a mesma regra
+     pela Apps, sem subir REST.
+
+@obs SO ACEITA CONSULTA, e isso e mais restrito do que a rota /gwquery/query
+     que ja existe. Ali o comando vai para o TCQUERY e o banco decide; aqui a
+     porta e nova, e abrir uma porta HTTP que executa SQL arbitrario e coisa que
+     se faz de proposito, nunca por omissao. Para escrita existe a U_GWQUPD, que
+     mereceria acao propria no enum -- com a decisao de expo-la tomada a parte.
+
+@obs SENTINELA "RUNQUERY": o SQL vem de ARQUIVO, nao do parametro. Mandar a
+     instrucao pela querystring do webapp nao se sustenta -- aspas, virgula,
+     sinal de igual e espaco precisam de encode, a URL tem limite de tamanho, e
+     a consulta acaba no log de acesso do servidor e de qualquer proxy no
+     caminho. Com a sentinela a URL carrega uma palavra so e o SQL viaja por
+     fora, sem escape nenhum: quem chama grava o arquivo antes, em
+     [cQueryPath], e passa apenas "RUNQUERY".
+
+     O arquivo e lido no disco do CLIENT (a maquina de quem chamou), no
+     diretorio temporario dela -- ver U_ConsultaSqlTempFile. Quem grava e quem
+     chama estao na mesma maquina, entao nao importa se o appserver e remoto.
+/*/
+User Function ConsultaSqlExecutarService( xParam as variant )
+
+	Local jAreas  := JsonObject():New() as json
+	Local jResult := nil as json
+	Local jDados  := nil as json
+
+	Local cSql    := "" as character
+	Local cInicio := "" as character
+	Local cErroLe := "" as character
+	Local lOk     := .F. as logical
+
+	Local cQueryPath := "" as character
+
+	jAreas["active"] := GetArea()
+
+	try
+
+		cSql := U_ConsultaSqlParamTexto( xParam, "query" )
+
+		// Onde a instrucao seria lida se veio a sentinela. Calculado a cada
+		// chamada (o temp e do cliente que chamou), e nao fixo no fonte.
+		cQueryPath := U_ConsultaSqlTempFile( CONSULTASQL_ARQ_CONSULTA )
+
+		// Sentinela: o parametro nao e a instrucao, e o aviso de que ela esta
+		// no arquivo. Comparacao em upper para a URL poder vir em qualquer caixa.
+		if upper(cSql) == CONSULTASQL_SENTINELA
+			cSql := fLerQuery( cQueryPath, @cErroLe )
+		endif
+
+		if !empty(cErroLe)
+
+			jResult := U_ConsultaSqlErro( ;
+				"Nao foi possivel ler a consulta do arquivo.", ;
+				"Grave a instrucao em " + cQueryPath + " antes de chamar com " + CONSULTASQL_SENTINELA + ".", ;
+				cErroLe, 400 )
+
+		elseif empty(cSql)
+
+			jResult := U_ConsultaSqlErro( ;
+				"Informe a instrucao SQL a executar.", ;
+				"Passe a instrucao no parametro 'query', ou grave-a em " + cQueryPath + " e chame com " + CONSULTASQL_SENTINELA + ".", ;
+				"", 400 )
+
+		else
+
+			// Primeira palavra, e nao "contem SELECT": a segunda deixaria passar
+			// qualquer comando que mencione a palavra em algum lugar.
+			cInicio := upper( allTrim(cSql) )
+
+			if !( left(cInicio, 7) == "SELECT " .or. left(cInicio, 5) == "WITH " )
+
+				jResult := U_ConsultaSqlErro( ;
+					"Esta rota executa apenas consulta.", ;
+					"A instrucao precisa comecar com SELECT ou WITH.", ;
+					"Instrucao recebida: " + left(cSql, 200), 400 )
+
+			else
+
+				lOk := U_GwApiQuery( cSql, @jDados )
+
+				if !lOk
+
+					// A U_GwApiQuery devolve o motivo em jDados["msg"] -- o
+					// logico sozinho nao carrega. Sem repassar, o usuario
+					// receberia "falha" sem saber o que o banco reclamou.
+					jResult := U_ConsultaSqlErro( ;
+						"Nao foi possivel executar a consulta.", ;
+						"Revise a instrucao informada.", ;
+						fMotivo(jDados), 400 )
+
+				elseif valType(jDados) != "J" .or. valType(jDados["data"]) != "A"
+
+					// Sucesso sem array de dados nao deveria acontecer. Se
+					// acontecer, e melhor dizer isso do que devolver colecao
+					// vazia, que a tela leria como "consulta sem resultado".
+					jResult := U_ConsultaSqlErro( ;
+						"Resposta invalida da consulta.", ;
+						"Favor contactar o suporte tecnico.", ;
+						"U_GwApiQuery retornou sucesso sem o array 'data'.", 500 )
+
+				else
+
+					jResult := U_ConsultaSqlOk( U_ConsultaSqlColecao( jDados["data"], .F. ) )
+
+				endif
+
+			endif
+
+		endif
+
+	catch _varError
+
+		jResult := U_ConsultaSqlFalhaInesperada( _varError )
+
+	endtry
+
+	RestArea( jAreas["active"] )
+
+Return jResult
+
+/*/{Protheus.doc} fLerQuery
+Le a instrucao SQL de um arquivo no disco do CLIENT (temp de quem chamou).
+@type function
+@version 12.1.2510
+@author Gworks - Giovani
+@since 9/17/2026
+@param cPath, character, Caminho COMPLETO, como devolvido por U_ConsultaSqlTempFile.
+@param cErro, character, Recebe por referencia o motivo de nao ter lido.
+@return character, A instrucao lida, ou "" quando nao deu.
+
+@obs O caminho chega pronto -- com o prefixo "l:" no Linux e o separador certo
+     em cada sistema. Quem monta e a U_ConsultaSqlTempFile, e la esta o porque
+     do prefixo; repetir a regra aqui foi o que a deixou duplicada e fixa em
+     "/tmp/". Sem o prefixo a leitura iria procurar dentro do Protheus_Data do
+     servidor e devolveria vazio SEM erro.
+
+@obs Nao distingue "inexistente" de "vazio" de proposito. A checagem com File()
+     exigiria confiar que ELA tambem entende o prefixo "l:", e uma funcao a mais
+     para dar errado num caminho que ja e de diagnostico. Para quem depura, as
+     duas causas levam a mesma acao: conferir se o arquivo foi gravado, e onde.
+/*/
+Static Function fLerQuery( cPath as character, cErro as character )
+
+	Local cConteudo := "" as character
+
+	cErro := ""
+
+	cConteudo := allTrim( MemoRead( allTrim(cPath) ) )
+
+	if empty(cConteudo)
+		cErro := "Arquivo vazio ou inexistente: " + allTrim(cPath)
+		return ""
+	endif
+
+Return cConteudo
+
+/*/{Protheus.doc} fMotivo
+Extrai a mensagem de falha devolvida pela U_GwApiQuery.
+@type function
+@version 12.1.2510
+@author Gworks - Giovani
+@since 9/16/2026
+@param jDados, json, Resultado recebido por referencia da U_GwApiQuery.
+@return character, Motivo, ou texto generico quando nao veio.
+@obs Isolada porque o acesso direto a jDados["msg"] estoura quando jDados nao e
+     json -- e o caminho de erro e justamente onde nao da para confiar na forma
+     do que chegou.
+/*/
+Static Function fMotivo( jDados as json )
+
+	if valType(jDados) == "J" .and. jDados["msg"] != nil
+		return allTrim( cValToChar( jDados["msg"] ) )
+	endif
+
+Return "A consulta falhou sem devolver motivo."

@@ -1,0 +1,27 @@
+#include "totvs.ch"
+
+using namespace Gworks.Library.Classes
+
+namespace Gworks.Templates.ConsultaSql.Enums
+
+/*/{Protheus.doc} ConsultaSqlControllerEnum
+Tabela de roteamento do Controller: um item por acao do projeto.
+@type function
+@version 12.1.2510
+@author Gworks - Giovani
+@since 9/16/2026
+@return object, Enum com as acoes disponiveis.
+@obs Uma acao so, por enquanto. O enum existe mesmo assim porque e ele que o
+     Controller consulta no do case -- e porque acrescentar a segunda acao
+     (execucao de INSERT/UPDATE/DELETE, via U_GWQUPD) passa a ser uma linha
+     aqui e um case la, em vez de uma refatoracao.
+/*/
+User Function ConsultaSqlControllerEnum()
+
+	Local oEnum as object
+
+	oEnum := GwEnum():New()
+
+	oEnum:SetEnum( "Executar", "Executa uma instrucao SELECT e devolve o resultado em json." )
+
+Return oEnum

@@ -1,22 +1,27 @@
 ---
 name: advpl-tlpp-compile
-description: "Compile AdvPL/TLPP sources (.prw, .prg, .prx, .tlpp, .ppx, .ppp, .apw, .aph, .apl, .ahu and resources) inside VS Code using the TOTVS Developer Studio (tds-vscode) extension and the servers.json connection registry. Orchestrates the full flow: verifies the TOTVS.tds-vscode extension is installed (installs it if missing), validates/creates the server configuration in servers.json, asks the user which server to use when more than one is registered, drives the connect/authenticate step (password typed by the user — never seen by the agent), runs the build/rebuild command, and reports the compilation result. Use when user says 'compile', 'recompile', 'build source', 'compilar fonte', 'compilar prw/tlpp', 'send to RPO', 'compile in appserver', or after generating/migrating/refactoring AdvPL/TLPP code."
+description: "Compile AdvPL/TLPP sources (.prw, .prg, .prx, .tlpp, .ppx, .ppp, .apw, .aph, .apl, .ahu and resources) by one of two routes: (A) inside VS Code with the TOTVS Developer Studio (tds-vscode) extension and the servers.json connection registry, or (B) from a shell with Scripts/pth-compile.sh / pth-compile.ps1 (advpls cli), driven by Scripts/pth-settings.json — no VS Code and no keypress, including compiling into the REST / workflow / job environments or into all configured environments at once (-a). Route A orchestrates the full flow: verifies the TOTVS.tds-vscode extension is installed (installs it if missing), validates/creates the server configuration in servers.json, asks the user which server to use when more than one is registered, drives the connect/authenticate step (password typed by the user — never seen by the agent), runs the build/rebuild command, and reports the compilation result. Use when user says 'compile', 'recompile', 'build source', 'compilar fonte', 'compilar prw/tlpp', 'send to RPO', 'compile in appserver', 'compilar pelo terminal', 'compilar sem VS Code', 'compilar no ambiente rest', 'compilar em todos os ambientes', 'pth-compile', or after generating/migrating/refactoring AdvPL/TLPP code."
 license: MIT
 metadata:
   domain: Protheus
   maintainer: Engenharia Protheus - Dados & DevOps
   author: Kael Thornwick
-  version: '1.0.0'
+  version: '1.1.0'
   category: Build and Compilation
 ---
 
-# AdvPL/TLPP Compile (tds-vscode)
+# AdvPL/TLPP Compile (tds-vscode or command line)
 
 ## Overview
 
-Compile AdvPL and TLPP source files from inside VS Code using the **TOTVS Developer Studio for VSCode** extension (`TOTVS.tds-vscode`). Compilation in the Protheus ecosystem requires a connected and authenticated AppServer: the extension reads its connection registry from `servers.json`, sends the source to the server's RPO (Repository of Programs/Objects), and returns the compilation result.
+Compile AdvPL and TLPP source files against a Protheus AppServer. Compilation in the Protheus ecosystem requires a connected and authenticated AppServer that receives the source into its RPO (Repository of Programs/Objects) and returns the compilation result. There are two ways to get there:
 
-This skill orchestrates the complete path so a single "compile" request works end-to-end even on a fresh machine:
+| Route | How | Needs a human? | Use when |
+| --- | --- | --- | --- |
+| **A — VS Code** | The **TOTVS Developer Studio for VSCode** extension (`TOTVS.tds-vscode`), reading its connection registry from `servers.json` | Yes: the user types the password in the connection prompt | No CLI scripts, the settings file is not filled, or the user asks for VS Code |
+| **B — Command line** | `Scripts/pth-compile.sh` (`.ps1` on Windows) drives `advpls cli` with the server, environments and credentials from `Scripts/pth-settings.json` | No — the credential was put in the file beforehand | The scripts exist and the configuration is filled (**preferred for an agent**: closes the *edit → compile → read the error* loop alone) |
+
+See **Route selection** below. Route A, step by step — this skill orchestrates the complete path so a single "compile" request works end-to-end even on a fresh machine:
 
 1. Ensure the extension is installed (install it if missing).
 2. Ensure a server is configured in `servers.json` (configure it with the user if missing).
@@ -34,26 +39,29 @@ Use this skill when:
 - A code-generation, migration, or refactoring skill just produced/changed `.prw`, `.prg`, `.prx`, `.tlpp`, `.ppx`, `.ppp`, `.apw`, `.aph`, `.apl`, or `.ahu` files that must be sent to the AppServer.
 - The user wants to validate that a source compiles cleanly against a server.
 - The tds-vscode extension is not yet installed or configured and the user wants to start compiling.
+- The user wants to compile **without VS Code**, into the **REST / workflow / job** environment, or into **every configured environment at once** (Route B).
 
 **Do NOT use when:**
 
 - The user only wants static analysis / linting without sending to the RPO.
 - The target language is not AdvPL/TLPP/4GL.
-- The user explicitly wants a command-line (`tds-cli` / `advpls`) build outside VS Code.
 
 ---
 
 ## CRITICAL — Agent Execution Rules
 
-> **These rules are MANDATORY.**
+> **These rules are MANDATORY.** Rules 2–3 concern Route A, rules 8–10 concern Route B; rules 1 and 4–7 apply to both.
 
-1. **NEVER ask for, read, store, echo, or write the AppServer password.** Authentication is interactive: the user types the password directly in the VS Code connection prompt. If a step needs the password, instruct the user to type it in the prompt and wait — do not collect it with any tool.
+1. **NEVER ask for, read, store, echo, or write the AppServer password.** Route A: authentication is interactive — the user types the password directly in the VS Code connection prompt; if a step needs it, instruct the user to type it in the prompt and wait — do not collect it with any tool. Route B: the password lives in `Scripts/pth-settings.json`, which the **user** fills in outside the chat; the agent never opens that file (rule 8).
 2. **ALWAYS use the extension UI to register and connect servers.** Never edit `servers.json` by hand. Server registration goes through the *Add Server* assistant and connection goes through the connection prompt, so the extension validates the data and fills generated fields (`id`, `buildVersion`, `secure`, `token`) itself.
 3. **NEVER write `token`, `savedTokens`, or `authorizationtoken` values into `servers.json`.** Those are generated by the extension after a successful connection. The agent does not write to `servers.json` at all — it only reads it to detect existing servers.
 4. **Ensure the source is CP1252 before compiling.** The Protheus compiler only accepts Windows-1252 files. If the file was created/edited by an AI agent (UTF-8), run the `utf8-to-cp1252-conversion` skill first, otherwise compilation fails with garbled characters.
 5. **Always confirm the target server with the user when more than one is registered.** Never guess.
 6. **When this skill runs as a follow-up to code generation/migration/refactoring, ASK the user whether they want to compile before starting.** Do not auto-compile silently after another skill produced code.
 7. **Read the result before declaring success.** A command running without error is NOT proof of a successful compile — check the compilation output/Problems for errors and warnings.
+8. **(Route B) NEVER open, `cat`, read or grep `Scripts/pth-settings.json`** (or any file named by `PTH_SETTINGS`): it holds the password in plain text. To see the configuration run `Scripts/pth-compile.sh -h`, whose summary shows server and environments and never the password. Never pass credentials on a command line, and never fill the file in for the user.
+9. **(Route B) Confirm the target before compiling.** One settings file = one server, and there is no `-s prd` safeguard any more: read the `-h` summary, and if the server or environment looks like production — or you cannot tell — ask the user first. Say in the report which server and environment(s) were used.
+10. **(Route B) Do not add your own retry loops or run compiles in parallel.** The script already waits 30 s and retries up to 3 times on a locked RPO (`COMPILEERROR-300`). Always pass an explicit path: the script's default target (`Sources/AdvPL/…`) does not exist in this repository.
 
 ---
 
@@ -64,10 +72,25 @@ This skill uses progressive disclosure. Read the reference on demand:
 | Reference File | When to Read | Content |
 | --- | --- | --- |
 | [references/tds-vscode-reference.md](references/tds-vscode-reference.md) | Whenever you need an exact command ID, the `servers.json` schema/location per OS, the list of compilable extensions, or troubleshooting guidance | Full command-ID table, `servers.json` schema and example, OS-specific file paths, supported extensions, common compile errors and fixes |
+| [references/pth-cli-reference.md](references/pth-cli-reference.md) | Route B: whenever you need the `pth-settings.json` schema, the flags/roles/exit codes of `pth-compile`, the environment-equals-RPO trap, the Windows status, or troubleshooting | How `advpls cli` works, `.ini` requirements, settings validation, `-e` roles and `-a`, exit codes, RPO lock and pacing, namespace/AppMap trap, Windows notes, troubleshooting table |
 
 ---
 
-## Procedure
+## Route selection
+
+Decide before anything else.
+
+| Situation | Route |
+| --- | --- |
+| `Scripts/pth-compile.sh` exists (`Scripts/pth-compile.ps1` on Windows) **and** `Scripts/pth-compile.sh -h` shows a filled configuration (a real `servidor`, a non-empty `env_default`) | **B** |
+| The scripts exist but the summary shows `0.0.0.0:0` / empty `env_default` | Ask the user to copy `Scripts/pth-settings.example.json` to `Scripts/pth-settings.json` and fill it — or use **A** if they prefer. Do not fill it yourself and do not read it |
+| No CLI scripts, or the user asks for VS Code / the IDE | **A** |
+
+Both routes share: confirm intent when chained (Step 0), CP1252 (Step 6), read the result before declaring success.
+
+---
+
+## Procedure — Route A (VS Code)
 
 Follow these steps in order. Skip a step only when its precondition is already satisfied.
 
@@ -175,7 +198,59 @@ After the command finishes:
 
 ---
 
+## Procedure — Route B (command line, no VS Code)
+
+Flags, exit codes, the settings schema and troubleshooting: [references/pth-cli-reference.md](references/pth-cli-reference.md). The agent can run this route by itself — nobody presses a key — because the credential comes from a file the user filled in beforehand.
+
+### B0 — Confirm intent when chained
+
+Same as Step 0: right after another skill generated or changed code, ask before compiling.
+
+### B1 — Check the configuration (never open the JSON)
+
+```bash
+Scripts/pth-compile.sh -h | sed -n '/^Configuracao/,/^Exemplos/p'      # Windows: .\Scripts\pth-compile.ps1 -h
+```
+
+It shows the server, `env_default` and the optional `env_rest` / `env_workflow` / `env_job` — never the password. `0.0.0.0:0` or an empty `env_default` means the user has not filled `Scripts/pth-settings.json` (a copy of `pth-settings.example.json`): ask them to, or fall back to Route A. **Never read the file and never fill it in for them.** If the summary points to a server or environment that looks like production, or you cannot tell, **ask before compiling** (rule 9).
+
+### B2 — Ensure CP1252
+
+Same as Step 6: sources generated or edited by an agent are UTF-8 and must be converted with `utf8-to-cp1252-conversion` first.
+
+### B3 — Choose path and environment
+
+- **Path:** the narrowest that covers the change, always explicit (folder = recursive). Never rely on the default target.
+- **Environment:** none = `env_default`. To test a REST route compile with `-e rest`; also `-e workflow`, `-e job`, or a name listed in `environments`. `-e` can repeat. `-a` compiles into **every configured** `env_*`, without repeating equal ones, and does not combine with `-e`.
+- **Each environment has its own RPO** — compiling into one does not publish to another. If a route answers with old code after a "successful" compile, suspect the wrong environment first (see the reference).
+
+### B4 — Run
+
+```bash
+Scripts/pth-compile.sh Sources/Templates/ConsultaSql                 # env_default
+Scripts/pth-compile.sh -e rest Sources/Templates/ConsultaSql/Api     # the environment the REST Server serves
+Scripts/pth-compile.sh -a -r Sources/Templates/ConsultaSql           # recompile in every configured environment
+```
+
+A locked RPO makes the script wait 30 s and retry up to 3 times on its own; do not add loops and do not run two compiles at once.
+
+### B5 — Read the result
+
+- The exit code is `0` only when **every** environment compiled; with several environments the output ends with a `=== resumo ===` per environment, and the exit code is the first failure's. All environments run even if one fails.
+- Compile errors come on stdout with file and line: fix and repeat.
+- `COMPILEERROR-300 Failed to open repository` after the retries → another session or the REST service holds the RPO. Tell the user; do not loop. (A compile that *succeeded* into the REST environment needs no restart: the REST service serves the new code by itself within up to 120 s — wait and retry the route instead of asking for a restart.)
+- A compile proves syntax and that every referenced symbol exists in the RPO — **not** that it works. Behavior, SQL column names inside strings, and a missing `using namespace` (compiles, then the first call fails at runtime with `cannot find function U_X in AppMap` — an AppServer limitation; call again to tell) only show when it runs: use `advpl-tlpp-exec-sql-query` to look at real data.
+- Report: server, environment(s), what compiled, failures with their messages.
+
+### B6 — Windows
+
+Use `Scripts/pth-compile.ps1` (same flags, same settings file). **It has never been run on Windows.** The top of the file carries a status block and a validation script: while that block is there, tell the user to run it and ask for the output — do not claim the script works.
+
+---
+
 ## Decision Flow
+
+This diagram is **Route A**. Route B is B0–B5 above; the route is chosen in **Route selection**.
 
 ```mermaid
 flowchart TD
@@ -212,3 +287,10 @@ flowchart TD
 - **Declaring success without reading the result.** Always verify the console/Problems output.
 - **Compiling UTF-8 files.** Convert to CP1252 first.
 - **Guessing the server when several exist.** Always confirm with the user.
+- **(Route B) Reading `Scripts/pth-settings.json`** to "check the configuration" — it has the password. Use `pth-compile.sh -h`.
+- **(Route B) Filling `pth-settings.json` for the user, or asking for the password in chat.** The user fills the file outside the conversation.
+- **(Route B) Compiling into the wrong environment and concluding the fix did not work.** Each environment has its own RPO; check which one the failing thing runs in (`env_default` for the WebApp, `env_rest` for REST) before touching the code again.
+- **(Route B) Relying on the default target.** `Sources/AdvPL/Global` / `Projects` do not exist in this repository; always pass a path.
+- **(Route B) Wrapping the script in a retry loop.** It already retries a locked RPO 3× with 30 s between; more loops only prolong the lock.
+- **(Route B) Treating exit code `0` as "it works".** It means it compiled — see B5.
+- **(Route B) Claiming the `.ps1` scripts work.** They have never run on Windows; send the user through the validation script at the top of the file.

@@ -1,6 +1,6 @@
 # Gworks Functions Reference
 
-All standalone functions live inside `namespace Gworks.Library.Functions` and are called externally with the `U_` prefix (e.g. `U_GwPosicione(...)`), or fully-qualified as `Gworks.Library.Functions.U_GwPosicione(...)` from inside code that already `using namespace`s something else. Source: `gworks-library-protheus/Sources/Library/Functions/`.
+All standalone functions live inside `namespace Gworks.Library.Functions` and are called with the `U_` prefix (e.g. `U_GwPosicione(...)`) **after `using namespace Gworks.Library.Functions`**, or fully-qualified as `Gworks.Library.Functions.U_GwPosicione(...)` without it. They are global functions, but the AppServer currently fails the **first** call made by the bare `U_` name from code without the `using` — it compiles and fails at runtime with `cannot find function U_X in AppMap` (see *Namespaced `User Function` Calls* in `patterns.md`). Source: `gworks-library-protheus/Sources/Library/Functions/`.
 
 ## Database
 
@@ -158,6 +158,34 @@ For a deserialized XML object, returns `1` if `cNode` is a single object, or `Le
 
 ### `U_GwGetXmlNodeObject( oObj, cNode, nPos ) as object`
 Companion to the above: returns the object itself, or `array[nPos]` (default `1`) when the node is an array.
+
+## ApiQuery (`Gworks.Library.Classes` namespace — file `Library/Classes/ApiQuery/GwLibraryApiQuery.tlpp`)
+
+Functions that sit under `Classes/` and use the `Gworks.Library.Classes` namespace, **not** `Gworks.Library.Functions`. A caller from another namespace should `using namespace Gworks.Library.Classes` — without it the first call by the bare `U_` name can fail at runtime with `cannot find function U_X in AppMap`, an AppServer limitation (see the *Namespaced `User Function`* pattern in `patterns.md`). Version 1.1 of the file; it must be the version compiled in the RPO for the direct mode below to exist.
+
+### `U_GwApiQuery( cQuery as character, @jResult as json ) as logical`
+Generic SQL query that runs by **two paths, decided by the parameters**: with **no parameters** it is the REST route `@post('/gwquery/query')` (SQL from the body `{"query":"<SQL>"}`, answer through `oRest` — the route the HTML reports consume); with **`cQuery` filled** it is a **direct call** from any routine, with no REST server involved and the result returned in `jResult` (by reference). In both modes `jResult` receives `{"data":[{"<COLUMN>": value, …}, …]}` on success or `{"erro":true,"msg":"…"}` on failure; the return is `.T.` on success, `.F.` on failure (HTTP 400 in REST mode). Columns come back in UPPERCASE, one JSON object per row.
+- `oRest` only exists inside a REST request; the direct mode never touches it. Do not read `oRest` in code that can be called directly.
+- Outside a prepared environment (`Type("cEmpAnt") <> "C"`) it opens company/branch `01`/`0101` with `RpcSetEnv` and closes it at the end; called from a routine that already has an environment, it does not reopen.
+- It only transforms a statement into JSON: any read-only rule belongs to the caller (ConsultaSql's Service enforces `SELECT`/`WITH`).
+```advpl
+using namespace Gworks.Library.Classes
+Local jResult as json
+Local lOk     as logical
+
+lOk := U_GwApiQuery( "SELECT A1_COD, A1_NOME FROM SA1010 WHERE D_E_L_E_T_ = ' '", @jResult )
+if lOk
+    // jResult["data"] -> array of rows
+else
+    ConOut( jResult["msg"] )
+endif
+```
+
+### `U_GWQUPD( cQuery as character, @jResult as json ) as logical`
+The write counterpart (`@post('/gwquery/upd')`, declared in the file as `Function U_GWQUPD`), dual-mode the same way. Sends the statement straight to the database via `TcSqlExec`. **`.T.` does not mean it was written**: a database error still takes the "success" path (the REST contract is HTTP 200 with `"erro": true`), so **check `jResult["erro"]`, not the return value**. It bypasses `LogExec`, triggers and dictionary integrity. Never expose it casually — it is not part of the read-only ConsultaSql route.
+
+### `U_GWQTOJSON( cSql as character ) as json`
+The core both routes share: runs `cSql` through `TCQUERY` and returns `{"data":[…]}` with no environment or error handling of its own (that is the caller's). Per column: a **date** (detected through the dictionary — `TamSX3(<column>)` type `D`, so only columns whose name exists in the SX3) becomes a `dd/mm/yyyy` string; **numeric** is passed as-is; **character** is `AllTrim`med; columns of any other type are dropped. Calculated or aliased columns outside the dictionary fall to the numeric/character rule, so a date selected under an alias is not converted. Side effect: it runs `SET(_SET_DATEFORMAT, "dd/mm/yyyy")` and never restores it, so the thread's date format stays changed after the call.
 
 ## MvcUtils (`Gworks.Library.MvcUtils` namespace)
 

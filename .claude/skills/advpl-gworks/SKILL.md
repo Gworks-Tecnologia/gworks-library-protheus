@@ -1,6 +1,6 @@
 ---
 name: advpl-gworks
-description: "Use the Gworks internal AdvPL/TLPP framework (namespaces `Gworks.Library.*`, `Gworks.Business.*`, `Gworks.Templates.*`) when writing new business logic for a Gworks Protheus project. This is Giovani's own reusable class/function library built over years, covering: data-access wrapper (GwDataAccess/GwDataRelation), ExecAuto runner (GwExecAuto), error/log/messaging (GwError, GwConsoleLog, GwMessagingClass), dictionary/metadata builder (GwMetaData), ordered key-value maps (GwKeyValue), sequential numbering (GwSequence/GwGetNumbering), parameter dialogs (GwParamBox), async job queues (GwAsyncQueue/GwSemaphore), mail with attachments (GwMailAttachments/GwSendMail), file helpers (GwGetFile/GwFileIterator), and dozens of string/dictionary utility functions (GwCamelCase, GwCleanSpecialChar, GwGetFieldStruct, GwOpenDictionary, etc). Also documents the Business/* Entity pattern and the Templates/APITrace full MVC scaffold example. Use whenever the user says 'usa a lib gworks', 'GwDataAccess', 'cria uma entity gworks', 'ExecAuto com GwExecAuto', 'gera metadado com GwMetaData', 'parambox gworks', or whenever writing new AdvPL/TLPP code where reusing this internal framework is preferable to raw DbSelectArea/MsExecAuto/ParamBox boilerplate."
+description: "Use the Gworks internal AdvPL/TLPP framework (namespaces `Gworks.Library.*`, `Gworks.Business.*`, `Gworks.Templates.*`) when writing new business logic for a Gworks Protheus project. This is Giovani's own reusable class/function library built over years, covering: data-access wrapper (GwDataAccess/GwDataRelation), ExecAuto runner (GwExecAuto), error/log/messaging (GwError, GwConsoleLog, GwMessagingClass), dictionary/metadata builder (GwMetaData), ordered key-value maps (GwKeyValue), sequential numbering (GwSequence/GwGetNumbering), parameter dialogs (GwParamBox), async job queues (GwAsyncQueue/GwSemaphore), mail with attachments (GwMailAttachments/GwSendMail), file helpers (GwGetFile/GwFileIterator), SQL-to-JSON queries direct or over REST (GwApiQuery/GWQTOJSON), and dozens of string/dictionary utility functions (GwCamelCase, GwCleanSpecialChar, GwGetFieldStruct, GwOpenDictionary, etc). Also documents the Business/* Entity pattern and the Templates/APITrace full MVC scaffold example. Use whenever the user says 'usa a lib gworks', 'GwDataAccess', 'cria uma entity gworks', 'ExecAuto com GwExecAuto', 'gera metadado com GwMetaData', 'parambox gworks', or whenever writing new AdvPL/TLPP code where reusing this internal framework is preferable to raw DbSelectArea/MsExecAuto/ParamBox boilerplate."
 license: Internal
 metadata:
   domain: Protheus
@@ -34,12 +34,16 @@ That source is the ground truth — if a signature here looks stale, re-read the
 - Sending email with attachments → `GwMailAttachments` / `U_GwSendMail`.
 - Parallel/async job processing → `GwAsyncQueue` + `GwSemaphore`.
 - A CSV/file import wizard → follow `references/patterns.md#csv-import-pattern`.
-- Scaffolding a whole small MVC app (browse + form + metadata) → follow `references/patterns.md#mvc-template-pattern` (based on `Templates/APITrace`).
+- Scaffolding a whole small MVC app (browse + form + metadata) → follow `references/patterns.md#mvc-template-pattern` (based on `Templates/APITrace`). File names and namespaces of any new `Templates/<App>`: `references/patterns.md#templates-file-names-and-namespaces`.
+- Running a `SELECT` from AdvPL and getting JSON back → `U_GwApiQuery( cSql, @jResult )` (direct mode, no REST needed); `U_GWQTOJSON( cSql )` when you only want the JSON and will handle environment/errors yourself. Details and the write counterpart `U_GWQUPD` (its `.T.` does not mean written): `references/functions-reference.md` (section *ApiQuery*).
+- Exchanging a file with something outside Protheus (a script, a browser, the user) → build the path from `GetTempPath()`, with the OS-dependent separator and the `l:` prefix on a Linux client: `references/patterns.md#client-temp-files-gettemppath--the-l-prefix`.
+- Calling a `User Function` that lives in another namespace → `using namespace` it; without it the **first** call can fail at runtime only (AppServer limitation, the function itself is global): `references/patterns.md#namespaced-user-function-calls`.
 
 ## Conventions
 
 - **Namespaces**: `Gworks.Library.Classes`, `Gworks.Library.Functions`, `Gworks.Library.MvcUtils`, `Gworks.Business.<Module>.<Entities|Functions>`, `Gworks.Templates.<Name>.*`.
-- Classes are prefixed `Gw` (`GwDataAccess`, `GwError`, ...). Standalone functions are `User Function Gw...` declared inside `namespace Gworks.Library.Functions`, called externally as `U_Gw...`.
+- Classes are prefixed `Gw` (`GwDataAccess`, `GwError`, ...). Standalone functions are `User Function Gw...` declared inside `namespace Gworks.Library.Functions`, called as `U_Gw...` **after `using namespace Gworks.Library.Functions`** (or fully-qualified) — the function is global, but an AppServer limitation makes the **first** call by the bare `U_` name fail at runtime without the `using` (`cannot find function U_X in AppMap`).
+- **`Templates/<App>` layout**: files `GwTemplate<App><Layer>.tlpp`, namespace `Gworks.Templates.<App>.<Layer>` (`Apps`, `Api`, `Controllers`, `Services`, `Functions`, `Enums`, `Forms.Main`) — the layer, not every folder level. Public names drop `Template` (`GwConsultaSqlApi`, route `/GwConsultaSql/consultas`). `Templates/APITrace` is the model; `Templates/ConsultaSql` follows it and adds the `Api` and `Services` layers.
 - **Do not use** the legacy namespaces `Gworks.Library.Utils` and `Gworks.Library.Mapping` in new code — they are thin forwarding shims kept only for backward compatibility (each function body is one line: `Return Gworks.Library.Functions.U_XXX(...)`). Call `Gworks.Library.Functions.U_...` directly.
 - **Do not use** anything under `Legacy/Discontinued/*` (old JasperReport integration, an old `GwGetMessage`/`GwSetMessage` pair under `Gworks.Library.Legacy.*`) — superseded by the live versions under `Gworks.Library.Functions`.
 - Every function/method carries a `/*/{Protheus.doc} .../*/` ProtheusDOC block with `@type`, `@version`, `@author`, `@since`, `@param`, `@return`. Keep this style when adding to or extending the library — see the installed `documentation-writer` skill for the full ProtheusDOC standard.
@@ -86,6 +90,7 @@ For a full layered application with several distinct user actions, a Service→C
 
 | Folder | Functions |
 |---|---|
+| ApiQuery (`Gworks.Library.Classes` namespace, `Library/Classes/ApiQuery`) | `GwApiQuery` (REST `/gwquery/query` **and** direct call), `GWQUPD` (`/gwquery/upd`, writes), `GWQTOJSON` |
 | Database | `GwArrayCommit` (alias `GwDbInsertFromArray`), `GwGetArea`/`GwRestArea`, `GwGetDbConnec`, `GwPosicione` |
 | Error | `GwThrowError` |
 | File | `GwGetFile` |
@@ -127,10 +132,17 @@ Full walkthroughs with code in `references/patterns.md`:
 3. **Full MVC template scaffold** — `Templates/APITrace` (Apps → Controller/Enum routing → ModelDef/ViewDef/MenuDef).
 4. **CSV import wizard pattern** — `Library/Functions/Imports/*`.
 5. **Error/log/messaging pattern** — `GwError` + `GwConsoleLog` vs. the newer `GwMessagingClass`.
+6. **Templates file names and namespaces** — `GwTemplate<App><Layer>` / `Gworks.Templates.<App>.<Layer>`.
+7. **Namespaced `User Function` calls** — global functions, but the AppServer fails the first call made without a `using namespace`; runtime-only, later calls work (jobs under a namespace too).
+8. **Client temp files** — `GetTempPath()`, OS-dependent separator, `l:` prefix on Linux (`U_ConsultaSqlTempFile` is the model).
 
 ## Known Gotchas (found while reading the source — verify before relying on them)
 
 - `U_GwGetNumbering` (`Library/Functions/Utils/GwLibraryGetNumberingFunction.tlpp`): the required-parameter check reads `if !Empty(cAlias) .Or. Empty(cField)` — this looks inverted (it should likely be `if Empty(cAlias) .Or. Empty(cField)`). As written, it throws whenever `cAlias` **is** filled unless `cField` is also filled, which is backwards from a "required params" check. Double-check behavior before depending on this validation.
 - `GwKeyValue:ReplaceValueByKey` (`Library/Classes/KeyValue/GwLibraryKeyValueClass.tlpp`): sets a misspelled local `lRessult := .T.` instead of `lResult`, so the method always returns `.F.` even on a successful replace. `AddOrReplaceByKey` (which calls it) still works because it does its own `lResult := .T.` on the `KeyExists` branch, but calling `ReplaceValueByKey` directly and trusting its return value will misreport success.
 - `GwAsyncQueue:StartThreadAsync` (`Library/Classes/AsyncQueue/GwLibraryAsyncQueueClass.tlpp`): builds `aParams` with 24 slots but the `StartJob(...)` call forwards `aParams[23]` and `aParams[24]` while skipping `aParams[22]` entirely — the 22nd request parameter is silently dropped.
+- `U_GWQUPD` (`Library/Classes/ApiQuery`): the logical return is `.T.` even when the **database** rejected the statement (the REST contract is HTTP 200 with `"erro": true`). Read `jResult["erro"]`, not the return value.
+- `U_GWQTOJSON` runs `SET(_SET_DATEFORMAT, "dd/mm/yyyy")` and never restores it: the thread's date format stays changed after the call. It only converts dates for columns whose name is in the SX3 (an aliased date column comes back unconverted).
+- `U_GwApiQuery` has two modes chosen by its parameters; the direct mode (`cQuery` + `@jResult`) exists only in version 1.1 of the file. If the RPO still holds the REST-only version, a direct call gets no result — compile `Library/Classes/ApiQuery` into that environment.
+- A path built from `GetTempPath()` without the `l:` prefix on a Linux client points at the **server's** `Protheus_Data`, silently (see `patterns.md#client-temp-files-gettemppath--the-l-prefix`).
 - `GwMetaDataCommit` static helper functions (`fValid`, `fCommit`, ...) reference locals like `nOrder`/`cSeek` without a preceding `Local` declaration in some branches — relies on AdvPL's implicit-declaration fallback; safe at runtime but not TLPP-strict style.

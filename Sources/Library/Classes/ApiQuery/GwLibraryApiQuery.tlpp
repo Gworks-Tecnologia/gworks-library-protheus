@@ -10,23 +10,50 @@ namespace Gworks.Library.Classes
     Recebe uma instrucao SELECT no corpo da requisicao, executa e devolve o
     resultado como um array de objetos JSON - um objeto por linha, com os
     nomes das colunas em MAIUSCULO.
+    Roda por DOIS caminhos, decididos pelos parametros:
+        - sem parametro....: modo REST. O SQL vem do corpo da requisicao e a
+          resposta volta pelo oRest. E como a rota sempre funcionou.
+        - com cQuery.......: chamada DIRETA de qualquer rotina AdvPL, sem
+          passar pelo servidor REST. O resultado volta em jResult.
     @type Function
     @author Gwork - Eduardo Deroce
     @since 26/08/2026
-    @version 1.0
+    @version 1.1
+    @param cQuery, character, Instrucao SELECT. Omitido (nil) na chamada REST,
+           quando o SQL e lido do corpo da requisicao.
+    @param jResult, json, RECEBE POR REFERENCIA o resultado -- os dados, ou
+           {erro, msg} quando falha. Preenchido nos dois modos.
     @return logical, .T. quando a consulta e respondida com sucesso, .F.
-            quando a requisicao e respondida com falha (HTTP 400).
+            quando falha (HTTP 400 no modo REST).
     @obs Observacoes
         - Rota....: POST /gwquery/query
         - Entrada.: {"query": "<SQL>"}
         - Saida...: {"data": [ {"<COLUNA>": <valor>, ...}, ... ]}
         - Falha...: HTTP 400 com {"erro": true, "msg": "<descricao>"}
+        - O oRest so existe dentro de uma requisicao REST. Na chamada direta
+          ele NAO e instanciado, entao todo acesso a ele fica atras do modo --
+          inclusive o de resposta, nao apenas o de leitura do corpo.
         - Fora de um ambiente ja preparado (Type("cEmpAnt") <> "C") a rotina
           abre a empresa/filial 01/0101 via RpcSetEnv e encerra no finally.
+          Chamada de dentro de uma rotina que ja tem ambiente, nao reabre.
+        - Para so transformar um SELECT em json, sem tratamento de ambiente
+          nem de erro, use U_GWQTOJSON direto -- e o miolo desta rotina.
         - A formatacao dos valores por tipo de coluna e feita em U_GWQTOJSON.
         - Consumidor atual: relatorios HTML, via ProtheusBridge.query em
           Temp\Report\WebApp\relatorios\assets\preload\advpltojs.js.
     @sample
+        // ---- chamada DIRETA, sem REST ----------------------------------
+        Local lOk     as logical
+        Local jResult as json
+
+        lOk := U_GwApiQuery("SELECT A1_COD, A1_NOME FROM SA1010", @jResult)
+
+        If lOk
+            // jResult["data"] -> array de linhas
+        Else
+            ConOut(jResult["msg"])
+        EndIf
+
         // ---- requisicao ------------------------------------------------
         // POST http://<host>:<porta>/rest/gwquery/query
         // Content-Type: application/json
@@ -75,17 +102,26 @@ namespace Gworks.Library.Classes
         endif
 /*/
 @post('/gwquery/query')
-User Function GwApiQuery() as Logical
+User Function GwApiQuery(cQuery as Character, jResult as Json) as Logical
 
     Local err      as Object
     Local lRpc     as Logical
     Local lRet     as Logical
+    Local lApi     as Logical
     Local cBody    as Character
     Local oBody    as Json
     Local oResp    as Json
     Local cSql     as Character
 
     lRet := .T.
+
+    // DUAS ORIGENS, UMA ROTINA. Sem cQuery a chamada veio da rota REST: o SQL
+    // sai do corpo da requisicao e a resposta volta pelo oRest. Com cQuery a
+    // chamada e direta (Apps, job, outra rotina) e NAO EXISTE oRest -- ele so
+    // e instanciado pelo servidor REST, entao tocar nele fora da rota derruba
+    // a thread. Por isso todo acesso ao oRest esta atras deste lApi, e nao
+    // apenas o de entrada.
+    lApi := (ValType(cQuery) <> "C")
 
     try
 
@@ -94,19 +130,36 @@ User Function GwApiQuery() as Logical
             lRpc := .T.
         EndIf
 
-        cBody := oRest:getBodyRequest()
-        oBody := JsonObject():New()
+        If lApi
 
-        If Empty(cBody) .Or. ValType(oBody:FromJson(cBody)) == "C" .Or. Empty(oBody["query"])
-            err := ErrorClass():New()
-            err:description := "Body vazio ou invalido - informe {'query': '<SQL>'}."
-            Throw err
+            cBody := oRest:getBodyRequest()
+            oBody := JsonObject():New()
+
+            If Empty(cBody) .Or. ValType(oBody:FromJson(cBody)) == "C" .Or. Empty(oBody["query"])
+                err := ErrorClass():New()
+                err:description := "Body vazio ou invalido - informe {'query': '<SQL>'}."
+                Throw err
+            EndIf
+
+            cSql := oBody["query"]
+
+        Else
+
+            cSql := AllTrim(cQuery)
+
+            If Empty(cSql)
+                err := ErrorClass():New()
+                err:description := "Parametro cQuery vazio - informe a instrucao SELECT."
+                Throw err
+            EndIf
+
         EndIf
 
-        cSql  := oBody["query"]
         oResp := U_GWQTOJSON(cSql)
 
-        oRest:setResponse(EncodeUTF8(oResp:ToJson()))
+        If lApi
+            oRest:setResponse(EncodeUTF8(oResp:ToJson()))
+        EndIf
 
     catch err
 
@@ -118,8 +171,11 @@ User Function GwApiQuery() as Logical
             oResp["msg"] := "Erro desconhecido"
         EndIf
 
-        oRest:setStatusCode(400)
-        oRest:setFault(EncodeUTF8(oResp:ToJson()))
+        If lApi
+            oRest:setStatusCode(400)
+            oRest:setFault(EncodeUTF8(oResp:ToJson()))
+        EndIf
+
         lRet := .F.
 
     finally
@@ -127,6 +183,11 @@ User Function GwApiQuery() as Logical
         If lRpc
             RpcClearEnv()
         EndIf
+
+        // No finally de proposito: na chamada direta quem falhou tambem precisa
+        // do motivo, e o Logical sozinho nao carrega. Assim jResult chega
+        // preenchido nos dois caminhos -- com os dados ou com {erro, msg}.
+        jResult := oResp
 
     endtry
 
@@ -136,12 +197,18 @@ Return lRet
     API REST generica de escrita (INSERT/UPDATE/DELETE) via TcSqlExec.
     Contrapartida de escrita da rota de consulta GwApiQuery. Nao e utilizada
     pelos relatorios HTML, que consomem apenas a consulta.
+    Roda por dois caminhos, iguais aos da GwApiQuery: sem parametro le o SQL
+    do corpo da requisicao REST; com cQuery e chamada direta de AdvPL.
     @type Function
     @author Gwork - Eduardo Deroce
     @since 26/08/2026
-    @version 1.0
+    @version 1.1
+    @param cQuery, character, Comando INSERT/UPDATE/DELETE. Omitido (nil) na
+           chamada REST, quando o SQL e lido do corpo da requisicao.
+    @param jResult, json, RECEBE POR REFERENCIA o resultado. Preenchido nos
+           dois modos.
     @return logical, .T. quando a requisicao e respondida com sucesso, .F.
-            quando a requisicao e respondida com falha (HTTP 400).
+            quando falha (HTTP 400 no modo REST).
     @obs Observacoes
         - Rota....: POST /gwquery/upd
         - Entrada.: {"query": "<SQL>"}
@@ -149,9 +216,22 @@ Return lRet
         - Falha...: HTTP 400 com {"erro": true, "msg": "<descricao>"} para
           erro de contrato; erro do banco retorna HTTP 200 com "erro": true
           e a mensagem de TCSQLError().
+        - CUIDADO na chamada direta: erro do BANCO nao derruba o retorno. O
+          TcSqlExec devolve status negativo e a rotina segue pelo caminho de
+          sucesso, mantendo o contrato REST de HTTP 200 com "erro": true.
+          Ou seja, .T. NAO quer dizer que gravou -- confira jResult["erro"].
         - O comando e enviado direto ao banco: nao passa por LogExec, gatilhos
           ou integridade do dicionario.
     @sample
+        // ---- chamada DIRETA, sem REST ----------------------------------
+        Local jResult as json
+
+        U_GWQUPD("UPDATE SA1010 SET A1_LC = 0 WHERE A1_COD = '000001'", @jResult)
+
+        If jResult["erro"]                 // e nao o retorno logico
+            ConOut(jResult["msg"])
+        EndIf
+
         // ---- requisicao ------------------------------------------------
         // POST http://<host>:<porta>/rest/gwquery/upd
         // Content-Type: application/json
@@ -168,11 +248,12 @@ Return lRet
         // }
 /*/
     @post('/gwquery/upd')
-Function U_GWQUPD() as Logical
+Function U_GWQUPD(cQuery as Character, jResult as Json) as Logical
 
     Local err      as Object
     Local lRpc     as Logical
     Local lRet     as Logical
+    Local lApi     as Logical
     Local cBody    as Character
     Local oBody    as Json
     Local oResp    as Json
@@ -181,6 +262,9 @@ Function U_GWQUPD() as Logical
 
     lRet := .T.
 
+    // Mesma dupla origem da GwApiQuery -- ver o comentario la.
+    lApi := (ValType(cQuery) <> "C")
+
     try
 
         If Type("cEmpAnt") <> "C"
@@ -188,16 +272,31 @@ Function U_GWQUPD() as Logical
             lRpc := .T.
         EndIf
 
-        cBody := oRest:getBodyRequest()
-        oBody := JsonObject():New()
+        If lApi
 
-        If Empty(cBody) .Or. ValType(oBody:FromJson(cBody)) == "C" .Or. Empty(oBody["query"])
-            err := ErrorClass():New()
-            err:description := "Body vazio ou invalido - informe {'query': '<SQL>'}."
-            Throw err
+            cBody := oRest:getBodyRequest()
+            oBody := JsonObject():New()
+
+            If Empty(cBody) .Or. ValType(oBody:FromJson(cBody)) == "C" .Or. Empty(oBody["query"])
+                err := ErrorClass():New()
+                err:description := "Body vazio ou invalido - informe {'query': '<SQL>'}."
+                Throw err
+            EndIf
+
+            cSql := oBody["query"]
+
+        Else
+
+            cSql := AllTrim(cQuery)
+
+            If Empty(cSql)
+                err := ErrorClass():New()
+                err:description := "Parametro cQuery vazio - informe o comando SQL."
+                Throw err
+            EndIf
+
         EndIf
 
-        cSql    := oBody["query"]
         nStatus := TcSqlExec(cSql)
 
         oResp          := JsonObject():New()
@@ -209,7 +308,14 @@ Function U_GWQUPD() as Logical
             oResp["msg"] := "sucesso"
         EndIf
 
-        oRest:setResponse(EncodeUTF8(oResp:ToJson()))
+        // ATENCAO na chamada direta: erro do BANCO nao chega aqui como excecao.
+        // O TcSqlExec devolve status negativo e a rotina segue pelo caminho de
+        // sucesso -- do lado REST isso vira HTTP 200 com "erro": true, que ja
+        // era o contrato. Entao lRet .T. NAO significa que o comando gravou:
+        // quem chama direto tem de olhar jResult["erro"].
+        If lApi
+            oRest:setResponse(EncodeUTF8(oResp:ToJson()))
+        EndIf
 
     catch err
 
@@ -221,8 +327,11 @@ Function U_GWQUPD() as Logical
             oResp["msg"] := "Erro desconhecido"
         EndIf
 
-        oRest:setStatusCode(400)
-        oRest:setFault(EncodeUTF8(oResp:ToJson()))
+        If lApi
+            oRest:setStatusCode(400)
+            oRest:setFault(EncodeUTF8(oResp:ToJson()))
+        EndIf
+
         lRet := .F.
 
     finally
@@ -230,6 +339,8 @@ Function U_GWQUPD() as Logical
         If lRpc
             RpcClearEnv()
         EndIf
+
+        jResult := oResp
 
     endtry
 
