@@ -445,11 +445,11 @@ Método para adicionar um campo à tabela SX3 (campos) do dicionário de dados do E
 /*/
 Method AddField( jField as json, xDefaults as variant ) Class GwMetaData
 
-    Default xDefaults := nil
-
     Local jSX3 as json
     Local aNames := jField:getNames() as array
     Local jValid as json
+
+    Default xDefaults := nil
 
     if valType(xDefaults) == "J"
         jField["defaults"] := xDefaults
@@ -639,11 +639,11 @@ Método para adicionar uma pasta/agrupador à tabela SIX (índices) do dicionário d
 /*/
 Method AddIndex( jIndex as json ) Class GwMetaData
 
-    Default xDefaults := nil
-
     Local jSIX as json
     Local aNames := jIndex:getNames() as array
     Local jValid as json
+
+    Default xDefaults := nil
 
     if!( ::ValidIndex( jIndex, @jValid ) )
         UserException("GwMetaData:AddIndex - " + jValid["exception"])
@@ -759,11 +759,11 @@ Método para adicionar uma pasta/agrupador à tabela SXA (folders) do dicionário d
 /*/
 Method AddFolder( jFolder as json ) Class GwMetaData
 
-    Default xDefaults := nil
-
     Local jSXA as json
     Local aNames := jFolder:getNames() as array
     Local jValid as json
+
+    Default xDefaults := nil
 
     if!( ::ValidFolder( jFolder, @jValid ) )
         UserException("GwMetaData:AddFolder - " + jValid["exception"])

@@ -39,9 +39,6 @@ Função para simplificar e normatizar a criação de campos virtuais em formulários
 /*/
 User Function GwSetVirtualField( nOpc as integer, jField as json, oStr as object )
 
-    Default jField := JsonObject():New()
-    Default oStr := nil
-
     Local jModel as json
     Local jView as json
     Local aNames as array
@@ -50,6 +47,9 @@ User Function GwSetVirtualField( nOpc as integer, jField as json, oStr as object
     Local lRef as logical
     Local cCombo as character
     Local aCombo as array
+
+    Default jField := JsonObject():New()
+    Default oStr := nil
 
     if!( alltrim(str(nOpc)) $ "1/2" )
         return .F.

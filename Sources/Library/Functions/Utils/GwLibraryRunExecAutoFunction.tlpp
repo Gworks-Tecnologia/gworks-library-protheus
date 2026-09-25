@@ -35,14 +35,6 @@ User Function GwRunExecAuto( aData as array,;
                              cJobName as character,;
                              aJobTables as array )
 
-    Default aData       := {}
-    Default lRunAsJob   := .F.
-    Default cJobEmpresa := ""
-    Default cJobFilial  := ""
-    Default cJobModule  := ""
-    Default cJobName    := ""
-    Default aJobTables  := {}
-
     Local oError as object
 
     Local nI            := 0    as numeric
@@ -55,6 +47,14 @@ User Function GwRunExecAuto( aData as array,;
     Local cResult       := ""   as character
     Local bBlock        := {||} as codeblock
     Local lBlind        := .F.  as logical
+
+    Default aData       := {}
+    Default lRunAsJob   := .F.
+    Default cJobEmpresa := ""
+    Default cJobFilial  := ""
+    Default cJobModule  := ""
+    Default cJobName    := ""
+    Default aJobTables  := {}
 
     Private lMSHelpAuto    := .T. as logical // Habilita a captura das mensagens de erro
     Private lAutoErrNoFile := .T. as logical // Desabilita a geração do arquivo de log padrão do sistema

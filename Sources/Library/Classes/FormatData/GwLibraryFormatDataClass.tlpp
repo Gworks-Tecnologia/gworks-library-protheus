@@ -83,13 +83,13 @@ Converte data/hora, conforme parâmetros de entrada, em string no formato UTC, ex
 /*/
 Method DateToUtc( dValue as date, cTime as character ) as character Class GwFormatData
 
-    Default cTime := time()
-
     Local cResult as character
     Local cDate as character
     Local cYear as character
     Local cMonth as character
     Local cDay as character
+
+    Default cTime := time()
 
     if empty( dValue )
         UserException("GwFormatData:DateToUtc - Invalid parameter dValue.")

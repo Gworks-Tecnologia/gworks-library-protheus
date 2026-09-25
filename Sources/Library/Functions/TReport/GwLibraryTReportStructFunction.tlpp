@@ -23,11 +23,11 @@ Função utilitária para retornar
 /*/
 User Function GwTReportStruct( jRetFields as json, cField as character, nOpc as integer )
 
-    Default jRetFields := nil
-    Default cField := ""
-
     Local xResult as variant
     Local cAliasStr := "SX3" as character
+
+    Default jRetFields := nil
+    Default cField := ""
 
     if jRetFields == nil
         UserException("GwTReportStruct - Invalid parameter jRetFields...")

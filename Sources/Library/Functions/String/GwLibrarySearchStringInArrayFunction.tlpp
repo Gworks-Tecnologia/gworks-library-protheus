@@ -19,10 +19,10 @@ Pesquisa em um array de strings por um determinado texto.
 /*/
 User Function GwSearchStringInArray( aArray as array, cSearch as character, cIgnore as character, nRetResult as numeric )
 
-	Default cIgnore := ""
-
     Local lResult := .F. as logical
 	Local oError as object
+
+	Default cIgnore := ""
 
     oError := GwError():Create()
     oError:cError := "Erro ao pesquisar por string em array de elementos."

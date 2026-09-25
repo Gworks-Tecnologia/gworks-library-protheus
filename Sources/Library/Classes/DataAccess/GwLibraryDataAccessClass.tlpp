@@ -453,9 +453,9 @@ Método para restaurar ou fechar a área mediante atributo lOpened, onde:
 /*/
 Method ReleaseArea( lClearFilter as logical ) as variant Class GwDataAccess
 
-    Default lClearFilter := .F.
-
     Local cAlias := "" as character
+
+    Default lClearFilter := .F.
 
     ::ValidDataSource(REQUIRE_DATASOURCE_DICTIONARY)
 
@@ -978,10 +978,10 @@ Define valores para Inclusão/Alteração conforme tabela referênciada em Self:cAli
 /*/
 Method SetValue( cFieldName as character, xValue as variant ) as variant Class GwDataAccess
 
+    Local cAlias := "" as character
+
     Default cFieldName := nil
     Default xValue := nil
-
-    Local cAlias := "" as character
 
     ::ValidDataSource(REQUIRE_DATASOURCE_DICTIONARY)
 

@@ -23,15 +23,15 @@ Função para simplificar a criação de campos do tipo legenda em uma Grid do Frame
 /*/
 User Function GwSetGridCaption( nOpc as integer, jParam as json, oStr as object )
 
-    Default nOpc := 0
-    Default jParam := JsonObject():New()
-    Default oStr := nil
-
     Local jModel as json
     Local jView as json
     Local aNames as array
     Local cArgs as character
     Local lArgs as logical
+
+    Default nOpc := 0
+    Default jParam := JsonObject():New()
+    Default oStr := nil
 
     if!( alltrim(str(nOpc)) $ "1/2" )
         return .F.

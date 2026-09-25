@@ -30,10 +30,6 @@ Executar rotinas sem a necessidade de login pelo SIGAMDI/SIGAADV.
 /*/
 User Function gMnuExec( _cParms, _cAuthFile, _cTables )
 
-    Default _cParms := "99;01;SIGACOM;MATA010"
-    Default _cAuthFile := "NO_AUTH"
-    Default _cTables := ""
-
     // Definições do agente local Webagent
     // [1] - Versão do webagent
     // [2] - Porta de comunicação
@@ -58,6 +54,10 @@ User Function gMnuExec( _cParms, _cAuthFile, _cTables )
     Local cInit as character
     Local bInit as clodeblock
     Local oApp
+
+    Default _cParms := "99;01;SIGACOM;MATA010"
+    Default _cAuthFile := "NO_AUTH"
+    Default _cTables := ""
 
     Private __lInternet
     Private __cInternet

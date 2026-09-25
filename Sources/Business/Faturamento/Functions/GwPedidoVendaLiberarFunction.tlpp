@@ -47,10 +47,6 @@ Processa a Liberação de Itens do Pedido de Venda.
 /*/
 User Function GwPedidoVendaLiberar( cPedido as character, cItens as character, jParams as json )
 
-    Default cPedido := ""
-    Default cItens := "*"
-    Default jParams := JsonObject:New()
-
     // Áreas abertas
     Local jAreas := JsonObject():New() as json
 
@@ -81,6 +77,10 @@ User Function GwPedidoVendaLiberar( cPedido as character, cItens as character, j
 
     // Variáveis auxiliares
     Local cItem as character
+
+    Default cPedido := ""
+    Default cItens := "*"
+    Default jParams := JsonObject:New()
 
     // Salva áreas abertas
     jAreas["active"] := getArea()

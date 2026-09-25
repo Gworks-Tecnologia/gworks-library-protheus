@@ -400,10 +400,10 @@ Atribui valor à uma propriedade qualquer conforme parâmetros criados por meio da
 /*/
 Method SetProperty( cName as character, cProperty as character, xValue as variant ) Class GwParamBox
 
-    Default xValue := nil
-
     Local aNamesParam as array
     Local aNamesTemplate as array
+
+    Default xValue := nil
 
     if xValue == nil
         return

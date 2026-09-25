@@ -34,11 +34,11 @@ User Function GwPosicione( cAlias as character,;
                            lAutoFil as logical,;
                            lForceSeek as logical )
 
+    Local lSeek as logical
+
     Default bBlock := nil
     Default lAutoFil := .T.
     Default lForceSeek := .F.
-
-    Local lSeek as logical
 
     // Abandona execução se cSeek estiver vazio
     if empty(cSeek)

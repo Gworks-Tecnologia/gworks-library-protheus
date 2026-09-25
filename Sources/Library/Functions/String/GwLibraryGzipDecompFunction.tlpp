@@ -15,10 +15,10 @@ Função simplificada para descompactar strings no formato GZip (GNU Zip).
 /*/
 User Function GwGZipDecomp( lDecode64 as variant, cZipped as character, cRetUnzipped as character )
 
-    Default lDecode64 := nil
-
     Local nZipLen as numeric
     Local cZipContent as character
+
+    Default lDecode64 := nil
 
     if( lDecode64 == nil ) .or. valType(lDecode64) != "L"
         UserException("GZipDecomp - Property lDecode64 is empty or invalid.")

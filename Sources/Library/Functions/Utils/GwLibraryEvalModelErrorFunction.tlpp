@@ -18,14 +18,14 @@ Função para avaliar se o estado de erro de um determinado modelo de dados MVC.
 /*/
 User Function GwEvalModelError( oModel as object, cStyle as character, cTitle as character )
 
-    Default cTitle := nil
-    Default cStyle := "ALERT"
-    Default cDefault := ""
-
     Local lResult as logical
     Local aMessage as array
     Local cMessage as character
     Local cDetalhe as character
+
+    Default cTitle := nil
+    Default cStyle := "ALERT"
+    Default cDefault := ""
 
     aMessage := oModel:GetErrorMessage(.T./*lClear*/)
     do case

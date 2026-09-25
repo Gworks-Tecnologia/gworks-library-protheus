@@ -24,15 +24,15 @@ Obtem os dados de conexão com o Banco de Dados a partir do arquivo de configuraç
 /*/
 User Function GwGetDbConnec( jConnection as json, cEnvironment as character  ) as logical
 
-    default jConnection := nil
-    default cEnvironment := ""
-
     Local cDbType := '' as character
     Local cDbAlias := '' as character
     Local cDbPort := '' as character
     Local cDbServer := '' as character
     Local cDBString := '' as character
     Local lResult as logical
+
+    default jConnection := nil
+    default cEnvironment := ""
 
     jConnection := JsonObject():New()
 

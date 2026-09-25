@@ -14,9 +14,9 @@ Função para estornar Itens Liberados do Pedidos de Venda.
 /*/
 User Function GwPedidoVendaEstornarLiberacao( cPedido as character )
 
-    Default cPedido := ""
-
     Local jAreas := JsonObject():New()
+
+    Default cPedido := ""
 
     jAreas["active"] := getArea()
     jAreas["extras"] := { SC5->(getArea()), SC6->(getArea()) }

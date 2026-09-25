@@ -14,13 +14,13 @@ Salva a área de uma lista alias informados.
 /*/
 User Function GwGetArea( aAlias as array, lCurrentAlias as logical )
 
-    Default lCurrentAlias := .T.
-
     Local aAreas as array
     Local cAlias as character
     Local cCurrentAlias as character
     Local nI as numeric
     Local nPos as numeric
+
+    Default lCurrentAlias := .T.
 
     aAreas := {}
     For nI:=1 To Len(aAlias)
@@ -53,13 +53,12 @@ Restaura as áreas conforme retorno de U_GwGetArea().
 /*/
 User Function GwRestArea( aAreas as array, cIgnore as character )
 
-    Default cIgnore := ""
-
     Local aArea as array
     Local cCurrentAlias as character
     Local nAliasPrincipal as numeric
     Local nI as numeric
 
+    Default cIgnore := ""
 
     cCurrentAlias := aAreas[2]
     for nI:=1 To Len(aAreas[1])

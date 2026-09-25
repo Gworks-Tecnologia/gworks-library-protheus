@@ -76,9 +76,9 @@ Return Self
 
 Method CreateDirectory( lEraseFiles as logical ) Class MSPrinterArgs
 
-    Default lEraseFiles := .T.
-
     Local _lRet := .F. as logical
+
+    Default lEraseFiles := .T.
 
     do case
 
