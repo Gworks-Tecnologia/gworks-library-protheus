@@ -2,7 +2,9 @@
 
 Reference for the `advpl-tlpp-exec-sql-query` skill. Read it when a run misbehaves or when you need to change the module. Everything here was read from the code in this repository unless it says **observed elsewhere** (learned in another project's live environment and not re-checked here).
 
-## Layers (`Sources/Global/Gworks/Templates/ConsultaSql/`)
+## Layers (`<lib>/Templates/ConsultaSql/`)
+
+`<lib>` is the Gworks library root: `Sources/Global/Gworks` in a client project, `Sources` in the `gworks-library-protheus` repository.
 
 | File | Namespace | Role |
 | --- | --- | --- |
@@ -15,7 +17,7 @@ Reference for the `advpl-tlpp-exec-sql-query` skill. Read it when a run misbehav
 
 Both doors resolve the enum and call the Controller; **the rule lives in the Service** so the IDE door cannot go around a restriction the HTTP door enforces. All namespaces are `Gworks.Templates.ConsultaSql.*`.
 
-The Service delegates the actual query to `U_GwApiQuery` (`Sources/Global/Gworks/Library/Classes/ApiQuery/GwLibraryApiQuery.tlpp`, namespace `Gworks.Library.Classes`) in its **direct mode**: `U_GwApiQuery( cSql, @jResult )` runs with no `oRest` (which only exists inside a REST request) and fills `jResult` with `{"data":[…]}` on success or `{"erro":true,"msg":…}` on failure, in both modes; called with no parameters it is the REST route `POST /gwquery/query` that the HTML reports consume (library v1.1 — see "Known status" in the skill: it must be the version compiled in the RPO). `U_GWQTOJSON(cSql)` in the same file is the public function that runs a `SELECT` through `TCQUERY` and returns `{"data":[…]}` (dates as `dd/mm/yyyy` strings, numerics as-is, text `AllTrim`med).
+The Service delegates the actual query to `U_GwApiQuery` (`<lib>/Library/Classes/ApiQuery/GwLibraryApiQuery.tlpp`, namespace `Gworks.Library.Classes`) in its **direct mode**: `U_GwApiQuery( cSql, @jResult )` runs with no `oRest` (which only exists inside a REST request) and fills `jResult` with `{"data":[…]}` on success or `{"erro":true,"msg":…}` on failure, in both modes; called with no parameters it is the REST route `POST /gwquery/query` that the HTML reports consume (library v1.1 — see "Known status" in the skill: it must be the version compiled in the RPO). `U_GWQTOJSON(cSql)` in the same file is the public function that runs a `SELECT` through `TCQUERY` and returns `{"data":[…]}` (dates as `dd/mm/yyyy` strings, numerics as-is, text `AllTrim`med).
 
 ## The temp-file contract
 

@@ -61,7 +61,7 @@ Use this skill when:
 7. **Read the result before declaring success.** A command running without error is NOT proof of a successful compile — check the compilation output/Problems for errors and warnings.
 8. **(Route B) NEVER open, `cat`, read or grep any `Scripts/pth-settings*.json`** (nor a file named by `PTH_SETTINGS`): they hold the password in plain text. To see a configuration run `bash Scripts/pth-compile.sh [suffix] -h`, whose summary shows everything except the password. Never pass credentials on a command line. Change a settings file only when the user asks, with `jq` adding/removing keys, never printing the file.
 9. **(Route B) Pick the configuration deliberately.** No suffix = `Scripts/pth-settings.json`; a suffix as first argument = `Scripts/pth-settings.<suffix>.json`. Read the `-h` summary of that file before the first compile of a session, and say in the report which file, server and environment(s) were used. If it shows `production_database : true`, confirm with the user in this conversation before compiling.
-10. **(Route B) Do not add your own retry loops or run compiles in parallel.** The script already waits 30 s and retries up to 3 times on a locked RPO (`COMPILEERROR-300`). Always pass an explicit path: the script's default target (`Sources/AdvPL/…`) does not exist in this repository.
+10. **(Route B) Do not add your own retry loops or run compiles in parallel.** The script already waits 30 s and retries up to 3 times on a locked RPO (`COMPILEERROR-300`). Always pass an explicit path: the script's default target (`Sources/AdvPL/…`) does not exist in the Gworks projects.
 
 ---
 
@@ -223,17 +223,17 @@ Same as Step 6: sources generated or edited by an agent are UTF-8 and must be co
 
 ### B3 — Choose path and environment
 
-- **Path:** the narrowest that covers the change, always explicit (folder = recursive). Never rely on the default target.
+- **Path:** the narrowest that covers the change, always explicit (folder = recursive). Never rely on the default target. The Gworks library root — `<lib>` below — is `Sources/Global/Gworks` in a client project and `Sources` in the `gworks-library-protheus` repository; check which one exists.
 - **Environment:** none = `env_default`. To test a REST route compile with `-e rest`; also `-e workflow`, `-e job`, or a name listed in `environments`. `-e` can repeat. `-a` compiles into **every configured** `env_*`, without repeating equal ones, and does not combine with `-e`.
 - **Each environment has its own RPO** — compiling into one does not publish to another. If a route answers with old code after a "successful" compile, suspect the wrong environment first (see the reference).
 
 ### B4 — Run
 
 ```bash
-bash Scripts/pth-compile.sh Sources/Global/Gworks/Templates/ConsultaSql                    # env_default of pth-settings.json
-bash Scripts/pth-compile.sh -e rest Sources/Global/Gworks/Templates/ConsultaSql/Api        # the environment the REST Server serves
-bash Scripts/pth-compile.sh -a -r Sources/Global/Gworks/Templates/ConsultaSql              # recompile in every configured environment
-bash Scripts/pth-compile.sh <suffix> Sources/Global/Gworks/Templates/ConsultaSql           # another configuration: pth-settings.<suffix>.json
+bash Scripts/pth-compile.sh <lib>/Templates/ConsultaSql                    # env_default of pth-settings.json
+bash Scripts/pth-compile.sh -e rest <lib>/Templates/ConsultaSql/Api        # the environment the REST Server serves
+bash Scripts/pth-compile.sh -a -r <lib>/Templates/ConsultaSql              # recompile in every configured environment
+bash Scripts/pth-compile.sh <suffix> <lib>/Templates/ConsultaSql           # another configuration: pth-settings.<suffix>.json
 ```
 
 A locked RPO makes the script wait 30 s and retry up to 3 times on its own; do not add loops and do not run two compiles at once.
@@ -295,7 +295,7 @@ flowchart TD
 - **(Route B) Filling a settings file for the user, or asking for the password in chat.** The user fills the files outside the conversation.
 - **(Route B) Compiling against a `production_database: true` configuration without the user's confirmation in this conversation.**
 - **(Route B) Compiling into the wrong environment and concluding the fix did not work.** Each environment has its own RPO; check which one the failing thing runs in (`env_default` for the WebApp, `env_rest` for REST) before touching the code again.
-- **(Route B) Relying on the default target.** `Sources/AdvPL/Global` / `Projects` do not exist in this repository; always pass a path.
+- **(Route B) Relying on the default target.** `Sources/AdvPL/Global` / `Projects` do not exist in the Gworks projects; always pass a path.
 - **(Route B) Wrapping the script in a retry loop.** It already retries a locked RPO 3× with 30 s between; more loops only prolong the lock.
 - **(Route B) Treating exit code `0` as "it works".** It means it compiled — see B5.
 - **(Route B) Claiming the `.ps1` scripts work.** They have never run on Windows; send the user through the validation script at the top of the file.

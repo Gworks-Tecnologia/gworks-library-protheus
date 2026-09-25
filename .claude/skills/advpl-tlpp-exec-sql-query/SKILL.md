@@ -6,7 +6,7 @@ metadata:
   domain: Protheus
   maintainer: Gworks - Giovani
   category: Build, Execution and Debugging Automation
-  reference_module: Gworks.Templates.ConsultaSql (Sources/Global/Gworks/Templates/ConsultaSql)
+  reference_module: Gworks.Templates.ConsultaSql (<lib>/Templates/ConsultaSql)
   version: '1.0.0'
   status: "Linux flow confirmed end to end on 2026-09-25 against CQSLH5_GWORKS (WebApp 10.1.8, WebAgent 1.0.24) and CQSLH5_PROD (WebApp 10.2.1, WebAgent 1.1.1), with Edge headless, in both modes. Windows scripts never run."
 ---
@@ -41,7 +41,9 @@ Apps → Controller → Service → (GwApiQuery) → database
 | `pth-query.sh` / `.ps1` | `Scripts/` | Picks the settings file, writes the SQL file, removes the old result, calls `pth-execute.mjs` with the `RUNQUERY` sentinel and the result file to wait for |
 | `pth-execute.mjs` | `Scripts/` | Runs a User Function through the WebApp, by one of the two modes above |
 | `pth-settings.json` / `pth-settings.<suffix>.json` | `Scripts/` | One server per file: server, credentials, environments, WebApp and browser settings (schema in the compile skill's [pth-cli-reference.md](../advpl-tlpp-compile/references/pth-cli-reference.md)) |
-| ConsultaSql module | `Sources/Global/Gworks/Templates/ConsultaSql/` | Apps (menu/IDE door), Api (REST door), Controller, Service, Functions |
+| ConsultaSql module | `<lib>/Templates/ConsultaSql/` | Apps (menu/IDE door), Api (REST door), Controller, Service, Functions |
+
+`<lib>` is the Gworks library root: `Sources/Global/Gworks` in a client project, `Sources` in the `gworks-library-protheus` repository. Check which one exists before running any command below.
 
 Internals (layers, temp-file contract, the `l:` rule, how both run modes work): [references/exec-sql-internals.md](references/exec-sql-internals.md).
 
@@ -86,9 +88,9 @@ Internals (layers, temp-file contract, the `l:` rule, how both run modes work): 
    The module and the dual-mode `GwApiQuery` (v1.1: `U_GwApiQuery( cSql, @jDados )`, no `oRest`) are compiled in both. Another environment has its own RPO — check the library signature and compile both if needed:
 
    ```bash
-   grep -n "^User Function GwApiQuery" Sources/Global/Gworks/Library/Classes/ApiQuery/GwLibraryApiQuery.tlpp
+   grep -n "^User Function GwApiQuery" <lib>/Library/Classes/ApiQuery/GwLibraryApiQuery.tlpp
    #   expected: (cQuery as Character, jResult as Json)
-   bash Scripts/pth-compile.sh <suffix> Sources/Global/Gworks/Library Sources/Global/Gworks/Templates/ConsultaSql
+   bash Scripts/pth-compile.sh <suffix> <lib>/Library <lib>/Templates/ConsultaSql
    ```
 2. **Both modes work** (`launch_by_webagent` true or false), because `pth-execute.mjs` turns on the WebApp's **"Agente Local"** in the throwaway browser profile before opening the program (the `desktopagentport` key — see internals). Without it, a fresh profile sends every `l:` path to the **server's** disk even with the agent connected, and the query silently never runs.
 3. **The WebAgent version follows the WebApp of each environment**: WebApp 10.2.0 or later requires WebAgent 1.1.x (JWT handshake); below that, 1.0.x. Here: `dev` uses `/opt/web-agent/1.0.24-x64/opt/web-agent/web-agent`, `prd` uses `/opt/web-agent/web-agent` (1.1.1). Never suggest changing the version as a fix without checking the WebApp version and asking the user.
@@ -117,7 +119,7 @@ Prerequisites on the machine: **Node.js 20+** (the script passes `--experimental
 The function runs in `env_default` (or `PROTHEUS_ENV`) of the chosen settings file. Compile there first, with the `advpl-tlpp-compile` skill (Route B), using the same configuration you will query with:
 
 ```bash
-bash Scripts/pth-compile.sh Sources/Global/Gworks/Templates/ConsultaSql        # env_default of pth-settings.json
+bash Scripts/pth-compile.sh <lib>/Templates/ConsultaSql        # env_default of pth-settings.json
 ```
 Each environment has its own RPO — compiling into one does not publish to another.
 
@@ -173,7 +175,7 @@ Say which settings file, server and environment ran, the statement, row count an
 | `400 "Esta rota executa apenas consulta."` | Statement does not start with `SELECT ` / `WITH ` (space required; comments and newlines first are refused) | Fix the SQL |
 | `400 "Nao foi possivel ler a consulta do arquivo."` + `Arquivo vazio ou inexistente: <path>` | The Service looked for the SQL at `<path>` and found nothing: wrong machine/dir or the script wrote elsewhere | Compare `<path>` with where the script wrote (`sql : …` line). See internals: temp-file contract, `PROTHEUS_SQL_PATH` |
 | `400 "Nao foi possivel executar a consulta."` | The database rejected it; `detailedMessage` is the database's own message | Fix the SQL (invalid column, syntax…) |
-| `500 "Resposta invalida da consulta."` | The RPO of this environment has the old REST-only `GwApiQuery` | Compile `Sources/Global/Gworks/Library/Classes/ApiQuery` into that environment (with the user's OK), then retry |
+| `500 "Resposta invalida da consulta."` | The RPO of this environment has the old REST-only `GwApiQuery` | Compile `<lib>/Library/Classes/ApiQuery` into that environment (with the user's OK), then retry |
 | `nada em /tmp/consultasql-retorno.json apos Ns` | The function ran and could not read the SQL / write the result on the client, or never ran | Check the `agente : porta … (Agente Local ligado)` line; then debug per [internals](references/exec-sql-internals.md): page console, and in the AdvPL debugger `File("l:/tmp/consultasql.sql")` / `MemoRead(...)` — `.F.`/`""` with the file present means `l:` is going to the server |
 | `agente : nao foi possivel ligar o Agente Local` (launch mode) | The wrapper did not record the launch URL or the browser's CDP was unreachable | Rerun once; check nothing else holds port 9253 (`ss -ltnp \| grep 9253`) |
 | Result file exists with **0 bytes** | A selected column has accented text (CP1252) and the JSON conversion failed (e.g. `X2_NOME`, `X5_DESCRI`, `*_DESCR`) | Drop the column, or read it as hex: `CONVERT(VARCHAR(200), CAST(col AS VARBINARY(100)), 2)` and decode with `bytes.fromhex(h).decode('cp1252')` |

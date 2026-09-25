@@ -73,7 +73,7 @@ Compilation uses only `ip`, `port`, `user`, `password` and the environments; the
 
 Validation (same rule in `.sh` and `.ps1`, and in `pth-execute.mjs`): must be a JSON object; `ip` a string, `port` digits, `environments` a list of strings, the rest strings or absent; **`ip` and environment names contain no whitespace** (a trailing space in `"TESTE5 "` would only surface as "environment not found" on the server). `pth-execute.mjs` also checks that `https`, `launch_by_webagent` and `production_database` are booleans, `webagent`/`browser` strings and `webagent_port` digits. A syntax error is reported with the parser's own message; a UTF-8 BOM is accepted. Missing required values are all listed at once: `Preencha em <file>: ip, port, user, password, env_default`.
 
-- **The repository folder is synced (Google Drive)** — the settings files and their passwords sync with it. There is no git repository here, so nothing keeps them out of a copy of the folder.
+- **The project folder is synced (Google Drive)** — the settings files and their passwords sync with it. In a folder that is also a git repository, `Scripts/pth-settings*.json` must be in `.gitignore` (only `pth-settings.example.json` is versioned); check it before the first commit that touches `Scripts/`.
 - To use a file outside `Scripts/`, pass no suffix and export `PTH_SETTINGS=<path>` (`$env:PTH_SETTINGS` on Windows).
 - The `.sh` scripts have no execute bit (Google Drive folder): call them as `bash Scripts/pth-compile.sh …`.
 
@@ -104,7 +104,7 @@ An empty value (`-e ""`) is an error, not "use the default" — an empty variabl
 | `3` | Setup: `jq` missing, settings missing/invalid/incomplete, `advpls` not found |
 | other | The `advpls` exit code of the first environment that failed |
 
-**Default target caveat:** without a path the script compiles `Sources/AdvPL/Global` + `Sources/AdvPL/Projects` (inherited from another project's layout). **They do not exist in this repository — always pass an explicit path** (e.g. `Sources/Global/Gworks/Templates/ConsultaSql`).
+**Default target caveat:** without a path the script compiles `Sources/AdvPL/Global` + `Sources/AdvPL/Projects` (inherited from another project's layout). **They do not exist in the Gworks projects — always pass an explicit path** (e.g. `Sources/Global/Gworks/Templates/ConsultaSql` in a client project, `Sources/Templates/ConsultaSql` in `gworks-library-protheus`).
 
 ## Environment = RPO — the trap that costs the most
 

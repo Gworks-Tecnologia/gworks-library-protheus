@@ -13,13 +13,14 @@ metadata:
 
 ## Overview
 
-The Gworks library is Giovani's personal, reusable AdvPL/TLPP framework for TOTVS Protheus, accumulated over several years of consulting work. Its canonical source lives in a **separate repository**, not vendored into this project:
+The Gworks library is Giovani's personal, reusable AdvPL/TLPP framework for TOTVS Protheus, accumulated over several years of consulting work. Its canonical source is the `gworks-library-protheus` repository; a client project carries a copy under `Sources/Global/Gworks/`:
 
 ```
-/home/giovani/GoogleDrive/Repositories/Git/Gworks/gworks-library-protheus/Sources/
+/home/giovani/GoogleDrive/Repositories/Git/Gworks/gworks-library-protheus/Sources/    ← canonical
+<client project>/Sources/Global/Gworks/                                                 ← copy
 ```
 
-That source is the ground truth — if a signature here looks stale, re-read the file there before trusting this skill. This skill exists so that new AdvPL/TLPP code written for a Gworks project **reuses** this framework instead of re-implementing common patterns from scratch (area save/restore, ExecAuto boilerplate, error handling, sequencing, dictionary/metadata access, param dialogs, mail, async jobs, etc). It assumes the library is already compiled into the target Protheus environment (RPO) — this skill does not install or copy the library's source.
+The canonical source is the ground truth — if a signature here looks stale, re-read the file there before trusting this skill. A client copy can lag behind it (or carry a fix not yet brought back): compare before assuming they match. This skill exists so that new AdvPL/TLPP code written for a Gworks project **reuses** this framework instead of re-implementing common patterns from scratch (area save/restore, ExecAuto boilerplate, error handling, sequencing, dictionary/metadata access, param dialogs, mail, async jobs, etc). It assumes the library is already compiled into the target Protheus environment (RPO) — this skill does not install or copy the library's source.
 
 ## When to Use
 
