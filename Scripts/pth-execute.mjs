@@ -9,36 +9,73 @@
 //     <host>/webapp/?E=<ambiente>&P=<namespace.U_Funcao>&A=<arg1>&A=<arg2>&M=1
 //
 // CADA &A= E UM ARGUMENTO, na ordem -- nao e uma lista separada por virgula.
-// Como e pagina web, da para dirigir por Chromium headless via CDP.
 //
-// POR QUE POR SCREENSHOT. As janelas do Protheus sao desenhadas em PIXEL, nao
-// em DOM: varrer os frames por innerText devolve vazio enquanto o dialogo esta
-// ali, visivel. So a pagina de erro fatal do runtime chega como texto (outro
-// caminho de renderizacao) -- e ela e justamente a que carrega a pilha AdvPL.
+// WEBAGENT. Antes de E=/P= valerem, a pagina precisa falar com um WebAgent em
+// 127.0.0.1 (os arquivos com "l:" passam por ele). Sem isso ela mostra
+// "TOTVS WebAgent ... INSTALAR" ou "Falha ao conectar com o WebAgent!", cai no
+// "Programa Inicial" e nada executa. Ha dois modos, escolhidos pelo campo
+// launch_by_webagent do arquivo de settings:
 //
-// PRE-REQUISITO. O WebAgent tem de estar rodando (porta 21021) e em versao
-// COMPATIVEL com a build do AppServer. Incompativel, a pagina responde
-// "Acesso nao autorizado ao WebAgent" e nada executa.
+//   launch_by_webagent = true -- roda `<webagent> launch "<url>" --browser
+//     <embrulho>`. O launch sobe um agente so para essa pagina, numa porta
+//     aleatoria que ele passa na URL (agent-started=launch&agent-port=<porta>).
+//     O embrulho e um script gerado aqui que grava os argumentos do launch e
+//     abre o "browser" headless em about:blank, com perfil descartavel e CDP
+//     -- com o navegador direto, o WebAgent abriria a URL na sessao ja aberta
+//     do usuario (aba na tela dele). Nao ha deteccao
+//     por tela: o fim e o arquivo de PROTHEUS_WAIT_FILE aparecer (o pth-query
+//     informa o de retorno); sem ela, espera o limite inteiro. No fim fecha o
+//     navegador (CDP) e o agente do launch.
+//
+//   launch_by_webagent = false -- dirige o "browser" headless por CDP e a
+//     pagina usa o WebAgent do usuario, na porta webagent_port (default
+//     21021). O fim e detectado por screenshot (abaixo).
+//
+// Nos dois modos, antes de abrir o programa, liga o "Agente Local" da WebApp
+// no perfil descartavel (chave desktopagentport do localStorage -- ver
+// ligarAgenteLocal): sem ela os caminhos "l:" vao para o disco do SERVIDOR.
+//
+// POR QUE POR SCREENSHOT (modo direto). As janelas do Protheus sao desenhadas
+// em PIXEL, nao em DOM: varrer os frames por innerText devolve vazio enquanto
+// o dialogo esta ali, visivel. So a pagina de erro fatal do runtime chega como
+// texto (outro caminho de renderizacao) -- e ela e justamente a que carrega a
+// pilha AdvPL.
 //
 // Uso:
 //   node Scripts/pth-execute.mjs <namespace.U_Funcao> [rotulo] [segundos] [arg...]
 //
-// Servidor e ambiente saem de Scripts/pth-settings.json, o mesmo arquivo do
-// pth-compile.sh (os campos estao descritos no topo dele). Aqui so importam
-// ip, port e o ambiente -- user e password nao sao usados. Variaveis de
-// ambiente ajustam a escolha sem editar o arquivo:
+// A configuracao sai de PTH_SETTINGS ou, sem ela, de Scripts/pth-settings.json
+// -- o mesmo arquivo do pth-compile.sh, cujos campos estao no topo dele (o
+// pth-query escolhe Scripts/pth-settings.<sufixo>.json por PTH_SETTINGS). user
+// e password nao sao usados aqui. Campos deste script:
+//   https     true/false (default false): o WebApp daquele servidor atende em
+//             https. Servidor so-https responde vazio (ERR_EMPTY_RESPONSE) a http.
+//   webagent  caminho do executavel do WebAgent daquele cliente (a versao muda
+//             conforme o cliente). Obrigatorio com launch_by_webagent.
+//   browser   caminho do navegador (Chromium/Chrome/Edge).
+//   webagent_port  porta do WebAgent do usuario no modo direto (default 21021).
+//   launch_by_webagent  true/false (default false): o modo, acima.
+//   production_database  true/false (default false): o banco daquela
+//             configuracao e de producao. So informativo -- nao muda o
+//             comportamento; o -h do pth-compile mostra.
+//
+// Variaveis de ambiente:
 //   PROTHEUS_ENV   ambiente onde executar: um papel (default, rest, workflow,
 //                  job, que valem env_default, env_rest, env_workflow e
 //                  env_job) ou o nome de um ambiente de "environments".
 //                  Default: env_default
-//   PTH_SETTINGS   caminho de outro arquivo no lugar do padrao (um arquivo =
-//                  um servidor)
+//   PTH_SETTINGS   caminho do arquivo de settings (um arquivo = um servidor)
 //   PROTHEUS_URL   URL do WebApp, sem consultar o arquivo -- exige
 //                  PROTHEUS_ENV (nome do ambiente, nao papel) junto, porque
 //                  ambiente sem o servidor certo e o RPO errado. O WebApp
-//                  usa a porta do AppServer: http://<ip>:<port>
-//   PROTHEUS_BROWSER  executavel do Chromium/Chrome/Edge. Sem ele procura nos
-//                  lugares de instalacao de Linux, Windows e macOS.
+//                  usa a porta do AppServer: http(s)://<ip>:<port>
+//   PROTHEUS_BROWSER  navegador; vale mais que o "browser" do arquivo. Sem
+//                  nenhum dos dois, procura nos lugares de instalacao de
+//                  Linux, Windows e macOS.
+//   PROTHEUS_WAIT_FILE  arquivo cujo aparecimento encerra a espera no modo
+//                  launch_by_webagent.
+//   PROTHEUS_OUT   pasta de saida (screenshot, perfil, embrulho).
+//   PROTHEUS_CDP_PORT  porta CDP do navegador (default 9253).
 //
 // Roda em Linux, Windows e macOS. No Windows, chame pelo pth-query.ps1.
 //
@@ -83,7 +120,7 @@ function resolverServidor() {
 
   if (url) {
     if (!pedido) falha('PROTHEUS_URL exige PROTHEUS_ENV junto (ambiente sem o servidor certo e o RPO errado).');
-    return { base: url, env: pedido };
+    return { base: url, env: pedido, agentPort: 21021 };
   }
 
   let cfg;
@@ -104,10 +141,15 @@ function resolverServidor() {
     && (cfg.environments == null
         || (Array.isArray(cfg.environments) && cfg.environments.every(a => typeof a === 'string')))
     && [cfg.user, cfg.password, cfg.env_default, cfg.env_rest, cfg.env_workflow, cfg.env_job].every(texto)
+    && (cfg.https == null || typeof cfg.https === 'boolean')
+    && texto(cfg.webagent) && texto(cfg.browser)
+    && [cfg.launch_by_webagent, cfg.production_database].every(v => v == null || typeof v === 'boolean')
+    && (cfg.webagent_port == null || /^[0-9]+$/.test(String(cfg.webagent_port)))
     && [cfg.ip, cfg.env_default, cfg.env_rest, cfg.env_workflow, cfg.env_job, ...(cfg.environments ?? [])].every(semEspaco);
   if (!formaOk) {
     falha(`${SETTINGS} invalido: esperado um objeto com ip (texto), port (numero), environments (lista de textos)\n`
         + 'e user, password, env_default, env_rest, env_workflow, env_job (texto). ip e nomes de ambiente nao podem ter espacos.\n'
+        + 'https, launch_by_webagent e production_database, se houver, sao true ou false; webagent e browser, se houver, sao texto (caminho do executavel).\n'
         + 'Veja o topo do pth-compile.sh.');
   }
 
@@ -142,20 +184,30 @@ function resolverServidor() {
     ambiente = alvo;
   }
 
-  return { base: `http://${cfg.ip}:${cfg.port}`, env: ambiente };
+  return {
+    base: `${cfg.https ? 'https' : 'http'}://${cfg.ip}:${cfg.port}`, env: ambiente,
+    browser: cfg.browser || '', webagent: cfg.webagent || '', launch: cfg.launch_by_webagent === true,
+    agentPort: Number(cfg.webagent_port) || 21021,
+  };
 }
 
-const { base: BASE, env: ENV } = resolverServidor();
+const {
+  base: BASE, env: ENV, browser: BROWSER_CFG, webagent: WEBAGENT, launch: LAUNCH, agentPort: AGENT_PORT,
+} = resolverServidor();
 
 // Navegador baseado em Chromium (Chromium, Chrome ou Edge): so ele precisa
-// falar CDP e aceitar --headless=new. PROTHEUS_BROWSER aponta um executavel
-// especifico; sem ele, procura nos lugares de instalacao de cada sistema. O
-// primeiro Linux e o que sempre foi usado aqui.
+// falar CDP e aceitar --headless=new. Ordem: PROTHEUS_BROWSER, depois o campo
+// "browser" do arquivo de settings, depois os lugares de instalacao de cada
+// sistema.
 function acharNavegador() {
   const { PROTHEUS_BROWSER: informado } = process.env;
   if (informado) {
     if (!existsSync(informado)) falha(`PROTHEUS_BROWSER nao existe: ${informado}`);
     return informado;
+  }
+  if (BROWSER_CFG) {
+    if (!existsSync(BROWSER_CFG)) falha(`browser do arquivo de settings nao existe: ${BROWSER_CFG}`);
+    return BROWSER_CFG;
   }
 
   const e = process.env;
@@ -193,17 +245,162 @@ const PORT = Number(process.env.PROTHEUS_CDP_PORT ?? 9253);
 const URL = `${BASE}/webapp/?E=${encodeURIComponent(ENV)}&P=${encodeURIComponent(PROG)}`
           + ARGS.map(a => `&A=${encodeURIComponent(a)}`).join('') + '&M=1';
 
+// "AGENTE LOCAL" DA WEBAPP. A opcao da engrenagem (Agente Local) fica no
+// localStorage da origem, na chave "desktopagentport": com ela, os caminhos
+// "l:" vao para o WebAgent; SEM ela -- todo perfil novo --, vao para o disco do
+// SERVIDOR, mesmo com o agente conectado (ExistDir("l:/tmp") da .T. porque o
+// servidor tambem tem /tmp; File/MemoRead de um arquivo da estacao dao .F./"").
+// Por isso, antes de abrir o programa, carrega a tela inicial (mesma origem,
+// sem P=) e grava a chave com a porta do agente.
+async function ligarAgenteLocal(navegar, avaliar, porta) {
+  await navegar(`${BASE}/webapp/`);
+  for (let i = 0; i < 40; i++) {
+    await sleep(500);
+    try { if (await avaliar('document.readyState === "complete" && localStorage.length > 0')) break; } catch {}
+  }
+  await avaliar(`localStorage.setItem('desktopagentport', '${porta}'); true`);
+}
+
+// Pagina aberta num navegador com CDP: devolve navegar/avaliar da primeira aba.
+// Tenta 127.0.0.1 e [::1] -- o navegador escuta num ou noutro, conforme a versao.
+async function abrirAba(porta, tentativas = 60) {
+  for (let i = 0; i < tentativas; i++) {
+    for (const host of ['127.0.0.1', '[::1]']) {
+      try {
+        const alvo = (await (await fetch(`http://${host}:${porta}/json/list`)).json()).find(t => t.type === 'page');
+        if (!alvo) continue;
+        const sock = new WebSocket(alvo.webSocketDebuggerUrl.replace(/^ws:\/\/[^/]+/, `ws://${host}:${porta}`));
+        await new Promise((ok, erro) => { sock.onopen = ok; sock.onerror = erro; });
+        let n = 0; const pend = new Map();
+        sock.onmessage = e => { const m = JSON.parse(e.data); if (m.id && pend.has(m.id)) { pend.get(m.id)(m.result); pend.delete(m.id); } };
+        const cmd = (method, params = {}) => new Promise(r => { const k = ++n; pend.set(k, r); sock.send(JSON.stringify({ id: k, method, params })); });
+        return {
+          navegar: url => cmd('Page.navigate', { url }),
+          avaliar: async expr => (await cmd('Runtime.evaluate', { expression: expr, returnByValue: true }))?.result?.value,
+          fechar: () => sock.close(),
+        };
+      } catch {}
+    }
+    await sleep(500);
+  }
+  return null;
+}
+
+if (LAUNCH) {
+  if (!WEBAGENT) falha(`launch_by_webagent exige o campo webagent em ${SETTINGS}`);
+  if (!existsSync(WEBAGENT)) falha(`webagent nao existe: ${WEBAGENT}`);
+
+  const espera = process.env.PROTHEUS_WAIT_FILE;
+  console.log(`servidor : ${BASE}  (${ENV})`);
+  console.log(`programa : ${PROG}`);
+  ARGS.forEach((a, i) => console.log(`arg ${i + 1}    : ${a}`));
+  console.log(`modo     : launch_by_webagent (${WEBAGENT})`);
+  console.log(`saida    : ${SAIDA}`);
+
+  // O --browser do launch recebe um EMBRULHO, nao o navegador direto: com o
+  // navegador direto o WebAgent abre a URL na sessao ja aberta do usuario (aba
+  // na tela dele). O embrulho sobe um navegador proprio, headless, perfil
+  // descartavel e CDP (para fechar no fim). O launch acrescenta a URL
+  // agent-started=launch&agent-port=<porta> e sobe um agente so para essa
+  // pagina; a pagina e https publica e o agente e 127.0.0.1, entao o Chromium
+  // novo barra a conexao (ERR_BLOCKED_BY_LOCAL_NETWORK_ACCESS_CHECKS) --
+  // headless nao tem quem aceite o pedido de permissao. Dai o
+  // LocalNetworkAccessChecks desligado.
+  const flags = [
+    '--headless=new', `--remote-debugging-port=${PORT}`, '--no-sandbox', '--disable-gpu',
+    '--disable-dev-shm-usage', '--window-size=1600,1000',
+    '--ignore-certificate-errors', '--allow-insecure-localhost',
+    '--disable-features=LocalNetworkAccessChecks',
+    `--user-data-dir=${join(SAIDA, 'chrome')}`,
+  ];
+  // O embrulho NAO repassa a URL ao navegador: grava os argumentos do launch
+  // num arquivo e abre about:blank. Daqui se le a URL (com agent-port), liga o
+  // "Agente Local" nessa porta (ligarAgenteLocal) e so entao se abre o programa.
+  const argsArq = join(SAIDA, 'launch-args.txt');
+  let embrulho;
+  if (process.platform === 'win32') {
+    embrulho = join(SAIDA, 'navegador.cmd');
+    writeFileSync(embrulho, `@echo off\r\necho %* > "${argsArq}"\r\n"${NAVEGADOR}" ${flags.map(f => `"${f}"`).join(' ')} about:blank\r\n`);
+  } else {
+    const q = s => `'${s.replace(/'/g, `'\\''`)}'`;
+    embrulho = join(SAIDA, 'navegador.sh');
+    writeFileSync(embrulho,
+      `#!/bin/sh\nprintf '%s\\n' "$@" > ${q(argsArq)}\nexec ${q(NAVEGADOR)} ${flags.map(q).join(' ')} about:blank\n`, { mode: 0o755 });
+  }
+
+  const agente = spawn(WEBAGENT, ['launch', URL, '--browser', embrulho], { stdio: 'ignore', detached: true });
+  agente.unref();
+
+  let urlLaunch = '';
+  for (let i = 0; i < 60 && !urlLaunch; i++) {
+    await sleep(500);
+    try { urlLaunch = (readFileSync(argsArq, 'utf8').match(/https?:\/\/[^\s"]+/) ?? [''])[0]; } catch {}
+  }
+  const portaLaunch = urlLaunch ? Number(new globalThis.URL(urlLaunch).searchParams.get('agent-port')) : 0;
+  const aba = urlLaunch && portaLaunch ? await abrirAba(PORT) : null;
+  if (aba) {
+    await ligarAgenteLocal(aba.navegar, aba.avaliar, portaLaunch);
+    await aba.navegar(urlLaunch);
+    aba.fechar();
+    console.log(`agente   : porta ${portaLaunch} (Agente Local ligado)`);
+  } else {
+    console.log('agente   : nao foi possivel ligar o Agente Local (URL do launch ou CDP indisponivel)');
+  }
+
+  // Fecha o navegador pelo CDP (Browser.close; matar o processo deixa a sessao
+  // do AppServer viva) e o agente que o launch subiu, que senao fica rodando.
+  // O navegador escuta o CDP em 127.0.0.1 ou em [::1], conforme a versao:
+  // tenta os dois, senao o fechamento falha calado e o navegador fica vivo.
+  const encerrar = async codigo => {
+    for (const host of ['127.0.0.1', '[::1]']) {
+      try {
+        const v = await (await fetch(`http://${host}:${PORT}/json/version`)).json();
+        const s = new WebSocket(v.webSocketDebuggerUrl.replace(/^ws:\/\/[^/]+/, `ws://${host}:${PORT}`));
+        await new Promise((ok, erro) => { s.onopen = ok; s.onerror = erro; });
+        s.send(JSON.stringify({ id: 1, method: 'Browser.close' }));
+        await sleep(1500);
+        break;
+      } catch {}
+    }
+    try { process.kill(agente.pid); } catch {}
+    process.exit(codigo);
+  };
+
+  if (!espera) {
+    console.log('\nsem PROTHEUS_WAIT_FILE: espera o limite inteiro e encerra');
+    await sleep(LIMITE);
+    await encerrar(0);
+  }
+  const t0 = Date.now();
+  while (Date.now() - t0 < LIMITE) {
+    if (existsSync(espera)) {
+      console.log(`\nretorno  : ${espera} (${((Date.now() - t0) / 1000).toFixed(1)}s)`);
+      await encerrar(0);
+    }
+    await sleep(1000);
+  }
+  console.log(`\nnada em ${espera} apos ${LIMITE / 1000}s`);
+  await encerrar(2);
+}
+
 const chrome = spawn(NAVEGADOR, [
   '--headless=new', `--remote-debugging-port=${PORT}`, '--no-sandbox', '--disable-gpu',
   '--disable-dev-shm-usage', '--window-size=1600,1000',
   '--ignore-certificate-errors', '--allow-insecure-localhost',
+  '--disable-features=LocalNetworkAccessChecks',
   `--user-data-dir=${join(SAIDA, 'chrome')}`, 'about:blank'
 ], { stdio: 'ignore' });
 
 let wsUrl;
 for (let i = 0; i < 60 && !wsUrl; i++) {
   await sleep(500);
-  try { wsUrl = (await (await fetch(`http://127.0.0.1:${PORT}/json/version`)).json()).webSocketDebuggerUrl; } catch {}
+  for (const host of ['127.0.0.1', '[::1]']) {
+    try {
+      wsUrl = (await (await fetch(`http://${host}:${PORT}/json/version`)).json()).webSocketDebuggerUrl
+        .replace(/^ws:\/\/[^/]+/, `ws://${host}:${PORT}`);
+      break;
+    } catch {}
+  }
 }
 if (!wsUrl) { console.error('chromium nao subiu'); process.exit(1); }
 
@@ -250,6 +447,12 @@ console.log(`servidor : ${BASE}  (${ENV})`);
 console.log(`programa : ${PROG}`);
 ARGS.forEach((a, i) => console.log(`arg ${i + 1}    : ${a}`));
 console.log(`saida    : ${SAIDA}`);
+console.log(`agente   : porta ${AGENT_PORT} (Agente Local ligado; webagent_port no arquivo de settings)`);
+
+await ligarAgenteLocal(
+  url => send('Page.navigate', { url }, s),
+  async expr => (await send('Runtime.evaluate', { expression: expr, returnByValue: true }, s)).result.value,
+  AGENT_PORT);
 
 const t0 = Date.now();
 await send('Page.navigate', { url: URL }, s);

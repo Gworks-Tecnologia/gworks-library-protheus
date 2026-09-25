@@ -13,15 +13,15 @@
 # No Windows use o pth-compile.ps1: mesmos parametros, mesmo pth-settings.json.
 #
 # ---------------------------------------------------------------------------
-# CONFIGURACAO: Scripts/pth-settings.json
+# CONFIGURACAO: Scripts/pth-settings.json ou Scripts/pth-settings.<sufixo>.json
 #
 # Servidor, ambientes e credencial vem de UM arquivo JSON, lido com jq, que
-# descreve UM AppServer. O modelo (sem valores) e o pth-settings.example.json:
-#
-#     cp Scripts/pth-settings.example.json Scripts/pth-settings.json
+# descreve UM AppServer. Um arquivo = um servidor; quantos forem precisos:
+# sem argumento vale Scripts/pth-settings.json (ou PTH_SETTINGS), e um sufixo
+# como PRIMEIRO argumento escolhe Scripts/pth-settings.<sufixo>.json.
 #
 #   ip            AppServer                                        obrigatorio
-#   port          Porta do AppServer                               obrigatorio
+#   port          Porta do AppServer (e do WebApp)                 obrigatorio
 #   user          Usuario do Protheus                              obrigatorio
 #   password      Senha do usuario                                 obrigatorio
 #   env_default   Ambiente (RPO) de compilacao                     obrigatorio
@@ -31,15 +31,16 @@
 #   environments  Lista dos ambientes do servidor. Junto com os    opcional
 #                 env_* acima, e o que o -e NOME aceita
 #
-# Campo opcional vazio ("") vale "nao configurado". O modelo vem com ip
-# "0.0.0.0" e port 0, que tambem contam como nao preenchidos. ip e nomes de
-# ambiente nao podem ter espaco (nem sobrando no fim: "TESTE5 ").
+# Campos do WebApp, usados pelo pth-execute.mjs/pth-query (a compilacao so
+# mostra no -h): https, webagent, browser, launch_by_webagent -- descritos no
+# topo do pth-execute.mjs. production_database (true/false) marca banco de
+# producao; e so informativo.
 #
-# Um arquivo = um servidor. Para compilar em OUTRO servidor, aponte para outro
-# arquivo com a variavel PTH_SETTINGS.
+# Campo opcional vazio ("") vale "nao configurado". ip "0.0.0.0" e port 0
+# contam como nao preenchidos. ip e nomes de ambiente nao podem ter espaco
+# (nem sobrando no fim: "TESTE5 ").
 #
 # SENHA. O arquivo carrega a senha em texto puro:
-#   - Scripts/pth-settings.json esta no .gitignore -- versione so o .example.
 #   - Se a pasta do repositorio e sincronizada (Google Drive, OneDrive...), o
 #     arquivo sincroniza junto. Para manter a senha fora dela, guarde o arquivo
 #     em outro lugar e exporte, por exemplo:
@@ -59,13 +60,17 @@ REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 ADVPLS="$HOME/.vscode/extensions/totvs.tds-vscode-2.0.16/node_modules/@totvs/tds-ls/bin/linux/advpls"
 
-# Primeiro argumento opcional: dev ou prd escolhe Scripts/pth-settings.<alvo>.json.
-# Sem ele vale PTH_SETTINGS e, sem ela, Scripts/pth-settings.json.
-case "${1:-}" in
-    dev|prd) PTH_SETTINGS="$REPO/Scripts/pth-settings.$1.json"; shift ;;
-esac
+# Primeiro argumento opcional: um sufixo (homolog, cliente-x...) escolhe
+# Scripts/pth-settings.<sufixo>.json. Nome simples (letras, numeros, _ e -,
+# comecando por letra ou numero) que nao seja um caminho existente e sufixo;
+# sem o arquivo correspondente e erro, nao queda silenciosa no padrao. Sem
+# sufixo vale PTH_SETTINGS e, sem ela, Scripts/pth-settings.json.
+if [[ "${1:-}" =~ ^[A-Za-z0-9][A-Za-z0-9_-]*$ ]] && [ ! -e "$1" ]; then
+    PTH_SETTINGS="$REPO/Scripts/pth-settings.$1.json"
+    [ -r "$PTH_SETTINGS" ] || { echo "Arquivo de configuracao nao encontrado: $PTH_SETTINGS" >&2; exit 3; }
+    shift
+fi
 SETTINGS="${PTH_SETTINGS:-$REPO/Scripts/pth-settings.json}"
-MODELO="$REPO/Scripts/pth-settings.example.json"
 
 # Includes: os mesmos de .vscode/settings.json. O AppServer le estes caminhos
 # no momento da compilacao, entao precisam ser absolutos.
@@ -97,6 +102,12 @@ resumo_config() {
     jq -r '
         def v: if . == null or . == "" then "-" else . end;
         "  servidor     : \(.ip | v):\(.port | v)",
+        "  https        : \(.https // false) (webapp)",
+        "  webagent     : \(.webagent | v)",
+        "  browser      : \(.browser | v)",
+        "  webagent_port: \(.webagent_port // 21021)",
+        "  launch_by_webagent : \(.launch_by_webagent // false)",
+        "  production_database : \(.production_database // false)",
         "  env_default  : \(.env_default | v)",
         "  env_rest     : \(.env_rest | v)",
         "  env_workflow : \(.env_workflow | v)",
@@ -107,9 +118,9 @@ resumo_config() {
 
 uso() {
     cat <<EOF
-Uso: $(basename "$0") [dev|prd] [opcoes] [caminho ...]
+Uso: $(basename "$0") [sufixo] [opcoes] [caminho ...]
 
-  dev|prd     Usa Scripts/pth-settings.dev.json ou pth-settings.prd.json.
+  sufixo      Usa Scripts/pth-settings.<sufixo>.json (homolog, cliente-x...).
               Sem ele: PTH_SETTINGS ou Scripts/pth-settings.json.
               Tem que ser o PRIMEIRO argumento.
 
@@ -133,10 +144,10 @@ $(resumo_config)
 
 Exemplos:
   $(basename "$0")
-  $(basename "$0") dev Sources/Templates/ConsultaSql
-  $(basename "$0") -e rest Sources/Templates/ConsultaSql/Api
-  $(basename "$0") -a -r Sources/Templates/ConsultaSql
-  $(basename "$0") Sources/Templates/ConsultaSql/Api/GwTemplateConsultaSqlApi.tlpp
+  $(basename "$0") homolog Sources/Global/Gworks/Templates/ConsultaSql
+  $(basename "$0") -e rest Sources/Global/Gworks/Templates/ConsultaSql/Api
+  $(basename "$0") -a -r Sources/Global/Gworks/Templates/ConsultaSql
+  $(basename "$0") Sources/Global/Gworks/Templates/ConsultaSql/Api/GwTemplateConsultaSqlApi.tlpp
 EOF
 }
 
@@ -166,8 +177,7 @@ command -v jq >/dev/null || {
 
 [ -r "$SETTINGS" ] || {
     echo "Arquivo de configuracao nao encontrado: $SETTINGS" >&2
-    echo "Copie o modelo e preencha (veja o topo deste script):" >&2
-    echo "  cp $MODELO $REPO/Scripts/pth-settings.json" >&2
+    echo "Crie e preencha (campos no topo deste script)." >&2
     exit 3; }
 
 # Sintaxe primeiro: comentario, virgula sobrando e aspas faltando sao os erros

@@ -2,7 +2,7 @@
 
 Reference for the `advpl-tlpp-exec-sql-query` skill. Read it when a run misbehaves or when you need to change the module. Everything here was read from the code in this repository unless it says **observed elsewhere** (learned in another project's live environment and not re-checked here).
 
-## Layers (`Sources/Templates/ConsultaSql/`)
+## Layers (`Sources/Global/Gworks/Templates/ConsultaSql/`)
 
 | File | Namespace | Role |
 | --- | --- | --- |
@@ -15,7 +15,7 @@ Reference for the `advpl-tlpp-exec-sql-query` skill. Read it when a run misbehav
 
 Both doors resolve the enum and call the Controller; **the rule lives in the Service** so the IDE door cannot go around a restriction the HTTP door enforces. All namespaces are `Gworks.Templates.ConsultaSql.*`.
 
-The Service delegates the actual query to `U_GwApiQuery` (`Sources/Library/Classes/ApiQuery/GwLibraryApiQuery.tlpp`, namespace `Gworks.Library.Classes`) in its **direct mode**: `U_GwApiQuery( cSql, @jResult )` runs with no `oRest` (which only exists inside a REST request) and fills `jResult` with `{"data":[…]}` on success or `{"erro":true,"msg":…}` on failure, in both modes; called with no parameters it is the REST route `POST /gwquery/query` that the HTML reports consume (library v1.1 — see "Known status" in the skill: it must be the version compiled in the RPO). `U_GWQTOJSON(cSql)` in the same file is the public function that runs a `SELECT` through `TCQUERY` and returns `{"data":[…]}` (dates as `dd/mm/yyyy` strings, numerics as-is, text `AllTrim`med).
+The Service delegates the actual query to `U_GwApiQuery` (`Sources/Global/Gworks/Library/Classes/ApiQuery/GwLibraryApiQuery.tlpp`, namespace `Gworks.Library.Classes`) in its **direct mode**: `U_GwApiQuery( cSql, @jResult )` runs with no `oRest` (which only exists inside a REST request) and fills `jResult` with `{"data":[…]}` on success or `{"erro":true,"msg":…}` on failure, in both modes; called with no parameters it is the REST route `POST /gwquery/query` that the HTML reports consume (library v1.1 — see "Known status" in the skill: it must be the version compiled in the RPO). `U_GWQTOJSON(cSql)` in the same file is the public function that runs a `SELECT` through `TCQUERY` and returns `{"data":[…]}` (dates as `dd/mm/yyyy` strings, numerics as-is, text `AllTrim`med).
 
 ## The temp-file contract
 
@@ -24,16 +24,16 @@ The Service delegates the actual query to `U_GwApiQuery` (`Sources/Library/Class
 | Statement | the script (`pth-query.*`) | the Service (`MemoRead`) | `consultasql.sql` |
 | Result | the Controller (`MemoWrite`) | the agent | `consultasql-retorno.json` |
 
-Names are fixed on purpose: the reader is a script outside Protheus that must know the path *before* the call. The price is that two runs overwrite each other — fine for debugging, one call at a time.
+Names are fixed on purpose: the reader is a script outside Protheus that must know the path *before* the call. The price is that two runs overwrite each other — fine for debugging, one call at a time. `pth-query` deletes the result file before each run, so a failed run never leaves the previous result to be read as fresh, and in launch mode its appearance is the completion signal.
 
-The **directory** is computed in one place, `U_ConsultaSqlTempFile( cName )` (`Functions`), from AdvPL's `GetTempPath()` — the client's temp folder:
+The **directory** is computed in one place, `U_ConsultaSqlTempFile( cName )` (`Functions`):
 
-| Client OS | `GetTempPath()` returns | Result of `U_ConsultaSqlTempFile("x")` |
-| --- | --- | --- |
-| Linux | `/tmp/` | `l:/tmp/x` |
-| Windows | `C:\Users\…\Temp\` *(assumed — not yet confirmed)* | `C:\Users\…\Temp\x` |
+| Client OS | Result of `U_ConsultaSqlTempFile("x")` |
+| --- | --- |
+| Linux / Unix | always `l:/tmp/x` |
+| Windows | `GetTempPath()` + `x` — `C:\Users\…\Temp\x` *(assumed — not yet confirmed)* |
 
-Rules it applies: Unix if the path starts with `/` (then prefix `l:` and separator `/`); otherwise Windows (separator `\`, no prefix); a trailing separator is added when missing; a path already starting with `l:/` is not prefixed again (`L:\…` is a Windows drive, not the prefix). The OS comes from the string itself, not from `GetRemoteType()`/`U_GwRemoteType`: one source of truth, already confirmed live for the WebApp, and `U_GwRemoteType` throws when it cannot classify the client. The function is meant for calls **with a client** (menu, WebApp); a REST/job thread has no client disk for `l:` to point at.
+Rules it applies: the **format** of `GetTempPath()` tells the OS — starting with `/` (or `l:/`) is Unix, anything else Windows (`L:\…` is a Windows drive, not the prefix). On Unix the **value** of `GetTempPath()` is not used: WebApp 10.2.1 returns `l:` + the WebApp's per-user folder **on the server** (`l:/…/webapp/user/<session>/`, a WebApp bug removed in 10.2.2), which does not exist on the client — so the directory is fixed to `/tmp/`, where `pth-query.sh` writes and reads. On Windows a trailing separator is added when missing. The OS does not come from `GetRemoteType()`/`U_GwRemoteType` (a second source of truth, and `U_GwRemoteType` throws when it cannot classify the client). The function is meant for calls **with a client** (menu, WebApp); a REST/job thread has no client disk for `l:` to point at.
 
 ### The `l:` prefix chooses the MACHINE, not the syntax
 
@@ -58,9 +58,38 @@ The AppServer publishes the SmartClient WebApp on the same port as the TCP drive
 http://<ip>:<port>/webapp/?E=<ENVIRONMENT>&P=<program>&A=<arg1>&A=<arg2>&M=1
 ```
 
-`E` = environment (exactly as in `appserver.ini`), `P` = program — accepts a **fully-qualified namespace function** (`Gworks.Templates.ConsultaSql.Apps.U_ConsultaSqlPostConsulta`), `A` = **one positional argument; repeat the key for more** (not a comma-separated list), `M=1` = no menu. Call the function directly; do **not** route through `U_GMNUEXEC` (it is for routines with a UI, calls `RpcSetEnv` itself and burns a second license — observed elsewhere to fail where the direct call worked).
+`E` = environment (exactly as in `appserver.ini`), `P` = program — accepts a **fully-qualified namespace function** (`Gworks.Templates.ConsultaSql.Apps.U_ConsultaSqlPostConsulta`), `A` = **one positional argument; repeat the key for more** (not a comma-separated list), `M=1` = no menu. Call the function directly; do **not** route through `U_GMNUEXEC` (it is for routines with a UI, calls `RpcSetEnv` itself and burns a second license — observed elsewhere to fail where the direct call worked). The scheme is `https` when the settings file has `"https": true`; an https-only WebApp answers plain `http` with an empty response (`ERR_EMPTY_RESPONSE`).
 
-It is a web page, so the script drives headless Chromium/Chrome/Edge over CDP with `--ignore-certificate-errors --allow-insecure-localhost` (the local WebAgent serves `wss://` with a self-signed certificate). Before anything runs, the page connects to `wss://127.0.0.1:21021/agent`; if the WebAgent is absent or incompatible with the AppServer build, it answers *"Falha ao conectar com o WebAgent!"* and the program never runs (an incompatible agent answers in plaintext while the page demands `wss` — `curl https://127.0.0.1:21021/` shows `wrong version number`; it is not a certificate problem).
+The page must reach a **WebAgent** on `127.0.0.1` before `E=`/`P=` take effect — the file reads/writes with `l:` go through it. Without it the page shows *"TOTVS WebAgent … INSTALAR"* or *"Falha ao conectar com o WebAgent!"*, falls back to *Programa Inicial* and the program never runs. The ConsultaSql Controller also checks it itself: with an interface and `GetWebAgentInfo()[1]` empty it shows *"Ligue o WebAgent para o ambiente <env> e execute novamente."*, logs `[ConsultaSql] WebAgent desativado na sessao …` and returns without running (same check as `U_gMnuExec`).
+
+### "Agente Local" — the setting a fresh browser profile does not have
+
+Connecting to the agent is not enough. The WebApp's gear option **"Agente Local"** (Habilita/Desabilita o Agente Local) lives in the browser's `localStorage` for that origin, under the key **`desktopagentport`** (the port): present = on, absent = off. With it off, **every `l:` path goes to the server's disk even with the agent connected** — `ExistDir("l:/tmp")` is `.T.` (the server also has `/tmp`), `File()`/`MemoRead()` of a client file give `.F.`/`""`, the SQL is never read and the result never written. A user's everyday browser has it on; a throwaway profile never does.
+
+So, in both modes, `pth-execute.mjs` first loads the WebApp start page (`<base>/webapp/`, no `P=`), sets `localStorage.desktopagentport` to the agent's port, and only then opens the program URL. The run prints `agente : porta <n> (Agente Local ligado)`.
+
+Other WebApp keys seen in `localStorage` (10.2.1): `desktopagentdontshow`, `language`, `viewmode`, `x:\smartclient.ini.*`. The source of truth is the WebApp bundle (`resources/js/webapp-<ver>-frontend.min.js`: `DesktopAgentPort`, `setPort`/`clearPort`).
+
+### Launch mode (`launch_by_webagent: true`)
+
+```
+<webagent> launch "<url>" --browser <wrapper>
+```
+
+- `web-agent launch` starts an agent dedicated to that page on a **random port** and calls the browser with the URL plus `agent-started=launch&agent-port=<port>`; the page connects to `wss://127.0.0.1:<port>/agent`.
+- Given a real browser executable, the WebAgent opens the URL **in the user's already-open browser session** (a new tab on their screen — "Opening in existing browser session"). So `pth-execute.mjs` writes a **wrapper** into its output dir (`navegador.sh`; `navegador.cmd` on Windows) and passes it as `--browser`. The wrapper **saves the launch arguments** to `launch-args.txt` and starts the settings `browser` on `about:blank`: `--headless=new`, a throwaway `--user-data-dir`, CDP on 9253, `--ignore-certificate-errors --allow-insecure-localhost` and `--disable-features=LocalNetworkAccessChecks`.
+- The script reads the URL from `launch-args.txt`, takes its `agent-port`, turns on the "Agente Local" with that port, then opens that URL.
+- `LocalNetworkAccessChecks` off: the page is public https and the agent is loopback, so current Chromium treats it as local-network access and asks the user for permission; headless has nobody to accept and the WebSocket fails with `net::ERR_BLOCKED_BY_LOCAL_NETWORK_ACCESS_CHECKS`.
+- Completion is the file named by `PROTHEUS_WAIT_FILE` appearing (`pth-query` passes the result file and deletes it beforehand). Exit `0` when it appears, `2` after the limit.
+- At the end the script closes the browser through CDP (`Browser.close`, trying `127.0.0.1` and `[::1]` — Edge may listen on either) and kills the `web-agent launch` process, which otherwise stays listening on its random port.
+
+### Direct mode (`launch_by_webagent: false`)
+
+The script drives the settings `browser` headless over CDP (same flags, including `LocalNetworkAccessChecks` off), turns on the "Agente Local" with `webagent_port` from the settings file (default 21021) and opens the program URL. The **user's own WebAgent** must be running on that port. Completion is detected by screenshot (below), so the script waits the whole limit for a routine that draws no window — prefer launch mode for ConsultaSql.
+
+### Debugging a run
+
+While the browser is still open (launch: kill the script before its end, or reproduce by hand with a wrapper that keeps CDP on another port), attach to `http://127.0.0.1:<cdp>/json/list`, enable `Runtime`/`Log`/`Network`, reload, and read the console and the `…/agent` WebSocket events. Useful signatures: `Desktop Agent Connected` + `Handshake sucessful` = agent fine; `ERR_BLOCKED_BY_LOCAL_NETWORK_ACCESS_CHECKS` = flag missing; agent fine but no file = "Agente Local" off or the SQL path wrong. In the AdvPL debugger: `U_ConsultaSqlTempFile` must return `l:/tmp/…`, and `File("l:/tmp/consultasql.sql")` must be `.T.`.
 
 **Why a screenshot is never the answer.** AdvPL windows are drawn as pixels, not DOM: walking frames for `innerText` returns nothing while a dialog sits visible in the image. The script therefore detects "a window appeared" by screenshot size (blank ≈ a few KB; a window jumps several-fold) — and this route never draws a window, so that detector never fires and the script waits the full timeout. The WebAgent's own toasts ("Tentando se conectar…", "Acesso nao autorizado…") jump the size exactly like a result window; unlike AdvPL windows they reach the DOM as text, and the script matches that text and keeps waiting.
 

@@ -41,19 +41,16 @@ Hard requirements, each learned the hard way:
 - The `.ini` carries the password in plain text: created `chmod 600` in the temp dir and destroyed by `trap EXIT` (`finally` in the `.ps1`), so it does not survive the run even on Ctrl+C.
 - *Observed elsewhere, not implemented by the scripts:* `action=validate` needs **no credentials** and answers with the build/secure pair — the cheapest connectivity probe. The grammar is documented in the package itself: `@totvs/tds-ls/TDS-cli-script.md` — read it before inventing syntax.
 
-## Settings files: `Scripts/pth-settings.dev.json` and `Scripts/pth-settings.prd.json`
+## Settings files: `Scripts/pth-settings.json` and `Scripts/pth-settings.<suffix>.json`
 
-One file = **one server**. The user creates and fills them — the agent never reads them. The **first argument** of every script picks the file:
+One file = **one server**. The user creates and fills them — the agent never reads them. There can be as many as needed: each extra configuration is a `Scripts/pth-settings.<suffix>.json` with any suffix. The **first argument** of every script picks the file:
 
 | First argument | File used |
 | --- | --- |
-| `dev` | `Scripts/pth-settings.dev.json` |
-| `prd` | `Scripts/pth-settings.prd.json` |
-| *(none)* | `PTH_SETTINGS`, else `Scripts/pth-settings.json` — **which does not exist in this repository**, so always pass `dev` or `prd` |
+| *(none)* | `PTH_SETTINGS`, else `Scripts/pth-settings.json` |
+| a suffix — plain name (letters, digits, `_`, `-`) starting with a letter or digit | `Scripts/pth-settings.<suffix>.json`; missing file → `Arquivo de configuracao nao encontrado` (exit 3), never a silent fallback |
 
-Same rule in `pth-compile.sh`/`.ps1` and `pth-query.sh`/`.ps1`; the query scripts hand the choice to `pth-execute.mjs` through `PTH_SETTINGS` (the `.ps1` restores the previous value when `node` exits, and `pth-compile.ps1` keeps it in a local variable, so nothing leaks into the user's PowerShell session). `pth-execute.mjs` called directly reads only `PTH_SETTINGS` (default `Scripts/pth-settings.json`).
-
-Use `dev` by default; `prd` only when the user explicitly asks for production. On 2026-09-25 `-h` showed **the same server and `env_default` in both files** (`minerasul215598.protheus.cloudtotvs.com.br:10214`, `CQSLH5_GWORKS`) — check `-h` of the file you use instead of assuming they differ.
+Options (`-h`, `-e`, `-f`…) start with a dash, so they are never a suffix. In `pth-compile`, a first argument that is an existing file or directory is a source path, not a suffix. Same rule in `pth-compile.sh`/`.ps1` and `pth-query.sh`/`.ps1`; the query scripts hand the choice to `pth-execute.mjs` through `PTH_SETTINGS` (the `.ps1` restores the previous value when `node` exits, and `pth-compile.ps1` keeps it in a local variable, so nothing leaks into the user's PowerShell session). `pth-execute.mjs` called directly reads only `PTH_SETTINGS` (default `Scripts/pth-settings.json`).
 
 | Key | Meaning | Required |
 | --- | --- | --- |
@@ -65,22 +62,30 @@ Use `dev` by default; `prd` only when the user explicitly asks for production. O
 | `env_workflow` | Workflow environment | optional |
 | `env_job` | Job/schedule environment | optional |
 | `environments` | Every environment on the server; with the `env_*` values it is what `-e NAME` accepts | optional |
+| `https` | `true` when that server's WebApp answers https (an https-only WebApp answers http with an empty response) | optional (default `false`) |
+| `webagent` | Path of that environment's WebAgent executable — the version follows the WebApp (10.2.0+ → 1.1.x; below → 1.0.x) | required when `launch_by_webagent` is `true` |
+| `browser` | Path of the Chromium/Chrome/Edge used for WebApp runs (`PROTHEUS_BROWSER` overrides it; without both, the usual install locations are searched). This machine uses Edge (`/usr/bin/microsoft-edge`) | optional |
+| `webagent_port` | Port of the user's own WebAgent, used by the direct mode (`launch_by_webagent` false) to turn on the WebApp's "Agente Local" | optional (default `21021`) |
+| `launch_by_webagent` | `true`: WebApp runs go through `<webagent> launch` with an isolated headless browser (see the exec-sql-query skill) | optional (default `false`) |
+| `production_database` | `true` when that configuration's database is production. Informative only — no script changes behaviour; the agent confirms with the user before running against it | optional (default `false`) |
 
-Validation (same rule in `.sh` and `.ps1`, and in `pth-execute.mjs`): must be a JSON object; `ip` a string, `port` digits, `environments` a list of strings, the rest strings or absent; **`ip` and environment names contain no whitespace** (a trailing space in `"TESTE5 "` would only surface as "environment not found" on the server). A syntax error is reported with the parser's own message; a UTF-8 BOM is accepted. Missing required values are all listed at once: `Preencha em <file>: ip, port, user, password, env_default`.
+Compilation uses only `ip`, `port`, `user`, `password` and the environments; the WebApp keys are used by `pth-execute.mjs`/`pth-query`. `-h` shows every key except the password.
+
+Validation (same rule in `.sh` and `.ps1`, and in `pth-execute.mjs`): must be a JSON object; `ip` a string, `port` digits, `environments` a list of strings, the rest strings or absent; **`ip` and environment names contain no whitespace** (a trailing space in `"TESTE5 "` would only surface as "environment not found" on the server). `pth-execute.mjs` also checks that `https`, `launch_by_webagent` and `production_database` are booleans, `webagent`/`browser` strings and `webagent_port` digits. A syntax error is reported with the parser's own message; a UTF-8 BOM is accepted. Missing required values are all listed at once: `Preencha em <file>: ip, port, user, password, env_default`.
 
 - **The repository folder is synced (Google Drive)** — the settings files and their passwords sync with it. There is no git repository here, so nothing keeps them out of a copy of the folder.
-- To use a file outside `Scripts/`, omit `dev`/`prd` and export `PTH_SETTINGS=<path>` (`$env:PTH_SETTINGS` on Windows).
+- To use a file outside `Scripts/`, pass no suffix and export `PTH_SETTINGS=<path>` (`$env:PTH_SETTINGS` on Windows).
 - The `.sh` scripts have no execute bit (Google Drive folder): call them as `bash Scripts/pth-compile.sh …`.
 
 ## Command line
 
 ```
-bash Scripts/pth-compile.sh [dev|prd] [-r] [-e <target>]... [-a] [-h] [path ...]
+bash Scripts/pth-compile.sh [suffix] [-r] [-e <target>]... [-a] [-h] [path ...]
 ```
 
 | Flag | Meaning |
 | --- | --- |
-| `dev` / `prd` | Settings file (see above). Must be the **first** argument |
+| `suffix` | Settings file `Scripts/pth-settings.<suffix>.json` (see above). Must be the **first** argument |
 | `-r` | Recompile (rewrite into the RPO even without a detected change) |
 | `-e <target>` | Environment to compile into. `<target>` is a **role** — `default`, `rest`, `workflow`, `job`, resolving to `env_default`, `env_rest`, … — or a **name** listed in `environments` (or equal to one of the `env_*`). Repeatable: `-e rest -e workflow`. Roles win over names; matching is case-sensitive. Default: `default` |
 | `-a` | Compile into **every configured** `env_*`, in order default → rest → workflow → job, without repeating equal ones. Does not combine with `-e` |
@@ -99,7 +104,7 @@ An empty value (`-e ""`) is an error, not "use the default" — an empty variabl
 | `3` | Setup: `jq` missing, settings missing/invalid/incomplete, `advpls` not found |
 | other | The `advpls` exit code of the first environment that failed |
 
-**Default target caveat:** without a path the script compiles `Sources/AdvPL/Global` + `Sources/AdvPL/Projects` (inherited from another project's layout). **They do not exist in this repository — always pass an explicit path** (e.g. `Sources/Templates/ConsultaSql`).
+**Default target caveat:** without a path the script compiles `Sources/AdvPL/Global` + `Sources/AdvPL/Projects` (inherited from another project's layout). **They do not exist in this repository — always pass an explicit path** (e.g. `Sources/Global/Gworks/Templates/ConsultaSql`).
 
 ## Environment = RPO — the trap that costs the most
 
@@ -120,13 +125,13 @@ After a SmartClient/WebApp/debug session closes, the RPO stays locked ~30 s and 
 
 ## Windows (`pth-compile.ps1`)
 
-Same `dev`/`prd` first argument, same flags, same settings files, same exit codes; requires PowerShell 5.1+. Differences: the newest `advpls.exe` under `%USERPROFILE%\.vscode\extensions\totvs.tds-vscode-*` is found automatically (`$env:PTH_ADVPLS` overrides; the `.sh` pins one extension version at the top of the file — if the extension updates and removes that folder the `.sh` stops with a clear message, edit `ADVPLS`); the `.ini` is written with CRLF; stdout and stderr of `advpls` are read separately (stdout first). **Never run on Windows yet.** The top of the file carries a status block and a step-by-step validation script for the user to run; until it passes, do not claim the script works. Suppositions to check first if something fails: where `advpls.exe` sits inside `tds-ls\bin`, whether `advpls` accepts CRLF in the `.ini`, and whether the .NET build has the CP1252 table.
+Same optional suffix, same flags, same settings files, same exit codes; requires PowerShell 5.1+. Differences: the newest `advpls.exe` under `%USERPROFILE%\.vscode\extensions\totvs.tds-vscode-*` is found automatically (`$env:PTH_ADVPLS` overrides; the `.sh` pins one extension version at the top of the file — if the extension updates and removes that folder the `.sh` stops with a clear message, edit `ADVPLS`); the `.ini` is written with CRLF; stdout and stderr of `advpls` are read separately (stdout first). **Never run on Windows yet.** The top of the file carries a status block and a step-by-step validation script for the user to run; until it passes, do not claim the script works. Suppositions to check first if something fails: where `advpls.exe` sits inside `tds-ls\bin`, whether `advpls` accepts CRLF in the `.ini`, and whether the .NET build has the CP1252 table.
 
 ## Troubleshooting
 
 | Message / symptom | Cause | Action |
 | --- | --- | --- |
-| `Arquivo de configuracao nao encontrado: <file>` | `dev`/`prd` omitted (falls back to the nonexistent `pth-settings.json`), or the chosen `pth-settings.<dev\|prd>.json` is missing. The message also suggests copying a `pth-settings.example.json` that does not exist here — ignore that line | Pass `dev`/`prd`; if the file itself is missing, the user creates it |
+| `Arquivo de configuracao nao encontrado: <file>` | Wrong suffix, or that settings file does not exist | Check the suffix; if the file itself is missing, the user creates it |
 | `Preencha em <file>: …` | Required values empty (`0.0.0.0` / `0` count as empty) | User fills them |
 | `<file> invalido: esperado um objeto com ip…` | Wrong type, whitespace in `ip`/environment names | Fix the file |
 | `Nao consegui ler <file> como JSON: …` | Syntax error (comment, trailing comma, missing quote) | Fix the file; the parser's message says where |

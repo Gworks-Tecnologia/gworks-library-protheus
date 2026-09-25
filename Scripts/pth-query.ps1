@@ -31,12 +31,12 @@
 #     "Ambiente desconhecido: ZZZ" (exit 3). "node nao encontrado" = falta o
 #     Node.js no PATH.
 #
-#  3. Consulta de verdade -- precisa de: servidor de pe, WebAgent compativel
-#     (porta 21021) e um navegador Chromium/Chrome/Edge:
+#  3. Consulta de verdade -- precisa de: servidor de pe, os campos webagent e
+#     browser preenchidos (com launch_by_webagent true) e o Node.js:
 #       .\Scripts\pth-query.ps1 "SELECT TOP 3 A1_COD FROM SA1010 WHERE D_E_L_E_T_ = ' '"
-#     Esperado: o pth-execute.mjs imprime servidor/programa e termina; o
-#     retorno aparece em %TEMP%\consultasql-retorno.json.
-#     Se "Nenhum navegador ... encontrado": aponte $env:PROTHEUS_BROWSER.
+#     Esperado: o pth-execute.mjs imprime servidor/programa/modo e
+#     "retorno : ...\consultasql-retorno.json (Ns)", exit 0.
+#     Se "Nenhum navegador ... encontrado": preencha "browser" no arquivo.
 #
 # SUPOSICOES NAO CONFIRMADAS (se um passo falhar, comece por elas):
 #   a) O GetTempPath() do AdvPL, num cliente Windows, devolve a MESMA pasta que
@@ -50,13 +50,15 @@
 #   b) O pth-execute.mjs acha o navegador nos lugares padrao de instalacao do
 #      Chrome/Edge no Windows (lista dentro de acharNavegador).
 #   c) O webapp/WebAgent aceita o caminho do arquivo no formato Windows.
+#   d) O web-agent.exe aceita um .cmd no --browser (o pth-execute.mjs gera um
+#      "navegador.cmd" que abre o navegador headless com perfil proprio).
 #
 # PONTO DE ATENCAO DO TLPP, independente do Windows: o Service do ConsultaSql
-# chama U_GwApiQuery( cSql, @jDados ) (modo direto, versao 1.1 da lib, trazida
-# para este repositorio em 2026-09-24 mas AINDA NAO COMPILADA em nenhum RPO). Se
-# o RPO do ambiente tiver a versao antiga (so REST), toda consulta responde
-# ok=false, status 500, "Resposta invalida da consulta". Nesse caso NAO e defeito
-# deste script: compile Sources\Library\Classes\ApiQuery nesse ambiente.
+# chama U_GwApiQuery( cSql, @jDados ) (modo direto, versao 1.1 da lib). Se o
+# RPO do ambiente tiver a versao antiga (so REST), toda consulta responde
+# ok=false, status 500, "Resposta invalida da consulta". Nesse caso NAO e
+# defeito deste script: compile Sources\Global\Gworks\Library\Classes\ApiQuery
+# nesse ambiente.
 #
 # Depois de validar, apague este bloco (ou troque pela linha de "Validado em").
 # ===========================================================================
@@ -85,11 +87,12 @@
 # aparecer (ou o ConOut no log do AppServer).
 #
 # Uso:
-#   .\Scripts\pth-query.ps1 [dev|prd] "<SQL>" [rotulo] [segundos]
-#   .\Scripts\pth-query.ps1 [dev|prd] -f consulta.sql [rotulo] [segundos]
+#   .\Scripts\pth-query.ps1 [sufixo] "<SQL>" [rotulo] [segundos]
+#   .\Scripts\pth-query.ps1 [sufixo] -f consulta.sql [rotulo] [segundos]
 #
-# dev|prd (primeiro argumento, opcional) usa Scripts\pth-settings.<alvo>.json;
-# sem ele vale PTH_SETTINGS e, sem ela, Scripts\pth-settings.json.
+# sufixo (primeiro argumento, opcional: homolog, cliente-x...) usa
+# Scripts\pth-settings.<sufixo>.json; sem ele vale PTH_SETTINGS e, sem ela,
+# Scripts\pth-settings.json.
 #
 # Se a politica de execucao do PowerShell bloquear scripts:
 #   powershell -ExecutionPolicy Bypass -File .\Scripts\pth-query.ps1 "<SQL>"
@@ -119,20 +122,21 @@ $Mjs    = Join-Path $PSScriptRoot 'pth-execute.mjs'
 
 function Uso {
     $nome = Split-Path -Leaf $PSCommandPath
-    [Console]::Error.WriteLine("Uso: $nome [dev|prd] `"<SQL>`" [rotulo] [segundos]")
-    [Console]::Error.WriteLine("     $nome [dev|prd] -f arquivo.sql [rotulo] [segundos]")
-    [Console]::Error.WriteLine("  dev|prd: usa Scripts\pth-settings.dev.json ou pth-settings.prd.json;")
-    [Console]::Error.WriteLine("           sem ele, PTH_SETTINGS ou Scripts\pth-settings.json.")
+    [Console]::Error.WriteLine("Uso: $nome [sufixo] `"<SQL>`" [rotulo] [segundos]")
+    [Console]::Error.WriteLine("     $nome [sufixo] -f arquivo.sql [rotulo] [segundos]")
+    [Console]::Error.WriteLine("  sufixo: usa Scripts\pth-settings.<sufixo>.json (homolog, cliente-x...);")
+    [Console]::Error.WriteLine("          sem ele, PTH_SETTINGS ou Scripts\pth-settings.json.")
 }
 
 $restantes = @($args)
 
-# Primeiro argumento opcional: dev ou prd escolhe Scripts\pth-settings.<alvo>.json,
-# repassado ao pth-execute.mjs por PTH_SETTINGS (restaurado no fim, para nao
-# vazar para a sessao do usuario).
+# Primeiro argumento opcional: um sufixo (nome simples: letras, numeros, _ e -)
+# escolhe Scripts\pth-settings.<sufixo>.json, repassado ao pth-execute.mjs por
+# PTH_SETTINGS (restaurado no fim, para nao vazar para a sessao do usuario). Um
+# SQL nunca e nome simples, e -f comeca com traco.
 $SettingsAlvo = $null
-if ($restantes.Count -gt 0 -and @('dev', 'prd') -contains [string]$restantes[0]) {
-    $SettingsAlvo = Join-Path $PSScriptRoot ('pth-settings.{0}.json' -f ([string]$restantes[0]).ToLower())
+if ($restantes.Count -gt 0 -and ([string]$restantes[0]) -match '^[A-Za-z0-9][A-Za-z0-9_-]*$') {
+    $SettingsAlvo = Join-Path $PSScriptRoot ('pth-settings.{0}.json' -f [string]$restantes[0])
     if (-not (Test-Path -LiteralPath $SettingsAlvo -PathType Leaf)) {
         [Console]::Error.WriteLine("Arquivo de configuracao nao encontrado: $SettingsAlvo")
         exit 3
@@ -181,8 +185,15 @@ $utf8 = New-Object System.Text.UTF8Encoding($false)
 $tamanho = (Get-Item -LiteralPath $SqlPath).Length
 [Console]::Out.WriteLine("sql      : $SqlPath ($tamanho bytes)")
 
+# Retorno velho fora: um run que falha nao pode deixar o anterior passar por
+# novo, e no modo launch_by_webagent o aparecimento dele e o sinal de fim.
+$Retorno = Join-Path ([System.IO.Path]::GetTempPath()) 'consultasql-retorno.json'
+Remove-Item -LiteralPath $Retorno -ErrorAction SilentlyContinue
+
 $SettingsAnterior = $env:PTH_SETTINGS
+$EsperaAnterior   = $env:PROTHEUS_WAIT_FILE
 if ($SettingsAlvo) { $env:PTH_SETTINGS = $SettingsAlvo }
+$env:PROTHEUS_WAIT_FILE = $Retorno
 $config = $env:PTH_SETTINGS
 if (-not $config) { $config = Join-Path $PSScriptRoot 'pth-settings.json' }
 [Console]::Out.WriteLine("config   : $config")
@@ -192,6 +203,7 @@ try {
     $codigo = $LASTEXITCODE
 }
 finally {
-    $env:PTH_SETTINGS = $SettingsAnterior
+    $env:PTH_SETTINGS       = $SettingsAnterior
+    $env:PROTHEUS_WAIT_FILE = $EsperaAnterior
 }
 exit $codigo

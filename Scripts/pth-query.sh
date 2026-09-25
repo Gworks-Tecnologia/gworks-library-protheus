@@ -4,7 +4,7 @@
 #
 # No Windows use o pth-query.ps1: mesmo comportamento, mesmo pth-settings.json.
 #
-# ONDE PEGAR O RETORNO (leia isto primeiro -- testado ao vivo em 23/09/2026):
+# ONDE PEGAR O RETORNO (leia isto primeiro):
 # NAO fica no screenshot. U_ConsultaSqlController (Controllers/
 # GwTemplateConsultaSqlController.tlpp) grava o json de retorno num ARQUIVO de nome
 # FIXO, "consultasql-retorno.json", dentro de GetTempPath() no disco do
@@ -19,16 +19,19 @@
 # {"ok": true, "data": {"hasNext": false, "items": [...]}} quando deu certo,
 # {"ok": false, "status", "message", "detailedMessage"} quando nao.
 #
-# A tela que fica parada, com o dialogo padrao "Programa Inicial: SIGAMDI" /
-# "Ambiente no servidor" (a mesma coisa que aparece ao abrir a webapp na mao,
-# sem executar nada), e o COMPORTAMENTO NORMAL -- NAO e sinal de trava nem de
-# consulta que nao rodou. A rotina grava em ARQUIVO de proposito (comentario
-# em GwTemplateConsultaSqlController.tlpp: janela desenhada em PIXEL corta resultado
-# grande, sem DOM de onde ler o resto) e NUNCA abre dialogo nem imprime nada
-# na tela -- entao nao ha WINDOW nenhuma para o pth-execute.mjs detectar, e
-# a heuristica dele de "screenshot cresceu = achei o resultado" nunca vai
-# disparar aqui. O jeito de saber se terminou e o arquivo aparecer (ou o
-# ConOut no log do AppServer: "[ConsultaSql] retorno gravado em: ...").
+# A rotina grava em ARQUIVO de proposito (comentario em
+# GwTemplateConsultaSqlController.tlpp: janela desenhada em PIXEL corta
+# resultado grande, sem DOM de onde ler o resto) e NUNCA abre dialogo nem
+# imprime nada na tela. O jeito de saber se terminou e o arquivo aparecer (ou
+# o ConOut no log do AppServer: "[ConsultaSql] retorno gravado em: ..."). Por
+# isso este script APAGA o retorno antes de rodar e passa o caminho ao
+# pth-execute.mjs em PROTHEUS_WAIT_FILE:
+#   - launch_by_webagent = true: o pth-execute.mjs termina assim que o arquivo
+#     aparece (exit 0) ou no limite de segundos sem ele (exit 2);
+#   - launch_by_webagent = false: nao ha janela para detectar, entao ele espera
+#     o limite inteiro e o exit nao diz nada sobre o retorno -- confira o
+#     arquivo. A tela parada em "Programa Inicial" so e normal se o arquivo
+#     chegou.
 #
 # Nome FIXO, sem timestamp -- de proposito (ferramenta de depuracao, uma
 # chamada por vez; ver o comentario do Controller). Cada chamada nova
@@ -76,11 +79,12 @@
 # ver PROTHEUS_SQL_PATH abaixo.
 #
 # Uso:
-#   Scripts/pth-query.sh [dev|prd] "<SQL>" [rotulo] [segundos]
-#   Scripts/pth-query.sh [dev|prd] -f consulta.sql [rotulo] [segundos]
+#   Scripts/pth-query.sh [sufixo] "<SQL>" [rotulo] [segundos]
+#   Scripts/pth-query.sh [sufixo] -f consulta.sql [rotulo] [segundos]
 #
-# dev|prd (primeiro argumento, opcional) usa Scripts/pth-settings.<alvo>.json;
-# sem ele vale PTH_SETTINGS e, sem ela, Scripts/pth-settings.json.
+# sufixo (primeiro argumento, opcional: homolog, cliente-x...) usa
+# Scripts/pth-settings.<sufixo>.json; sem ele vale PTH_SETTINGS e, sem ela,
+# Scripts/pth-settings.json.
 #
 # node Scripts/pth-execute.mjs precisa da flag --experimental-websocket
 # (Node 20 nao tem WebSocket global sem ela) -- ver pth-execute.mjs.
@@ -93,16 +97,17 @@
 #                      caminho.
 #   PROTHEUS_ENV       Ambiente do webapp: um papel (default, rest, workflow,
 #                      job) ou o nome de um ambiente de "environments" do
-#                      Scripts/pth-settings.json. Default: env_default. O ip e
-#                      a port do webapp tambem saem desse arquivo.
-#   PTH_SETTINGS       Outro arquivo no lugar do pth-settings.json.
+#                      arquivo de settings. Default: env_default.
+#   PTH_SETTINGS       Arquivo de settings quando nao se passa sufixo.
 #   PROTHEUS_URL       URL do WebApp, sem consultar o arquivo -- exige
 #                      PROTHEUS_ENV (nome do ambiente, nao papel) junto.
-#   PROTHEUS_OUT       Onde salvar o screenshot do retorno.
+#   PROTHEUS_OUT       Pasta de saida do pth-execute.mjs.
+#   PROTHEUS_BROWSER   Navegador; vale mais que o "browser" do arquivo.
 #
-# Servidor e ambiente sao resolvidos pelo pth-execute.mjs (mesma regra do
-# pth-compile.sh, que descreve o pth-settings.json no topo); este script so
-# repassa as variaveis. user e password do arquivo nao sao usados aqui.
+# Servidor, ambiente, https, navegador e modo (launch_by_webagent) sao
+# resolvidos pelo pth-execute.mjs a partir do arquivo de settings (campos no
+# topo do pth-compile.sh e do pth-execute.mjs); este script so escolhe o
+# arquivo e repassa as variaveis. user e password nao sao usados aqui.
 
 set -euo pipefail
 
@@ -112,22 +117,22 @@ FUNCAO="Gworks.Templates.ConsultaSql.Apps.U_ConsultaSqlPostConsulta"
 
 uso() {
     cat <<EOF
-Uso: $(basename "$0") [dev|prd] "<SQL>" [rotulo] [segundos]
-     $(basename "$0") [dev|prd] -f arquivo.sql [rotulo] [segundos]
+Uso: $(basename "$0") [sufixo] "<SQL>" [rotulo] [segundos]
+     $(basename "$0") [sufixo] -f arquivo.sql [rotulo] [segundos]
 
-  dev|prd  Usa Scripts/pth-settings.dev.json ou pth-settings.prd.json.
+  sufixo   Usa Scripts/pth-settings.<sufixo>.json (homolog, cliente-x...).
            Sem ele: PTH_SETTINGS ou Scripts/pth-settings.json.
 EOF
 }
 
-# Primeiro argumento opcional: dev ou prd escolhe Scripts/pth-settings.<alvo>.json,
-# repassado ao pth-execute.mjs por PTH_SETTINGS.
-case "${1:-}" in
-    dev|prd)
-        export PTH_SETTINGS="$REPO/Scripts/pth-settings.$1.json"
-        [ -r "$PTH_SETTINGS" ] || { echo "Arquivo de configuracao nao encontrado: $PTH_SETTINGS" >&2; exit 3; }
-        shift ;;
-esac
+# Primeiro argumento opcional: um sufixo (nome simples: letras, numeros, _ e -)
+# escolhe Scripts/pth-settings.<sufixo>.json, repassado ao pth-execute.mjs por
+# PTH_SETTINGS. Um SQL nunca e nome simples, e -f comeca com traco.
+if [[ "${1:-}" =~ ^[A-Za-z0-9][A-Za-z0-9_-]*$ ]]; then
+    export PTH_SETTINGS="$REPO/Scripts/pth-settings.$1.json"
+    [ -r "$PTH_SETTINGS" ] || { echo "Arquivo de configuracao nao encontrado: $PTH_SETTINGS" >&2; exit 3; }
+    shift
+fi
 
 [ "$#" -ge 1 ] || { uso >&2; exit 2; }
 
@@ -147,6 +152,12 @@ LIMITE="${2:-180}"
 # Sem quebra de linha no fim: o MemoRead do lado AdvPL ja faz allTrim, mas um
 # arquivo que termina em branco e mais dificil de conferir a olho.
 printf '%s' "$SQL" > "$SQL_PATH"
+
+# Retorno velho fora: um run que falha nao pode deixar o anterior passar por
+# novo, e no modo launch_by_webagent o aparecimento dele e o sinal de fim.
+RETORNO="/tmp/consultasql-retorno.json"
+rm -f "$RETORNO"
+export PROTHEUS_WAIT_FILE="$RETORNO"
 
 echo "sql      : $SQL_PATH ($(wc -c < "$SQL_PATH") bytes)"
 echo "config   : ${PTH_SETTINGS:-$REPO/Scripts/pth-settings.json}"

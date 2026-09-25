@@ -24,22 +24,21 @@
 #     arquivo ainda nao existe). Uma mensagem "unexpected token", "missing
 #     terminator" ou "Missing closing '}'" e ERRO DE SINTAXE DESTE ARQUIVO.
 #
-#  2. Configuracao -- crie e preencha o arquivo de configuracao:
-#       Copy-Item .\Scripts\pth-settings.example.json .\Scripts\pth-settings.json
-#     Preencha ip, port, user, password, env_default (e os env_* que usar).
+#  2. Configuracao -- crie e preencha Scripts\pth-settings.json (campos mais
+#     abaixo): ip, port, user, password, env_default (e os env_* que usar).
 #     Confira a leitura, ainda sem conectar (deve recusar, exit 2):
-#       .\Scripts\pth-compile.ps1 -e ZZZ .\Sources\Templates\ConsultaSql
+#       .\Scripts\pth-compile.ps1 -e ZZZ .\Sources\Global\Gworks\Templates\ConsultaSql
 #       echo $LASTEXITCODE
 #     Esperado: "Ambiente desconhecido: ZZZ" + a lista de papeis e
 #     environments, e 2. Se vier "Preencha em ...", falta preencher campo.
 #
 #  3. Localizacao do advpls.exe (ainda nao compila nada de util):
-#       .\Scripts\pth-compile.ps1 .\Sources\Templates\ConsultaSql\Enums
+#       .\Scripts\pth-compile.ps1 .\Sources\Global\Gworks\Templates\ConsultaSql\Enums
 #     Esperado: chega a imprimir "servidor : ip:porta (ambiente)". Se disser
 #     "advpls.exe nao encontrado", veja SUPOSICAO (a) abaixo.
 #
 #  4. Compilacao real, num ambiente de TESTE, com um fonte pequeno:
-#       .\Scripts\pth-compile.ps1 .\Sources\Templates\ConsultaSql\Enums
+#       .\Scripts\pth-compile.ps1 .\Sources\Global\Gworks\Templates\ConsultaSql\Enums
 #       echo $LASTEXITCODE
 #     Esperado: o advpls autentica, compila e devolve 0. Confira tambem que
 #     nao sobrou nenhum tdscli.*.ini em $env:TEMP (o .ini carrega a senha).
@@ -81,16 +80,16 @@
 #   powershell -ExecutionPolicy Bypass -File .\Scripts\pth-compile.ps1 -a
 #
 # ---------------------------------------------------------------------------
-# CONFIGURACAO: Scripts\pth-settings.json
+# CONFIGURACAO: Scripts\pth-settings.json ou Scripts\pth-settings.<sufixo>.json
 #
 # Servidor, ambientes e credencial vem de UM arquivo JSON -- o MESMO do
-# pth-compile.sh --, que descreve UM AppServer. O modelo (sem valores) e o
-# pth-settings.example.json:
-#
-#     Copy-Item Scripts\pth-settings.example.json Scripts\pth-settings.json
+# pth-compile.sh --, que descreve UM AppServer. Um arquivo = um servidor;
+# quantos forem precisos: sem argumento vale Scripts\pth-settings.json (ou
+# PTH_SETTINGS), e um sufixo como PRIMEIRO argumento escolhe
+# Scripts\pth-settings.<sufixo>.json.
 #
 #   ip            AppServer                                        obrigatorio
-#   port          Porta do AppServer                               obrigatorio
+#   port          Porta do AppServer (e do WebApp)                 obrigatorio
 #   user          Usuario do Protheus                              obrigatorio
 #   password      Senha do usuario                                 obrigatorio
 #   env_default   Ambiente (RPO) de compilacao                     obrigatorio
@@ -100,15 +99,16 @@
 #   environments  Lista dos ambientes do servidor. Junto com os    opcional
 #                 env_* acima, e o que o -e NOME aceita
 #
-# Campo opcional vazio ("") vale "nao configurado". O modelo vem com ip
-# "0.0.0.0" e port 0, que tambem contam como nao preenchidos. ip e nomes de
-# ambiente nao podem ter espaco (nem sobrando no fim: "TESTE5 ").
+# Campos do WebApp, usados pelo pth-execute.mjs/pth-query (a compilacao so
+# mostra no -h): https, webagent, browser, launch_by_webagent -- descritos no
+# topo do pth-execute.mjs. production_database (true/false) marca banco de
+# producao; e so informativo.
 #
-# Um arquivo = um servidor. Para compilar em OUTRO servidor, aponte para outro
-# arquivo com a variavel de ambiente PTH_SETTINGS.
+# Campo opcional vazio ("") vale "nao configurado". ip "0.0.0.0" e port 0
+# contam como nao preenchidos. ip e nomes de ambiente nao podem ter espaco
+# (nem sobrando no fim: "TESTE5 ").
 #
 # SENHA. O arquivo carrega a senha em texto puro:
-#   - Scripts\pth-settings.json esta no .gitignore -- versione so o .example.
 #   - Se a pasta do repositorio e sincronizada (Google Drive, OneDrive...), o
 #     arquivo sincroniza junto. Para manter a senha fora dela, guarde o arquivo
 #     em outro lugar e aponte:
@@ -128,12 +128,19 @@ $ErrorActionPreference = 'Stop'
 $NomeScript = Split-Path -Leaf $PSCommandPath
 $Repo       = Split-Path -Parent $PSScriptRoot
 
-# Primeiro argumento opcional: dev ou prd escolhe Scripts\pth-settings.<alvo>.json.
-# Sem ele vale PTH_SETTINGS e, sem ela, Scripts\pth-settings.json. Fica numa
-# variavel local de proposito: $env: sobreviveria ao script na sessao do usuario.
+# Primeiro argumento opcional: um sufixo (homolog, cliente-x...) escolhe
+# Scripts\pth-settings.<sufixo>.json. Nome simples (letras, numeros, _ e -,
+# comecando por letra ou numero) que nao seja um caminho existente e sufixo;
+# sem o arquivo correspondente e erro. Sem sufixo vale PTH_SETTINGS e, sem ela,
+# Scripts\pth-settings.json. Fica numa variavel local de proposito: $env:
+# sobreviveria ao script na sessao do usuario.
 $Inicio = 0
-if ($args.Count -gt 0 -and @('dev', 'prd') -contains [string]$args[0]) {
-    $Settings = Join-Path $PSScriptRoot ('pth-settings.{0}.json' -f ([string]$args[0]).ToLower())
+if ($args.Count -gt 0 -and ([string]$args[0]) -match '^[A-Za-z0-9][A-Za-z0-9_-]*$' -and -not (Test-Path -LiteralPath ([string]$args[0]))) {
+    $Settings = Join-Path $PSScriptRoot ('pth-settings.{0}.json' -f [string]$args[0])
+    if (-not (Test-Path -LiteralPath $Settings -PathType Leaf)) {
+        [Console]::Error.WriteLine("Arquivo de configuracao nao encontrado: $Settings")
+        exit 3
+    }
     $Inicio = 1
 }
 else {
@@ -142,7 +149,6 @@ else {
         $Settings = Join-Path $PSScriptRoot 'pth-settings.json'
     }
 }
-$Modelo = Join-Path $PSScriptRoot 'pth-settings.example.json'
 
 # Includes: os mesmos de .vscode/settings.json. O AppServer le estes caminhos
 # no momento da compilacao, entao sao caminhos DELE, nao do Windows.
@@ -197,6 +203,12 @@ function Resumo-Config {
     if ($null -ne $c.environments) { $envs = (@($c.environments) -join ', ') }
     $linhas = @(
         ('  servidor     : {0}:{1}' -f (Valor-Ou-Traco $c.ip), (Valor-Ou-Traco $c.port)),
+        ('  https        : {0} (webapp)' -f $(if ($c.https -eq $true) { 'true' } else { 'false' })),
+        ('  webagent     : {0}' -f (Valor-Ou-Traco $c.webagent)),
+        ('  browser      : {0}' -f (Valor-Ou-Traco $c.browser)),
+        ('  webagent_port: {0}' -f $(if ($c.webagent_port) { $c.webagent_port } else { 21021 })),
+        ('  launch_by_webagent : {0}' -f $(if ($c.launch_by_webagent -eq $true) { 'true' } else { 'false' })),
+        ('  production_database : {0}' -f $(if ($c.production_database -eq $true) { 'true' } else { 'false' })),
         ('  env_default  : {0}' -f (Valor-Ou-Traco $c.env_default)),
         ('  env_rest     : {0}' -f (Valor-Ou-Traco $c.env_rest)),
         ('  env_workflow : {0}' -f (Valor-Ou-Traco $c.env_workflow)),
@@ -208,9 +220,9 @@ function Resumo-Config {
 
 function Uso {
     $texto = @'
-Uso: {0} [dev|prd] [opcoes] [caminho ...]
+Uso: {0} [sufixo] [opcoes] [caminho ...]
 
-  dev|prd     Usa Scripts\pth-settings.dev.json ou pth-settings.prd.json.
+  sufixo      Usa Scripts\pth-settings.<sufixo>.json (homolog, cliente-x...).
               Sem ele: PTH_SETTINGS ou Scripts\pth-settings.json.
               Tem que ser o PRIMEIRO argumento.
 
@@ -234,10 +246,10 @@ Configuracao em {1}:
 
 Exemplos:
   .\{0}
-  .\{0} dev Sources\Templates\ConsultaSql
-  .\{0} -e rest Sources\Templates\ConsultaSql\Api
-  .\{0} -a -r Sources\Templates\ConsultaSql
-  .\{0} Sources\Templates\ConsultaSql\Api\GwTemplateConsultaSqlApi.tlpp
+  .\{0} homolog Sources\Global\Gworks\Templates\ConsultaSql
+  .\{0} -e rest Sources\Global\Gworks\Templates\ConsultaSql\Api
+  .\{0} -a -r Sources\Global\Gworks\Templates\ConsultaSql
+  .\{0} Sources\Global\Gworks\Templates\ConsultaSql\Api\GwTemplateConsultaSqlApi.tlpp
 '@ -f $NomeScript, $Settings, (Resumo-Config)
     [Console]::Out.WriteLine($texto)
 }
@@ -290,8 +302,7 @@ if ($Todos -and $Pedidos.Count -gt 0) {
 # ---- Configuracao (pth-settings.json) --------------------------------------
 if (-not (Test-Path -LiteralPath $Settings -PathType Leaf)) {
     [Console]::Error.WriteLine("Arquivo de configuracao nao encontrado: $Settings")
-    [Console]::Error.WriteLine('Copie o modelo e preencha (veja o topo deste script):')
-    [Console]::Error.WriteLine("  Copy-Item $Modelo $(Join-Path $PSScriptRoot 'pth-settings.json')")
+    [Console]::Error.WriteLine('Crie e preencha (campos no topo deste script).')
     exit 3
 }
 
