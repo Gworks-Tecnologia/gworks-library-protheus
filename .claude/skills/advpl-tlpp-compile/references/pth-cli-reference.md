@@ -41,13 +41,19 @@ Hard requirements, each learned the hard way:
 - The `.ini` carries the password in plain text: created `chmod 600` in the temp dir and destroyed by `trap EXIT` (`finally` in the `.ps1`), so it does not survive the run even on Ctrl+C.
 - *Observed elsewhere, not implemented by the scripts:* `action=validate` needs **no credentials** and answers with the build/secure pair — the cheapest connectivity probe. The grammar is documented in the package itself: `@totvs/tds-ls/TDS-cli-script.md` — read it before inventing syntax.
 
-## `Scripts/pth-settings.json`
+## Settings files: `Scripts/pth-settings.dev.json` and `Scripts/pth-settings.prd.json`
 
-One file = **one server**. Copy the model and fill it (the user does this — the agent never reads it):
+One file = **one server**. The user creates and fills them — the agent never reads them. The **first argument** of every script picks the file:
 
-```
-cp Scripts/pth-settings.example.json Scripts/pth-settings.json
-```
+| First argument | File used |
+| --- | --- |
+| `dev` | `Scripts/pth-settings.dev.json` |
+| `prd` | `Scripts/pth-settings.prd.json` |
+| *(none)* | `PTH_SETTINGS`, else `Scripts/pth-settings.json` — **which does not exist in this repository**, so always pass `dev` or `prd` |
+
+Same rule in `pth-compile.sh`/`.ps1` and `pth-query.sh`/`.ps1`; the query scripts hand the choice to `pth-execute.mjs` through `PTH_SETTINGS` (the `.ps1` restores the previous value when `node` exits, and `pth-compile.ps1` keeps it in a local variable, so nothing leaks into the user's PowerShell session). `pth-execute.mjs` called directly reads only `PTH_SETTINGS` (default `Scripts/pth-settings.json`).
+
+Use `dev` by default; `prd` only when the user explicitly asks for production. On 2026-09-25 `-h` showed **the same server and `env_default` in both files** (`minerasul215598.protheus.cloudtotvs.com.br:10214`, `CQSLH5_GWORKS`) — check `-h` of the file you use instead of assuming they differ.
 
 | Key | Meaning | Required |
 | --- | --- | --- |
@@ -62,18 +68,19 @@ cp Scripts/pth-settings.example.json Scripts/pth-settings.json
 
 Validation (same rule in `.sh` and `.ps1`, and in `pth-execute.mjs`): must be a JSON object; `ip` a string, `port` digits, `environments` a list of strings, the rest strings or absent; **`ip` and environment names contain no whitespace** (a trailing space in `"TESTE5 "` would only surface as "environment not found" on the server). A syntax error is reported with the parser's own message; a UTF-8 BOM is accepted. Missing required values are all listed at once: `Preencha em <file>: ip, port, user, password, env_default`.
 
-- `Scripts/pth-settings.json` is in `.gitignore`; only `pth-settings.example.json` is versioned.
-- **The repository folder may be synced (Google Drive, OneDrive…)** — then the password syncs too. To keep it out, store the file elsewhere and export `PTH_SETTINGS=~/.totvsls/pth-settings.json` (`$env:PTH_SETTINGS` on Windows).
-- To compile on **another server**, use another file through `PTH_SETTINGS`. There is no `-s dev|prd` any more, so nothing forces production to be spelled out: `-h` shows which server the file points at — confirm it.
+- **The repository folder is synced (Google Drive)** — the settings files and their passwords sync with it. There is no git repository here, so nothing keeps them out of a copy of the folder.
+- To use a file outside `Scripts/`, omit `dev`/`prd` and export `PTH_SETTINGS=<path>` (`$env:PTH_SETTINGS` on Windows).
+- The `.sh` scripts have no execute bit (Google Drive folder): call them as `bash Scripts/pth-compile.sh …`.
 
 ## Command line
 
 ```
-Scripts/pth-compile.sh [-r] [-e <target>]... [-a] [-h] [path ...]
+bash Scripts/pth-compile.sh [dev|prd] [-r] [-e <target>]... [-a] [-h] [path ...]
 ```
 
 | Flag | Meaning |
 | --- | --- |
+| `dev` / `prd` | Settings file (see above). Must be the **first** argument |
 | `-r` | Recompile (rewrite into the RPO even without a detected change) |
 | `-e <target>` | Environment to compile into. `<target>` is a **role** — `default`, `rest`, `workflow`, `job`, resolving to `env_default`, `env_rest`, … — or a **name** listed in `environments` (or equal to one of the `env_*`). Repeatable: `-e rest -e workflow`. Roles win over names; matching is case-sensitive. Default: `default` |
 | `-a` | Compile into **every configured** `env_*`, in order default → rest → workflow → job, without repeating equal ones. Does not combine with `-e` |
@@ -113,14 +120,14 @@ After a SmartClient/WebApp/debug session closes, the RPO stays locked ~30 s and 
 
 ## Windows (`pth-compile.ps1`)
 
-Same flags, same settings file, same exit codes; requires PowerShell 5.1+. Differences: the newest `advpls.exe` under `%USERPROFILE%\.vscode\extensions\totvs.tds-vscode-*` is found automatically (`$env:PTH_ADVPLS` overrides; the `.sh` pins one extension version at the top of the file — if the extension updates and removes that folder the `.sh` stops with a clear message, edit `ADVPLS`); the `.ini` is written with CRLF; stdout and stderr of `advpls` are read separately (stdout first). **Never run on Windows yet.** The top of the file carries a status block and a step-by-step validation script for the user to run; until it passes, do not claim the script works. Suppositions to check first if something fails: where `advpls.exe` sits inside `tds-ls\bin`, whether `advpls` accepts CRLF in the `.ini`, and whether the .NET build has the CP1252 table.
+Same `dev`/`prd` first argument, same flags, same settings files, same exit codes; requires PowerShell 5.1+. Differences: the newest `advpls.exe` under `%USERPROFILE%\.vscode\extensions\totvs.tds-vscode-*` is found automatically (`$env:PTH_ADVPLS` overrides; the `.sh` pins one extension version at the top of the file — if the extension updates and removes that folder the `.sh` stops with a clear message, edit `ADVPLS`); the `.ini` is written with CRLF; stdout and stderr of `advpls` are read separately (stdout first). **Never run on Windows yet.** The top of the file carries a status block and a step-by-step validation script for the user to run; until it passes, do not claim the script works. Suppositions to check first if something fails: where `advpls.exe` sits inside `tds-ls\bin`, whether `advpls` accepts CRLF in the `.ini`, and whether the .NET build has the CP1252 table.
 
 ## Troubleshooting
 
 | Message / symptom | Cause | Action |
 | --- | --- | --- |
-| `Arquivo de configuracao nao encontrado` | No `pth-settings.json` (the message prints the `cp` of the model) | User copies and fills the model |
-| `Preencha em <file>: …` | Required values empty (the unfilled model has `0.0.0.0` / `0`) | User fills them |
+| `Arquivo de configuracao nao encontrado: <file>` | `dev`/`prd` omitted (falls back to the nonexistent `pth-settings.json`), or the chosen `pth-settings.<dev\|prd>.json` is missing. The message also suggests copying a `pth-settings.example.json` that does not exist here — ignore that line | Pass `dev`/`prd`; if the file itself is missing, the user creates it |
+| `Preencha em <file>: …` | Required values empty (`0.0.0.0` / `0` count as empty) | User fills them |
 | `<file> invalido: esperado um objeto com ip…` | Wrong type, whitespace in `ip`/environment names | Fix the file |
 | `Nao consegui ler <file> como JSON: …` | Syntax error (comment, trailing comma, missing quote) | Fix the file; the parser's message says where |
 | `Ambiente desconhecido: X` (+ known roles/names) | `-e X` is neither a role nor listed | Fix the typo, or add it to `environments` |

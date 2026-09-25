@@ -76,8 +76,11 @@
 # ver PROTHEUS_SQL_PATH abaixo.
 #
 # Uso:
-#   Scripts/pth-query.sh "<SQL>" [rotulo] [segundos]
-#   Scripts/pth-query.sh -f consulta.sql [rotulo] [segundos]
+#   Scripts/pth-query.sh [dev|prd] "<SQL>" [rotulo] [segundos]
+#   Scripts/pth-query.sh [dev|prd] -f consulta.sql [rotulo] [segundos]
+#
+# dev|prd (primeiro argumento, opcional) usa Scripts/pth-settings.<alvo>.json;
+# sem ele vale PTH_SETTINGS e, sem ela, Scripts/pth-settings.json.
 #
 # node Scripts/pth-execute.mjs precisa da flag --experimental-websocket
 # (Node 20 nao tem WebSocket global sem ela) -- ver pth-execute.mjs.
@@ -109,10 +112,22 @@ FUNCAO="Gworks.Templates.ConsultaSql.Apps.U_ConsultaSqlPostConsulta"
 
 uso() {
     cat <<EOF
-Uso: $(basename "$0") "<SQL>" [rotulo] [segundos]
-     $(basename "$0") -f arquivo.sql [rotulo] [segundos]
+Uso: $(basename "$0") [dev|prd] "<SQL>" [rotulo] [segundos]
+     $(basename "$0") [dev|prd] -f arquivo.sql [rotulo] [segundos]
+
+  dev|prd  Usa Scripts/pth-settings.dev.json ou pth-settings.prd.json.
+           Sem ele: PTH_SETTINGS ou Scripts/pth-settings.json.
 EOF
 }
+
+# Primeiro argumento opcional: dev ou prd escolhe Scripts/pth-settings.<alvo>.json,
+# repassado ao pth-execute.mjs por PTH_SETTINGS.
+case "${1:-}" in
+    dev|prd)
+        export PTH_SETTINGS="$REPO/Scripts/pth-settings.$1.json"
+        [ -r "$PTH_SETTINGS" ] || { echo "Arquivo de configuracao nao encontrado: $PTH_SETTINGS" >&2; exit 3; }
+        shift ;;
+esac
 
 [ "$#" -ge 1 ] || { uso >&2; exit 2; }
 
@@ -134,5 +149,6 @@ LIMITE="${2:-180}"
 printf '%s' "$SQL" > "$SQL_PATH"
 
 echo "sql      : $SQL_PATH ($(wc -c < "$SQL_PATH") bytes)"
+echo "config   : ${PTH_SETTINGS:-$REPO/Scripts/pth-settings.json}"
 
 exec node --experimental-websocket "$REPO/Scripts/pth-execute.mjs" "$FUNCAO" "$ROTULO" "$LIMITE" "RUNQUERY"

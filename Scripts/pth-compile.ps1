@@ -128,9 +128,19 @@ $ErrorActionPreference = 'Stop'
 $NomeScript = Split-Path -Leaf $PSCommandPath
 $Repo       = Split-Path -Parent $PSScriptRoot
 
-$Settings = $env:PTH_SETTINGS
-if (-not $Settings) {
-    $Settings = Join-Path $PSScriptRoot 'pth-settings.json'
+# Primeiro argumento opcional: dev ou prd escolhe Scripts\pth-settings.<alvo>.json.
+# Sem ele vale PTH_SETTINGS e, sem ela, Scripts\pth-settings.json. Fica numa
+# variavel local de proposito: $env: sobreviveria ao script na sessao do usuario.
+$Inicio = 0
+if ($args.Count -gt 0 -and @('dev', 'prd') -contains [string]$args[0]) {
+    $Settings = Join-Path $PSScriptRoot ('pth-settings.{0}.json' -f ([string]$args[0]).ToLower())
+    $Inicio = 1
+}
+else {
+    $Settings = $env:PTH_SETTINGS
+    if (-not $Settings) {
+        $Settings = Join-Path $PSScriptRoot 'pth-settings.json'
+    }
 }
 $Modelo = Join-Path $PSScriptRoot 'pth-settings.example.json'
 
@@ -198,7 +208,11 @@ function Resumo-Config {
 
 function Uso {
     $texto = @'
-Uso: {0} [opcoes] [caminho ...]
+Uso: {0} [dev|prd] [opcoes] [caminho ...]
+
+  dev|prd     Usa Scripts\pth-settings.dev.json ou pth-settings.prd.json.
+              Sem ele: PTH_SETTINGS ou Scripts\pth-settings.json.
+              Tem que ser o PRIMEIRO argumento.
 
   Sem caminho, compila Sources\AdvPL\Global e Sources\AdvPL\Projects.
   Caminho pode ser arquivo ou diretorio (diretorio e varrido recursivamente).
@@ -220,6 +234,7 @@ Configuracao em {1}:
 
 Exemplos:
   .\{0}
+  .\{0} dev Sources\Templates\ConsultaSql
   .\{0} -e rest Sources\Templates\ConsultaSql\Api
   .\{0} -a -r Sources\Templates\ConsultaSql
   .\{0} Sources\Templates\ConsultaSql\Api\GwTemplateConsultaSqlApi.tlpp
@@ -235,7 +250,7 @@ $Todos     = $false
 $Pedidos   = @()
 $Caminhos  = @()
 
-$i = 0
+$i = $Inicio
 while ($i -lt $args.Count) {
     $a = [string]$args[$i]
     if ($a -ceq '-r') {

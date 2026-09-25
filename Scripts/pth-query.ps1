@@ -85,8 +85,11 @@
 # aparecer (ou o ConOut no log do AppServer).
 #
 # Uso:
-#   .\Scripts\pth-query.ps1 "<SQL>" [rotulo] [segundos]
-#   .\Scripts\pth-query.ps1 -f consulta.sql [rotulo] [segundos]
+#   .\Scripts\pth-query.ps1 [dev|prd] "<SQL>" [rotulo] [segundos]
+#   .\Scripts\pth-query.ps1 [dev|prd] -f consulta.sql [rotulo] [segundos]
+#
+# dev|prd (primeiro argumento, opcional) usa Scripts\pth-settings.<alvo>.json;
+# sem ele vale PTH_SETTINGS e, sem ela, Scripts\pth-settings.json.
 #
 # Se a politica de execucao do PowerShell bloquear scripts:
 #   powershell -ExecutionPolicy Bypass -File .\Scripts\pth-query.ps1 "<SQL>"
@@ -116,16 +119,31 @@ $Mjs    = Join-Path $PSScriptRoot 'pth-execute.mjs'
 
 function Uso {
     $nome = Split-Path -Leaf $PSCommandPath
-    [Console]::Error.WriteLine("Uso: $nome `"<SQL>`" [rotulo] [segundos]")
-    [Console]::Error.WriteLine("     $nome -f arquivo.sql [rotulo] [segundos]")
-}
-
-if ($args.Count -lt 1) {
-    Uso
-    exit 2
+    [Console]::Error.WriteLine("Uso: $nome [dev|prd] `"<SQL>`" [rotulo] [segundos]")
+    [Console]::Error.WriteLine("     $nome [dev|prd] -f arquivo.sql [rotulo] [segundos]")
+    [Console]::Error.WriteLine("  dev|prd: usa Scripts\pth-settings.dev.json ou pth-settings.prd.json;")
+    [Console]::Error.WriteLine("           sem ele, PTH_SETTINGS ou Scripts\pth-settings.json.")
 }
 
 $restantes = @($args)
+
+# Primeiro argumento opcional: dev ou prd escolhe Scripts\pth-settings.<alvo>.json,
+# repassado ao pth-execute.mjs por PTH_SETTINGS (restaurado no fim, para nao
+# vazar para a sessao do usuario).
+$SettingsAlvo = $null
+if ($restantes.Count -gt 0 -and @('dev', 'prd') -contains [string]$restantes[0]) {
+    $SettingsAlvo = Join-Path $PSScriptRoot ('pth-settings.{0}.json' -f ([string]$restantes[0]).ToLower())
+    if (-not (Test-Path -LiteralPath $SettingsAlvo -PathType Leaf)) {
+        [Console]::Error.WriteLine("Arquivo de configuracao nao encontrado: $SettingsAlvo")
+        exit 3
+    }
+    $restantes = @($restantes | Select-Object -Skip 1)
+}
+
+if ($restantes.Count -lt 1) {
+    Uso
+    exit 2
+}
 
 if ($restantes[0] -ceq '-f') {
     if ($restantes.Count -lt 2) {
@@ -163,5 +181,17 @@ $utf8 = New-Object System.Text.UTF8Encoding($false)
 $tamanho = (Get-Item -LiteralPath $SqlPath).Length
 [Console]::Out.WriteLine("sql      : $SqlPath ($tamanho bytes)")
 
-& node --experimental-websocket $Mjs $Funcao $rotulo $limite 'RUNQUERY'
-exit $LASTEXITCODE
+$SettingsAnterior = $env:PTH_SETTINGS
+if ($SettingsAlvo) { $env:PTH_SETTINGS = $SettingsAlvo }
+$config = $env:PTH_SETTINGS
+if (-not $config) { $config = Join-Path $PSScriptRoot 'pth-settings.json' }
+[Console]::Out.WriteLine("config   : $config")
+
+try {
+    & node --experimental-websocket $Mjs $Funcao $rotulo $limite 'RUNQUERY'
+    $codigo = $LASTEXITCODE
+}
+finally {
+    $env:PTH_SETTINGS = $SettingsAnterior
+}
+exit $codigo

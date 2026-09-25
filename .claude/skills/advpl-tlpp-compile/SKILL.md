@@ -1,6 +1,6 @@
 ---
 name: advpl-tlpp-compile
-description: "Compile AdvPL/TLPP sources (.prw, .prg, .prx, .tlpp, .ppx, .ppp, .apw, .aph, .apl, .ahu and resources) by one of two routes: (A) inside VS Code with the TOTVS Developer Studio (tds-vscode) extension and the servers.json connection registry, or (B) from a shell with Scripts/pth-compile.sh / pth-compile.ps1 (advpls cli), driven by Scripts/pth-settings.json — no VS Code and no keypress, including compiling into the REST / workflow / job environments or into all configured environments at once (-a). Route A orchestrates the full flow: verifies the TOTVS.tds-vscode extension is installed (installs it if missing), validates/creates the server configuration in servers.json, asks the user which server to use when more than one is registered, drives the connect/authenticate step (password typed by the user — never seen by the agent), runs the build/rebuild command, and reports the compilation result. Use when user says 'compile', 'recompile', 'build source', 'compilar fonte', 'compilar prw/tlpp', 'send to RPO', 'compile in appserver', 'compilar pelo terminal', 'compilar sem VS Code', 'compilar no ambiente rest', 'compilar em todos os ambientes', 'pth-compile', or after generating/migrating/refactoring AdvPL/TLPP code."
+description: "Compile AdvPL/TLPP sources (.prw, .prg, .prx, .tlpp, .ppx, .ppp, .apw, .aph, .apl, .ahu and resources) by one of two routes: (A) inside VS Code with the TOTVS Developer Studio (tds-vscode) extension and the servers.json connection registry, or (B) from a shell with Scripts/pth-compile.sh / pth-compile.ps1 (advpls cli), whose first argument dev or prd picks Scripts/pth-settings.dev.json or pth-settings.prd.json — no VS Code and no keypress, including compiling into the REST / workflow / job environments or into all configured environments at once (-a). Route A orchestrates the full flow: verifies the TOTVS.tds-vscode extension is installed (installs it if missing), validates/creates the server configuration in servers.json, asks the user which server to use when more than one is registered, drives the connect/authenticate step (password typed by the user — never seen by the agent), runs the build/rebuild command, and reports the compilation result. Use when user says 'compile', 'recompile', 'build source', 'compilar fonte', 'compilar prw/tlpp', 'send to RPO', 'compile in appserver', 'compilar pelo terminal', 'compilar sem VS Code', 'compilar no ambiente rest', 'compilar em todos os ambientes', 'pth-compile', or after generating/migrating/refactoring AdvPL/TLPP code."
 license: MIT
 metadata:
   domain: Protheus
@@ -19,7 +19,7 @@ Compile AdvPL and TLPP source files against a Protheus AppServer. Compilation in
 | Route | How | Needs a human? | Use when |
 | --- | --- | --- | --- |
 | **A — VS Code** | The **TOTVS Developer Studio for VSCode** extension (`TOTVS.tds-vscode`), reading its connection registry from `servers.json` | Yes: the user types the password in the connection prompt | No CLI scripts, the settings file is not filled, or the user asks for VS Code |
-| **B — Command line** | `Scripts/pth-compile.sh` (`.ps1` on Windows) drives `advpls cli` with the server, environments and credentials from `Scripts/pth-settings.json` | No — the credential was put in the file beforehand | The scripts exist and the configuration is filled (**preferred for an agent**: closes the *edit → compile → read the error* loop alone) |
+| **B — Command line** | `Scripts/pth-compile.sh` (`.ps1` on Windows) drives `advpls cli` with the server, environments and credentials from `Scripts/pth-settings.dev.json` or `Scripts/pth-settings.prd.json` (first argument `dev` / `prd`) | No — the credential was put in the file beforehand | The scripts exist and the configuration is filled (**preferred for an agent**: closes the *edit → compile → read the error* loop alone) |
 
 See **Route selection** below. Route A, step by step — this skill orchestrates the complete path so a single "compile" request works end-to-end even on a fresh machine:
 
@@ -52,15 +52,15 @@ Use this skill when:
 
 > **These rules are MANDATORY.** Rules 2–3 concern Route A, rules 8–10 concern Route B; rules 1 and 4–7 apply to both.
 
-1. **NEVER ask for, read, store, echo, or write the AppServer password.** Route A: authentication is interactive — the user types the password directly in the VS Code connection prompt; if a step needs it, instruct the user to type it in the prompt and wait — do not collect it with any tool. Route B: the password lives in `Scripts/pth-settings.json`, which the **user** fills in outside the chat; the agent never opens that file (rule 8).
+1. **NEVER ask for, read, store, echo, or write the AppServer password.** Route A: authentication is interactive — the user types the password directly in the VS Code connection prompt; if a step needs it, instruct the user to type it in the prompt and wait — do not collect it with any tool. Route B: the password lives in `Scripts/pth-settings.dev.json` / `pth-settings.prd.json`, which the **user** fills in outside the chat; the agent never opens that file (rule 8).
 2. **ALWAYS use the extension UI to register and connect servers.** Never edit `servers.json` by hand. Server registration goes through the *Add Server* assistant and connection goes through the connection prompt, so the extension validates the data and fills generated fields (`id`, `buildVersion`, `secure`, `token`) itself.
 3. **NEVER write `token`, `savedTokens`, or `authorizationtoken` values into `servers.json`.** Those are generated by the extension after a successful connection. The agent does not write to `servers.json` at all — it only reads it to detect existing servers.
 4. **Ensure the source is CP1252 before compiling.** The Protheus compiler only accepts Windows-1252 files. If the file was created/edited by an AI agent (UTF-8), run the `utf8-to-cp1252-conversion` skill first, otherwise compilation fails with garbled characters.
 5. **Always confirm the target server with the user when more than one is registered.** Never guess.
 6. **When this skill runs as a follow-up to code generation/migration/refactoring, ASK the user whether they want to compile before starting.** Do not auto-compile silently after another skill produced code.
 7. **Read the result before declaring success.** A command running without error is NOT proof of a successful compile — check the compilation output/Problems for errors and warnings.
-8. **(Route B) NEVER open, `cat`, read or grep `Scripts/pth-settings.json`** (or any file named by `PTH_SETTINGS`): it holds the password in plain text. To see the configuration run `Scripts/pth-compile.sh -h`, whose summary shows server and environments and never the password. Never pass credentials on a command line, and never fill the file in for the user.
-9. **(Route B) Confirm the target before compiling.** One settings file = one server, and there is no `-s prd` safeguard any more: read the `-h` summary, and if the server or environment looks like production — or you cannot tell — ask the user first. Say in the report which server and environment(s) were used.
+8. **(Route B) NEVER open, `cat`, read or grep any `Scripts/pth-settings*.json`** (nor a file named by `PTH_SETTINGS`) — not even while listing the `Scripts/` folder: they hold the password in plain text. To see a configuration run `bash Scripts/pth-compile.sh dev -h` (or `prd -h`), whose summary shows server and environments and never the password. Never pass credentials on a command line, and never fill a file in for the user.
+9. **(Route B) Always pass `dev` or `prd` as the first argument; `dev` by default.** Compile with `prd` only when the user explicitly asks for production in this conversation. Read the `-h` summary of the file you will use before the first compile of a session, and say in the report which file, server and environment(s) were used.
 10. **(Route B) Do not add your own retry loops or run compiles in parallel.** The script already waits 30 s and retries up to 3 times on a locked RPO (`COMPILEERROR-300`). Always pass an explicit path: the script's default target (`Sources/AdvPL/…`) does not exist in this repository.
 
 ---
@@ -72,7 +72,7 @@ This skill uses progressive disclosure. Read the reference on demand:
 | Reference File | When to Read | Content |
 | --- | --- | --- |
 | [references/tds-vscode-reference.md](references/tds-vscode-reference.md) | Whenever you need an exact command ID, the `servers.json` schema/location per OS, the list of compilable extensions, or troubleshooting guidance | Full command-ID table, `servers.json` schema and example, OS-specific file paths, supported extensions, common compile errors and fixes |
-| [references/pth-cli-reference.md](references/pth-cli-reference.md) | Route B: whenever you need the `pth-settings.json` schema, the flags/roles/exit codes of `pth-compile`, the environment-equals-RPO trap, the Windows status, or troubleshooting | How `advpls cli` works, `.ini` requirements, settings validation, `-e` roles and `-a`, exit codes, RPO lock and pacing, namespace/AppMap trap, Windows notes, troubleshooting table |
+| [references/pth-cli-reference.md](references/pth-cli-reference.md) | Route B: whenever you need the settings-file schema, the `dev`/`prd` selection, the flags/roles/exit codes of `pth-compile`, the environment-equals-RPO trap, the Windows status, or troubleshooting | How `advpls cli` works, `.ini` requirements, settings validation, `-e` roles and `-a`, exit codes, RPO lock and pacing, namespace/AppMap trap, Windows notes, troubleshooting table |
 
 ---
 
@@ -82,8 +82,8 @@ Decide before anything else.
 
 | Situation | Route |
 | --- | --- |
-| `Scripts/pth-compile.sh` exists (`Scripts/pth-compile.ps1` on Windows) **and** `Scripts/pth-compile.sh -h` shows a filled configuration (a real `servidor`, a non-empty `env_default`) | **B** |
-| The scripts exist but the summary shows `0.0.0.0:0` / empty `env_default` | Ask the user to copy `Scripts/pth-settings.example.json` to `Scripts/pth-settings.json` and fill it — or use **A** if they prefer. Do not fill it yourself and do not read it |
+| `Scripts/pth-compile.sh` exists (`Scripts/pth-compile.ps1` on Windows) **and** `bash Scripts/pth-compile.sh dev -h` shows a filled configuration (a real `servidor`, a non-empty `env_default`) | **B** |
+| The scripts exist but the summary shows `(nao foi possivel ler …)`, `0.0.0.0:0` or an empty `env_default` | Ask the user to create/fill `Scripts/pth-settings.dev.json` (or `.prd.json`) — or use **A** if they prefer. Do not fill it yourself and do not read it |
 | No CLI scripts, or the user asks for VS Code / the IDE | **A** |
 
 Both routes share: confirm intent when chained (Step 0), CP1252 (Step 6), read the result before declaring success.
@@ -209,10 +209,14 @@ Same as Step 0: right after another skill generated or changed code, ask before 
 ### B1 — Check the configuration (never open the JSON)
 
 ```bash
-Scripts/pth-compile.sh -h | sed -n '/^Configuracao/,/^Exemplos/p'      # Windows: .\Scripts\pth-compile.ps1 -h
+bash Scripts/pth-compile.sh dev -h | sed -n '/^Configuracao/,/^Exemplos/p'      # Windows: .\Scripts\pth-compile.ps1 dev -h
 ```
 
-It shows the server, `env_default` and the optional `env_rest` / `env_workflow` / `env_job` — never the password. `0.0.0.0:0` or an empty `env_default` means the user has not filled `Scripts/pth-settings.json` (a copy of `pth-settings.example.json`): ask them to, or fall back to Route A. **Never read the file and never fill it in for them.** If the summary points to a server or environment that looks like production, or you cannot tell, **ask before compiling** (rule 9).
+It shows the file path, the server, `env_default` and the optional `env_rest` / `env_workflow` / `env_job` — never the password. `(nao foi possivel ler …)`, `0.0.0.0:0` or an empty `env_default` means that file is missing or unfilled: ask the user to fill it, or fall back to Route A. **Never read the file and never fill it in for them.**
+
+- **Settings selection.** `dev` → `Scripts/pth-settings.dev.json`, `prd` → `Scripts/pth-settings.prd.json`. It must be the **first** argument, before any option. Without it the script uses `PTH_SETTINGS` and then `Scripts/pth-settings.json`, which does not exist in this repository — so always pass one.
+- **`dev` and `prd` may point to the same place.** On 2026-09-25 both showed the same server (`minerasul215598.protheus.cloudtotvs.com.br:10214`) and the same `env_default` (`CQSLH5_GWORKS`). Check `-h` of the file you use; do not assume `dev` is isolated from production.
+- **No execute bit.** The repository sits in a Google Drive folder and the `.sh` scripts are not executable: call them as `bash Scripts/pth-compile.sh …`.
 
 ### B2 — Ensure CP1252
 
@@ -227,9 +231,10 @@ Same as Step 6: sources generated or edited by an agent are UTF-8 and must be co
 ### B4 — Run
 
 ```bash
-Scripts/pth-compile.sh Sources/Templates/ConsultaSql                 # env_default
-Scripts/pth-compile.sh -e rest Sources/Templates/ConsultaSql/Api     # the environment the REST Server serves
-Scripts/pth-compile.sh -a -r Sources/Templates/ConsultaSql           # recompile in every configured environment
+bash Scripts/pth-compile.sh dev Sources/Templates/ConsultaSql                 # env_default of pth-settings.dev.json
+bash Scripts/pth-compile.sh dev -e rest Sources/Templates/ConsultaSql/Api     # the environment the REST Server serves
+bash Scripts/pth-compile.sh dev -a -r Sources/Templates/ConsultaSql           # recompile in every configured environment
+bash Scripts/pth-compile.sh prd Sources/Templates/ConsultaSql                 # production — only when the user asked for it
 ```
 
 A locked RPO makes the script wait 30 s and retry up to 3 times on its own; do not add loops and do not run two compiles at once.
@@ -244,7 +249,7 @@ A locked RPO makes the script wait 30 s and retry up to 3 times on its own; do n
 
 ### B6 — Windows
 
-Use `Scripts/pth-compile.ps1` (same flags, same settings file). **It has never been run on Windows.** The top of the file carries a status block and a validation script: while that block is there, tell the user to run it and ask for the output — do not claim the script works.
+Use `Scripts/pth-compile.ps1` (same `dev`/`prd` first argument, same flags, same settings files; the choice stays inside the script and never touches `$env:PTH_SETTINGS`). **It has never been run on Windows.** The top of the file carries a status block and a validation script: while that block is there, tell the user to run it and ask for the output — do not claim the script works.
 
 ---
 
@@ -287,8 +292,9 @@ flowchart TD
 - **Declaring success without reading the result.** Always verify the console/Problems output.
 - **Compiling UTF-8 files.** Convert to CP1252 first.
 - **Guessing the server when several exist.** Always confirm with the user.
-- **(Route B) Reading `Scripts/pth-settings.json`** to "check the configuration" — it has the password. Use `pth-compile.sh -h`.
-- **(Route B) Filling `pth-settings.json` for the user, or asking for the password in chat.** The user fills the file outside the conversation.
+- **(Route B) Reading any `Scripts/pth-settings*.json`** to "check the configuration" — they have the password. Use `bash Scripts/pth-compile.sh dev -h` (or `prd`).
+- **(Route B) Filling a settings file for the user, or asking for the password in chat.** The user fills the files outside the conversation.
+- **(Route B) Compiling with `prd` without an explicit request, or omitting `dev`/`prd`** (the fallback `pth-settings.json` does not exist).
 - **(Route B) Compiling into the wrong environment and concluding the fix did not work.** Each environment has its own RPO; check which one the failing thing runs in (`env_default` for the WebApp, `env_rest` for REST) before touching the code again.
 - **(Route B) Relying on the default target.** `Sources/AdvPL/Global` / `Projects` do not exist in this repository; always pass a path.
 - **(Route B) Wrapping the script in a retry loop.** It already retries a locked RPO 3× with 30 s between; more loops only prolong the lock.

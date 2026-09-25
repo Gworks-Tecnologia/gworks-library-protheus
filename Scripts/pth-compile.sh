@@ -58,6 +58,12 @@ set -euo pipefail
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 ADVPLS="$HOME/.vscode/extensions/totvs.tds-vscode-2.0.16/node_modules/@totvs/tds-ls/bin/linux/advpls"
+
+# Primeiro argumento opcional: dev ou prd escolhe Scripts/pth-settings.<alvo>.json.
+# Sem ele vale PTH_SETTINGS e, sem ela, Scripts/pth-settings.json.
+case "${1:-}" in
+    dev|prd) PTH_SETTINGS="$REPO/Scripts/pth-settings.$1.json"; shift ;;
+esac
 SETTINGS="${PTH_SETTINGS:-$REPO/Scripts/pth-settings.json}"
 MODELO="$REPO/Scripts/pth-settings.example.json"
 
@@ -101,7 +107,11 @@ resumo_config() {
 
 uso() {
     cat <<EOF
-Uso: $(basename "$0") [opcoes] [caminho ...]
+Uso: $(basename "$0") [dev|prd] [opcoes] [caminho ...]
+
+  dev|prd     Usa Scripts/pth-settings.dev.json ou pth-settings.prd.json.
+              Sem ele: PTH_SETTINGS ou Scripts/pth-settings.json.
+              Tem que ser o PRIMEIRO argumento.
 
   Sem caminho, compila Sources/AdvPL/Global e Sources/AdvPL/Projects.
   Caminho pode ser arquivo ou diretorio (diretorio e varrido recursivamente).
@@ -123,6 +133,7 @@ $(resumo_config)
 
 Exemplos:
   $(basename "$0")
+  $(basename "$0") dev Sources/Templates/ConsultaSql
   $(basename "$0") -e rest Sources/Templates/ConsultaSql/Api
   $(basename "$0") -a -r Sources/Templates/ConsultaSql
   $(basename "$0") Sources/Templates/ConsultaSql/Api/GwTemplateConsultaSqlApi.tlpp
