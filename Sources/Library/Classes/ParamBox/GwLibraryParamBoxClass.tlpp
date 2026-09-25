@@ -340,8 +340,11 @@ Define o tipo de retorno do campo combo
 /*/
 Method SetComboResult( xOption as variant ) Class GwParamBox
 
+    Local cValType as character
+
     Default xOption := nil
-    Local cValType := valType(xOption) as character
+
+    cValType := valType(xOption)
 
     if!( cValType $ "N/C" )
         UserException("GwParamBox:AddParam - Parameter xOption must be integer or character...")

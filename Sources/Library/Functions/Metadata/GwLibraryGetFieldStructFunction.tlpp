@@ -52,15 +52,17 @@ Função para retornar a estrutura do dicionário de dados de um determinado campo.
 /*/
 User Function GwGetFieldStruct( cField as character, cProperty as character )
 
-    Default cField := ""
-    Default cProperty := ""
-
     Local xResult as variant
 
     Local aArea := GetArea() as array
     Local aAreaSX3 := ("SX3")->(GetArea()) as array
 
-    Local lFull := empty(cProperty) as logical
+    Local lFull as logical
+
+    Default cField := ""
+    Default cProperty := ""
+
+    lFull := empty(cProperty)
 
     cField := upper(allTrim(cField))
     if empty(cField)

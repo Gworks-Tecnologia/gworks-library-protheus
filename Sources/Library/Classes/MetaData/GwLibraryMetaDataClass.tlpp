@@ -196,11 +196,10 @@ Return( allTrim(str(len(cAlias))) $ '2/3' )
 
 Method SetFieldBranch( cAlias as character ) Class GwMetaData
 
-    Default cAlias := ""
-
-    Local cAlias as character
     Local cPrefix as character
     Local jBranch as json
+
+    Default cAlias := ""
 
     if!( ::GetFieldPrefix( cAlias, @cPrefix ) )
         UserException("GwMetaData:SetFieldBranch - Invalid alias for field prefix.")
