@@ -80,7 +80,7 @@ User Function GwPedidoVendaLiberar( cPedido as character, cItens as character, j
 
     Default cPedido := ""
     Default cItens := "*"
-    Default jParams := JsonObject:New()
+    Default jParams := JsonObject():New()
 
     // Salva áreas abertas
     jAreas["active"] := getArea()

@@ -25,7 +25,6 @@ User Function GwEvalModelError( oModel as object, cStyle as character, cTitle as
 
     Default cTitle := nil
     Default cStyle := "ALERT"
-    Default cDefault := ""
 
     aMessage := oModel:GetErrorMessage(.T./*lClear*/)
     do case

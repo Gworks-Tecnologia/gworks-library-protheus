@@ -642,8 +642,6 @@ Method AddIndex( jIndex as json ) Class GwMetaData
     Local aNames := jIndex:getNames() as array
     Local jValid as json
 
-    Default xDefaults := nil
-
     if!( ::ValidIndex( jIndex, @jValid ) )
         UserException("GwMetaData:AddIndex - " + jValid["exception"])
     endif
@@ -761,8 +759,6 @@ Method AddFolder( jFolder as json ) Class GwMetaData
     Local jSXA as json
     Local aNames := jFolder:getNames() as array
     Local jValid as json
-
-    Default xDefaults := nil
 
     if!( ::ValidFolder( jFolder, @jValid ) )
         UserException("GwMetaData:AddFolder - " + jValid["exception"])
