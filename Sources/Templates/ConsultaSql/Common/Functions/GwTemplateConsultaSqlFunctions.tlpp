@@ -214,12 +214,15 @@ Caminho completo de um arquivo no diretorio temporario do CLIENT.
      sistema. Se cada ponto montasse o caminho a sua maneira, bastava um
      divergir para o arquivo nascer num disco e ser procurado em outro.
 
-@obs O SISTEMA OPERACIONAL VEM DO PROPRIO GetTempPath(), NAO DE UMA CHAMADA A
-     PARTE. Ele devolve o caminho no formato da maquina do CLIENT: "/tmp/" no
-     Linux, "C:\...\Temp\" no Windows. Comecou com "/" e Unix; senao e Windows.
-     Perguntar o SO por outra funcao (GetRemoteType) criaria uma segunda fonte
-     de verdade, que pode discordar da primeira -- e o caminho do GetTempPath()
-     ja foi confirmado ao vivo, pelo webapp (ver Scripts/pth-query.sh).
+@obs O SISTEMA OPERACIONAL VEM DO FORMATO DO GetTempPath(), NAO DE UMA CHAMADA
+     A PARTE: comecou com "/" e Unix; senao e Windows. Perguntar o SO por outra
+     funcao (GetRemoteType) criaria uma segunda fonte de verdade.
+
+@obs NO UNIX O DIRETORIO E FIXO: /tmp/. O VALOR do GetTempPath() nao serve:
+     conforme o AppServer ele devolve "/tmp/" ou a pasta de usuario da WebApp
+     no SERVIDOR (".../webapp/user/<sessao>/"), que nao existe no cliente -- e
+     o script de fora (Scripts/pth-query.sh) grava e le em /tmp/. No Windows o
+     GetTempPath() e a pasta temp do usuario, a mesma do pth-query.ps1.
 
 @obs O PREFIXO "l:" ESCOLHE A MAQUINA, NAO A SINTAXE DO CAMINHO. Na
      nomenclatura do TDN:
@@ -227,10 +230,9 @@ Caminho completo de um arquivo no diretorio temporario do CLIENT.
          disco do CLIENT, a maquina que fez a chamada;
        - caminho RELATIVO -- "/tmp/x", sem prefixo: o disco do SERVER, e
          relativo ao Protheus_Data dele.
-     O GetTempPath() devolve "/tmp/", certo para o sistema operacional e ERRADO
-     para o que se quer aqui: sem o prefixo o arquivo iria parar dentro do
-     Protheus_Data do servidor, fora do alcance de quem chamou, e a leitura
-     devolveria vazio SEM erro. No Windows o caminho ja e absoluto: sem prefixo.
+     Sem o prefixo, "/tmp/x" iria parar dentro do Protheus_Data do servidor,
+     fora do alcance de quem chamou, e a leitura devolveria vazio SEM erro. No
+     Windows o caminho ja e absoluto: sem prefixo.
 
 @obs Pensada para chamada COM cliente (menu, webapp). Em execucao sem
      interface (REST, job) nao ha disco de cliente para o "l:" apontar.
@@ -244,19 +246,14 @@ User Function ConsultaSqlTempFile( cNome as character ) as character
 
 	cPath := allTrim( GetTempPath() )
 
-	do case
-
-		// Ja veio com o prefixo (alguma build): so falta o separador certo. O
-		// terceiro caractere distingue do drive L: do Windows ("L:\temp").
-		case lower( left(cPath, 3) ) == "l:/"
-			cSep := "/"
-
-		// Cliente Unix: prefixo + separador "/".
-		case left(cPath, 1) == "/"
-			cSep  := "/"
-			cPath := "l:" + cPath
-
-	endcase
+	// Cliente Unix (caminho com "/", com ou sem o prefixo "l:" -- o terceiro
+	// caractere distingue do drive L: do Windows, "L:\temp"): sempre l:/tmp/.
+	// O GetTempPath() pode devolver a pasta de usuario da WebApp NO SERVIDOR
+	// (".../webapp/user/<sessao>/"), que nao existe na maquina de quem chamou.
+	if left(cPath, 1) == "/" .or. lower( left(cPath, 3) ) == "l:/"
+		cSep  := "/"
+		cPath := "l:/tmp/"
+	endif
 
 	// Separador no fim: nem toda build devolve. Concatenar sem conferir gera
 	// "...tmpconsultasql.json", um arquivo que nasce no diretorio de cima e

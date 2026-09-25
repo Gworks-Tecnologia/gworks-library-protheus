@@ -66,6 +66,14 @@ User Function ConsultaSqlController( nOpc as integer, xParam as variant, jRpc as
 	Private lVarInfo_ := !lBlind_ as logical
 	Private cVarInfo := "" as character
 
+	// Com interface, a consulta e o retorno sao arquivos no disco de quem chamou
+	// (prefixo "l:"), e esse acesso passa pelo WebAgent. Sem ele ligado na
+	// sessao, nao ha como ler nem gravar: avisa e sai (mesma checagem do
+	// U_gMnuExec). Sem interface (REST, job) nao se aplica.
+	if !lBlind_ .and. !fWebAgentOn()
+		Return nil
+	endif
+
 	fSetEnvironment( jRpc )
 
 	do case
@@ -126,6 +134,29 @@ User Function ConsultaSqlController( nOpc as integer, xParam as variant, jRpc as
 
 Return xResult
 
+/*/{Protheus.doc} fWebAgentOn
+Indica se o WebAgent esta ligado na sessao; se nao estiver, avisa.
+@type function
+@version 12.1.2510
+@author Gworks - Giovani
+@since 9/25/2026
+@return logical, .T. quando o WebAgent responde na sessao.
+@obs GetWebAgentInfo() devolve { versao, porta }; versao vazia = WebAgent
+     desligado. Mesma checagem do U_gMnuExec.
+/*/
+Static Function fWebAgentOn() as logical
+
+	Local aWebAgentInfo := GetWebAgentInfo() as array
+	Local cAmbiente := GetEnvServer() as character
+
+	if empty( aWebAgentInfo[1] )
+		ConOut( "[ConsultaSql] WebAgent desativado na sessao (ambiente " + cAmbiente + "): execucao interrompida" )
+		FwAlertWarning( "Ligue o WebAgent para o ambiente " + cAmbiente + " e execute novamente.", "WebAgent desativado!" )
+		Return .F.
+	endif
+
+Return .T.
+
 /*/{Protheus.doc} fSetEnvironment
 Monta o ambiente quando nao houver um.
 @type function
@@ -138,9 +169,10 @@ Monta o ambiente quando nao houver um.
      ERP, ou REST com PrepareIn no appserver.ini) nao se toca em nada --
      preparar duas vezes e pior do que nao preparar.
 
-@obs A filial default e "04", de 2 caracteres, como neste ERP. Filial invalida
-     faz o RpcSetEnv responder "Muitos usuarios", que parece problema de licenca
-     e nao e -- ja custou tempo neste repositorio.
+@obs Os defaults (empresa "01", filial "04", modulo "PCP") sao de exemplo:
+     ajuste ao ERP de destino, com a filial no tamanho do campo de filial dele.
+     Filial invalida faz o RpcSetEnv responder "Muitos usuarios", que parece
+     problema de licenca e nao e.
 /*/
 Static Function fSetEnvironment( jRpc as json )
 
