@@ -1,6 +1,6 @@
 ---
 name: po-ui
-description: "Build Angular front-ends with PO UI, the TOTVS open-source component library (packages `@po-ui/ng-components`, `@po-ui/ng-templates`, `@po-ui/style`, `@po-ui/ng-code-editor`, `@po-ui/ng-sync`, `@po-ui/ng-storage`). Covers the version matrix against Angular, the `ng add`/`ng generate` schematics, the full component catalog (po-table, po-field family, po-page family, po-menu, po-toolbar, po-modal, po-chart, po-widget...), the dynamic CRUD templates (po-page-dynamic-table / -edit / -detail / -search, po-page-login, po-page-job-scheduler), the services (PoNotificationService, PoDialogService, PoI18nService, PoThemeService), and the REST contract those components expect (hasNext/items, page/pageSize, order, error envelope) including how to serve it from a Protheus TLPP endpoint. Use whenever the user says 'po-ui', 'poui', 'PO UI', 'portinari', 'po-table', 'po-page-dynamic-table', 'cria uma tela PO UI', 'CRUD Angular TOTVS', 'tela Angular para o Protheus', or when writing/reviewing Angular code that imports from @po-ui/*. Also covers running a PO UI app EMBEDDED in Protheus via `@totvs/protheus-lib-core` and `@totvs/po-theme` (ProAppConfigService, ProJsToAdvplService, ProSessionInfoService, ProAuthService, packaging to `.app`, opening it from AdvPL with `FWCallApp`) — trigger on 'protheus-lib-core', 'FWCallApp', 'app dentro do Protheus', 'app web no SmartClient', 'ProAppConfigService'."
+description: "Build Angular front-ends with PO UI, the TOTVS open-source component library (packages `@po-ui/ng-components`, `@po-ui/ng-templates`, `@po-ui/style`, `@po-ui/ng-code-editor`, `@po-ui/ng-sync`, `@po-ui/ng-storage`). Covers the version matrix against Angular, the `ng add`/`ng generate` schematics, the full component catalog (po-table, po-field family, po-page family, po-menu, po-toolbar, po-modal, po-chart, po-widget...), the dynamic CRUD templates (po-page-dynamic-table / -edit / -detail / -search, po-page-login, po-page-job-scheduler), the services (PoNotificationService, PoDialogService, PoI18nService, PoThemeService), and the REST contract those components expect (hasNext/items, page/pageSize, order, error envelope) including how to serve it from a Protheus TLPP endpoint. Use whenever the user says 'po-ui', 'poui', 'PO UI', 'portinari', 'po-table', 'po-page-dynamic-table', 'cria uma tela PO UI', 'CRUD Angular TOTVS', 'tela Angular para o Protheus', or when writing/reviewing Angular code that imports from @po-ui/*. Also covers running a PO UI app EMBEDDED in Protheus via `@totvs/protheus-lib-core` and `@totvs/po-theme` (ProAppConfigService, ProJsToAdvplService, ProSessionInfoService, ProAuthService, packaging to `.app`, opening it from AdvPL with `FWCallApp`) and WORKING WITHOUT AN API over the FWCallApp channel (AdvplToJs / JsToAdvpl: the app asks the AdvPL of the user's own session, no REST) — trigger on 'protheus-lib-core', 'FWCallApp', 'app dentro do Protheus', 'app web no SmartClient', 'app no WebApp', 'ProAppConfigService', 'AdvplToJs', 'JsToAdvpl', 'sem API', 'sem REST', 'canal do FWCallApp'."
 license: Internal
 metadata:
   domain: Angular / TOTVS PO UI
@@ -8,6 +8,7 @@ metadata:
   category: Frontend Framework Reference
   verified_against: "@po-ui/* 21.30.1 (typings + fesm2022 do pacote instalado, não só o repo) sobre Angular 21.2.23 / CLI 21.2.24 / Node 20.20.2; repetido em CLI 21.2.21 / Node 24.19.0 / npm 11.17.0; @totvs/protheus-lib-core 21.1.2 + @totvs/po-theme 21.30.1 (npm typings + TDN pageId 911865819)"
   last_field_check: "2026-09-14 — app real criado do zero, compilado (ng build: 2.97 MB raw / 592.79 kB transferido) e testado (ng test) com este passo a passo. Esta 2a passada trocou o pin de zone.js de `npm pkg set` (confirmado sem solução: nenhuma sintaxe de escape testada evita o split no ponto) por edição direta do package.json, e documentou o unsubscribe sem guarda do po-menu no teardown de teste."
+  last_embedded_check: "2026-09-26 — app real (CertificadoVimetal, Vimetal) embarcado por FWCallApp no WebApp 10.2.1 / AppServer 7.00.240223P, com grid, parâmetros, upload de PDF (13 MB) e leitura por IA feitos pelo canal AdvplToJs/JsToAdvpl, sem REST; ver references/protheus-integration.md"
   upstream_docs: https://po-ui.io/documentation
 ---
 
@@ -94,6 +95,8 @@ The static catalog in this skill is a snapshot of **21.30.1**. Component `@Input
 - Choosing between a hand-built page and a dynamic template → see [Which page component](#which-page-component).
 - Wiring a PO UI screen to a back-end → the components impose a specific REST contract; see `references/api-contract.md`. **This matters in this repo**: a Protheus TLPP endpoint must be written to that shape or `po-table`/`po-lookup`/`po-page-dynamic-table` silently show nothing.
 - Packaging the app to run **inside** Protheus (`FWCallApp`, `.app`, the AdvPL bridge) → [protheus-integration.md](references/protheus-integration.md).
+- **Working without an API**: an embedded app asking the AdvPL of its own session over the FWCallApp channel (`AdvplToJs` / `JsToAdvpl`)
+  instead of REST → [protheus-integration.md § Working without an API](references/protheus-integration.md#working-without-an-api-the-advpltojs--jstoadvpl-channel).
 - Reviewing PO UI code → see [Gotchas](#gotchas).
 - Writing a screen from scratch → [patterns.md](references/patterns.md) has working recipes for the app shell, a paged list, a full dynamic CRUD, forms, lookup, notifications and theming.
 
@@ -244,25 +247,32 @@ Full API detail in [components-reference.md](references/components-reference.md)
 12. **The default production budget fails the build** the moment PO UI is in the bundle. Raise `initial` in `angular.json` before the first `ng build`.
 13. **The master/detail column must be named `detail`.** `po-table` finds the detail column by `type: 'detail'` and reads the rows from `row[column.property]` — but the columns manager has code paths that look for `property === 'detail'` literally. Naming it anything else (`detalhes`, `items`) works until someone reorders columns. Keep `property: 'detail'` and name the array field `detail` in the model.
 14. **`po-menu` throws on teardown in a test that never ran change detection.** `PoMenuComponent.ngOnDestroy` calls `itemSubscription.unsubscribe()` / `routeSubscription.unsubscribe()` with no guard, but both are only assigned in `ngOnInit` — so destroying a fixture that never called `detectChanges()` dies with `Cannot read properties of undefined (reading 'unsubscribe')`, blamed on whichever test created the fixture. Call `fixture.detectChanges()` in every spec that instantiates a component containing `po-menu`. See [patterns.md](references/patterns.md#testing).
+15. **Embedded in Protheus, the traps are elsewhere** — `.app` layout, hash routing, `--base-href ./`, the channel's encoding, the iframe
+    automation can't see: see the Gotchas of [protheus-integration.md](references/protheus-integration.md#gotchas).
 
 ## Protheus integration
 
-A PO UI app can relate to Protheus in two ways, and they need different things:
+A PO UI app can relate to Protheus in three ways, and they need different things:
 
 | Mode | Description | Reference |
 |---|---|---|
 | **Standalone web app** | Ordinary Angular app on a web server, calling TLPP REST endpoints. | [api-contract.md](references/api-contract.md) |
-| **Embedded Protheus app** | Packaged as a `.app`, opened from SmartClient by `FWCallApp`, with a live channel to the AdvPL layer and access to the real ERP session (company, branch, module, user, token). | [protheus-integration.md](references/protheus-integration.md) |
+| **Embedded app + REST** | Packaged as a `.app`, opened by `FWCallApp` (in SmartClient or, more and more, in the browser through the **WebApp**), data over REST. | [protheus-integration.md](references/protheus-integration.md) |
+| **Embedded app, no API** | Same `.app`, but the app asks the AdvPL of the **user's own session** over the FWCallApp channel — `jsToAdvpl` → `Static Function JsToAdvpl` → `oWebChannel:AdvPLToJS`. No REST service, port, CORS, auth or service account. Field-verified. | [protheus-integration.md § Working without an API](references/protheus-integration.md#working-without-an-api-the-advpltojs--jstoadvpl-channel) |
 
-The embedded mode adds `@totvs/protheus-lib-core` (+ `@totvs/po-theme`, `subsink`, `@totvs/common-assets`) and the `ProAppConfigService` / `ProJsToAdvplService` / `ProSessionInfoService` family. **`@totvs/protheus-lib-core` is only published for Angular 14, 15, 17, 19 and 21** — there is no 16, 18 or 20 build, so it constrains the Angular version for that mode.
+The embedded modes add `@totvs/protheus-lib-core` (+ `@totvs/po-theme`, `subsink`, `@totvs/common-assets`) and the `ProAppConfigService` / `ProJsToAdvplService` / `ProSessionInfoService` family. **`@totvs/protheus-lib-core` is only published for Angular 14, 15, 17, 19 and 21** — there is no 16, 18 or 20 build, so it constrains the Angular version for those modes.
 
-Either way the REST side is the same. Two things to get right, both detailed in [api-contract.md](references/api-contract.md):
+In short, for the no-API mode (details and working code in the reference): the `FWCallApp` source is a **`.prw`** with a `Static Function JsToAdvpl` that only dispatches (Controller/Services in TLPP hold the rules); each request carries an **id** and is answered on `<action>:<id>` with one envelope (`{ ok, data }` / `{ ok:false, status, code, message, detailedMessage }`) that the app turns into the same `HttpErrorResponse` REST would give; the channel converts CP1252 ↔ UTF-8 by itself (**no `EncodeUTF8`**; base64 for UTF-8 payloads CP1252 can't hold); 13 MB uploads and 70 s handlers were measured fine. Keep a mock or REST for the plain browser and detect the channel with `ProJsToAdvplService.getWebChannel()`.
+
+For the REST modes the server side is the same. Two things to get right, both detailed in [api-contract.md](references/api-contract.md):
 
 - **Response shape.** A TLPP endpoint feeding a PO UI list must emit `{"hasNext": ..., "items": [...]}` and the `{code, message, detailedMessage}` error envelope — not the bare `{"data": [...]}` some in-house APIs use. Reuse `tlpp-rest-endpoint-generator` for the endpoint and this skill for the contract.
 - **Query parameters.** PO UI sends `page`, `pageSize`, `order` (with `-` for descending) and `property=value` filters. Map `page`/`pageSize` onto the SQL pagination and always compute `hasNext` by asking for one row more than `pageSize`.
 
 ## Related skills
 
-- `tlpp-rest-endpoint-generator` — the TLPP side of the endpoint PO UI consumes.
+- `tlpp-rest-endpoint-generator` — the TLPP side of the endpoint PO UI consumes (REST modes).
+- `advpl-gworks-pattern` — the Controller/Service layering behind the no-API channel's `JsToAdvpl`.
+- `advpl-tlpp-exec-sql-query` — the `Scripts/pth-*` that also open an embedded app headless for terminal tests.
 - `advpl-gworks` — the AdvPL/TLPP library backing those endpoints.
 - `query-builder` — the SQL behind the paginated list.
