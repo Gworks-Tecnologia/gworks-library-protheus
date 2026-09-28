@@ -30,6 +30,9 @@
 #   env_job       Ambiente de job/schedule                         opcional
 #   environments  Lista dos ambientes do servidor. Junto com os    opcional
 #                 env_* acima, e o que o -e NOME aceita
+#   includes      Pastas de include NO APPSERVER (caminho absoluto  opcional
+#                 do servidor), varias separadas por virgula. Sem
+#                 ele vale INCLUDES_PADRAO, mais abaixo
 #
 # Campos do WebApp, usados pelo pth-execute.mjs/pth-query (a compilacao so
 # mostra no -h): https, webagent, browser, launch_by_webagent -- descritos no
@@ -58,7 +61,13 @@ set -euo pipefail
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
-ADVPLS="$HOME/.vscode/extensions/totvs.tds-vscode-2.0.16/node_modules/@totvs/tds-ls/bin/linux/advpls"
+# O advpls vem na extensao TDS, numa pasta com a versao no nome; a extensao se
+# atualiza sozinha e apaga a pasta antiga. Vale a versao mais nova instalada
+# (ADVPLS no ambiente fixa outro caminho).
+if [ -z "${ADVPLS:-}" ]; then
+    ADVPLS="$(ls -d "$HOME"/.vscode/extensions/totvs.tds-vscode-*/node_modules/@totvs/tds-ls/bin/linux/advpls 2>/dev/null | sort -V | tail -n 1)"
+    ADVPLS="${ADVPLS:-$HOME/.vscode/extensions/totvs.tds-vscode-<versao>/node_modules/@totvs/tds-ls/bin/linux/advpls}"
+fi
 
 # Primeiro argumento opcional: um sufixo (homolog, cliente-x...) escolhe
 # Scripts/pth-settings.<sufixo>.json. Nome simples (letras, numeros, _ e -,
@@ -72,9 +81,12 @@ if [[ "${1:-}" =~ ^[A-Za-z0-9][A-Za-z0-9_-]*$ ]] && [ ! -e "$1" ]; then
 fi
 SETTINGS="${PTH_SETTINGS:-$REPO/Scripts/pth-settings.json}"
 
-# Includes: os mesmos de .vscode/settings.json. O AppServer le estes caminhos
-# no momento da compilacao, entao precisam ser absolutos.
-INCLUDES="/totvs/protheus/includes/includes-standard/2410"
+# Includes: o AppServer le estes caminhos no momento da compilacao, entao sao
+# absolutos e do SERVIDOR, e cada servidor tem os seus: o campo "includes" do
+# arquivo de configuracao manda. Este padrao (herdado de outro projeto) so vale
+# quando o campo nao existe. Separar por virgula, nao por ";" -- no .ini o ";"
+# pode ser lido como comentario e cortar o resto da linha.
+INCLUDES_PADRAO="/totvs/protheus/includes/includes-standard/2410"
 
 # Alvo padrao: Global + Projects. Modules fica de fora de proposito -- nao
 # mexemos nele, e recompilar 400 fontes legados a cada rodada so serve para
@@ -112,7 +124,8 @@ resumo_config() {
         "  env_rest     : \(.env_rest | v)",
         "  env_workflow : \(.env_workflow | v)",
         "  env_job      : \(.env_job | v)",
-        "  environments : \(((.environments // []) | join(", ")) | v)"
+        "  environments : \(((.environments // []) | join(", ")) | v)",
+        "  includes     : \(.includes | v)"
     ' "$SETTINGS" 2>/dev/null || echo "  (nao foi possivel ler $SETTINGS)"
 }
 
@@ -196,13 +209,13 @@ jq -e '
     and (.port | tostring | test("^[0-9]+$"))
     and ((.environments // []) | type) == "array"
     and all((.environments // [])[]; type == "string")
-    and all(.user, .password, .env_default, .env_rest, .env_workflow, .env_job;
+    and all(.user, .password, .env_default, .env_rest, .env_workflow, .env_job, .includes;
             . == null or type == "string")
     and all(.ip, .env_default, .env_rest, .env_workflow, .env_job, (.environments // [])[];
             . == null or test("^\\S*$"))
 ' "$SETTINGS" >/dev/null 2>&1 || {
     echo "$SETTINGS invalido: esperado um objeto com ip (texto), port (numero), environments (lista de textos)" >&2
-    echo "e user, password, env_default, env_rest, env_workflow, env_job (texto). ip e nomes de ambiente nao podem ter espacos." >&2
+    echo "e user, password, env_default, env_rest, env_workflow, env_job, includes (texto). ip e nomes de ambiente nao podem ter espacos." >&2
     echo "Veja o topo deste script." >&2
     exit 3; }
 
@@ -216,6 +229,8 @@ ENV_DEFAULT="$(lido env_default)"
 ENV_REST="$(lido env_rest)"
 ENV_WORKFLOW="$(lido env_workflow)"
 ENV_JOB="$(lido env_job)"
+INCLUDES="$(lido includes)"
+INCLUDES="${INCLUDES:-$INCLUDES_PADRAO}"
 mapfile -t ENVIRONMENTS < <(jq -r '(.environments // [])[]' "$SETTINGS")
 
 faltando=()
@@ -304,7 +319,7 @@ fi
 [ -x "$ADVPLS" ] || {
     echo "advpls nao encontrado em:" >&2
     echo "  $ADVPLS" >&2
-    echo "A extensao TDS foi atualizada? Ajuste o caminho no topo do script." >&2
+    echo "A extensao TDS (TOTVS.tds-vscode) esta instalada? Ou aponte ADVPLS=<caminho do advpls>." >&2
     exit 3
 }
 
