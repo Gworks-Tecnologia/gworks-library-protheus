@@ -140,7 +140,7 @@ function resolverServidor() {
     && typeof cfg.ip === 'string' && /^[0-9]+$/.test(String(cfg.port))
     && (cfg.environments == null
         || (Array.isArray(cfg.environments) && cfg.environments.every(a => typeof a === 'string')))
-    && [cfg.user, cfg.password, cfg.env_default, cfg.env_rest, cfg.env_workflow, cfg.env_job].every(texto)
+    && [cfg.user, cfg.password, cfg.env_default, cfg.env_rest, cfg.env_workflow, cfg.env_job, cfg.includes].every(texto)
     && (cfg.https == null || typeof cfg.https === 'boolean')
     && texto(cfg.webagent) && texto(cfg.browser)
     && [cfg.launch_by_webagent, cfg.production_database].every(v => v == null || typeof v === 'boolean')
@@ -148,7 +148,7 @@ function resolverServidor() {
     && [cfg.ip, cfg.env_default, cfg.env_rest, cfg.env_workflow, cfg.env_job, ...(cfg.environments ?? [])].every(semEspaco);
   if (!formaOk) {
     falha(`${SETTINGS} invalido: esperado um objeto com ip (texto), port (numero), environments (lista de textos)\n`
-        + 'e user, password, env_default, env_rest, env_workflow, env_job (texto). ip e nomes de ambiente nao podem ter espacos.\n'
+        + 'e user, password, env_default, env_rest, env_workflow, env_job, includes (texto). ip e nomes de ambiente nao podem ter espacos.\n'
         + 'https, launch_by_webagent e production_database, se houver, sao true ou false; webagent e browser, se houver, sao texto (caminho do executavel).\n'
         + 'Veja o topo do pth-compile.sh.');
   }

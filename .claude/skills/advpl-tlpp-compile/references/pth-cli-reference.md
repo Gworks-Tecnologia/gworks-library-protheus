@@ -35,7 +35,7 @@ includes=/totvs/protheus/includes/includes-standard/2410
 Hard requirements, each learned the hard way:
 
 - **The `.ini` must be ANSI/CP1252**; in UTF-8 the run fails. The scripts convert on write (and fail loudly on a character outside CP1252, e.g. an emoji in the password). The **source files** must be CP1252 too → `utf8-to-cp1252-conversion`.
-- **`includes` are resolved by the AppServer**, so they are absolute paths *on the server*, not on your machine. The script has one fixed value (`INCLUDES` at the top of `pth-compile.sh`); edit it if the environment's includes differ.
+- **`includes` are resolved by the AppServer**, so they are absolute paths *on the server*, not on your machine. Each server has its own: they come from the settings key `includes` (several separated by `,` — a `;` in the `.ini` may be read as a comment); without it the scripts use the default at their top (`INCLUDES_PADRAO` in the `.sh`, `$IncludesPadrao` in the `.ps1`: `/totvs/protheus/includes/includes-standard/2410`, inherited from another project).
 - **`build=AUTO`** spares hard-coding the AppServer release.
 - The exit code is non-zero on failure — it chains and works in CI.
 - The `.ini` carries the password in plain text: created `chmod 600` in the temp dir and destroyed by `trap EXIT` (`finally` in the `.ps1`), so it does not survive the run even on Ctrl+C.
@@ -62,6 +62,7 @@ Options (`-h`, `-e`, `-f`…) start with a dash, so they are never a suffix. In 
 | `env_workflow` | Workflow environment | optional |
 | `env_job` | Job/schedule environment | optional |
 | `environments` | Every environment on the server; with the `env_*` values it is what `-e NAME` accepts | optional |
+| `includes` | Include folders **on the AppServer** (absolute server paths), several separated by `,` | optional (empty or absent = the scripts' default) |
 | `https` | `true` when that server's WebApp answers https (an https-only WebApp answers http with an empty response) | optional (default `false`) |
 | `webagent` | Path of that environment's WebAgent executable — the version follows the WebApp (10.2.0+ → 1.1.x; below → 1.0.x) | required when `launch_by_webagent` is `true` |
 | `browser` | Path of the Chromium/Chrome/Edge used for WebApp runs (`PROTHEUS_BROWSER` overrides it; without both, the usual install locations are searched). This machine uses Edge (`/usr/bin/microsoft-edge`) | optional |
@@ -69,7 +70,7 @@ Options (`-h`, `-e`, `-f`…) start with a dash, so they are never a suffix. In 
 | `launch_by_webagent` | `true`: WebApp runs go through `<webagent> launch` with an isolated headless browser (see the exec-sql-query skill) | optional (default `false`) |
 | `production_database` | `true` when that configuration's database is production. Informative only — no script changes behaviour; the agent confirms with the user before running against it | optional (default `false`) |
 
-Compilation uses only `ip`, `port`, `user`, `password` and the environments; the WebApp keys are used by `pth-execute.mjs`/`pth-query`. `-h` shows every key except the password.
+Compilation uses only `ip`, `port`, `user`, `password`, the environments and `includes`; the WebApp keys are used by `pth-execute.mjs`/`pth-query`. `-h` shows every key except the password.
 
 Validation (same rule in `.sh` and `.ps1`, and in `pth-execute.mjs`): must be a JSON object; `ip` a string, `port` digits, `environments` a list of strings, the rest strings or absent; **`ip` and environment names contain no whitespace** (a trailing space in `"TESTE5 "` would only surface as "environment not found" on the server). `pth-execute.mjs` also checks that `https`, `launch_by_webagent` and `production_database` are booleans, `webagent`/`browser` strings and `webagent_port` digits. A syntax error is reported with the parser's own message; a UTF-8 BOM is accepted. Missing required values are all listed at once: `Preencha em <file>: ip, port, user, password, env_default`.
 
@@ -125,7 +126,7 @@ After a SmartClient/WebApp/debug session closes, the RPO stays locked ~30 s and 
 
 ## Windows (`pth-compile.ps1`)
 
-Same optional suffix, same flags, same settings files, same exit codes; requires PowerShell 5.1+. Differences: the newest `advpls.exe` under `%USERPROFILE%\.vscode\extensions\totvs.tds-vscode-*` is found automatically (`$env:PTH_ADVPLS` overrides; the `.sh` pins one extension version at the top of the file — if the extension updates and removes that folder the `.sh` stops with a clear message, edit `ADVPLS`); the `.ini` is written with CRLF; stdout and stderr of `advpls` are read separately (stdout first). **Never run on Windows yet.** The top of the file carries a status block and a step-by-step validation script for the user to run; until it passes, do not claim the script works. Suppositions to check first if something fails: where `advpls.exe` sits inside `tds-ls\bin`, whether `advpls` accepts CRLF in the `.ini`, and whether the .NET build has the CP1252 table.
+Same optional suffix, same flags, same settings files, same exit codes; requires PowerShell 5.1+. Differences: the newest `advpls.exe` under `%USERPROFILE%\.vscode\extensions\totvs.tds-vscode-*` is found automatically (`$env:PTH_ADVPLS` overrides — the `.sh` does the same with the newest `advpls`, overridden by `ADVPLS`); the `.ini` is written with CRLF; stdout and stderr of `advpls` are read separately (stdout first). **Never run on Windows yet.** The top of the file carries a status block and a step-by-step validation script for the user to run; until it passes, do not claim the script works. Suppositions to check first if something fails: where `advpls.exe` sits inside `tds-ls\bin`, whether `advpls` accepts CRLF in the `.ini`, and whether the .NET build has the CP1252 table.
 
 ## Troubleshooting
 
@@ -139,7 +140,7 @@ Same optional suffix, same flags, same settings files, same exit codes; requires
 | `O papel "rest" nao esta configurado` | `env_rest` is empty | Fill it or pick another target |
 | `-a e -e nao combinam` | Flags conflict | Use one |
 | `jq nao encontrado` | `jq` missing (bash script) | `sudo apt install jq` |
-| `advpls nao encontrado em: …` | TDS extension updated/removed, or not installed | Edit `ADVPLS` in the `.sh` (or `PTH_ADVPLS` for `.ps1`); install/update the extension |
+| `advpls nao encontrado em: …` | TDS extension not installed (both scripts take the newest `totvs.tds-vscode-*` found) | Install/update the extension, or point at the executable: `ADVPLS=<path>` (`.sh`) / `$env:PTH_ADVPLS` (`.ps1`) |
 | `COMPILEERROR-300 Failed to open repository` | RPO locked ~30 s after a session closed | Already retried 3×; if it persists another session/service holds the RPO — tell the user |
 | `Nao consegui converter o .ini para CP1252` | Emoji or other non-CP1252 character in user/password/path | Remove it |
 | Garbled characters in messages / compile errors about invalid characters | Source is UTF-8 | `utf8-to-cp1252-conversion`, recompile |
@@ -147,4 +148,4 @@ Same optional suffix, same flags, same settings files, same exit codes; requires
 
 ## Testing the script logic without a server
 
-Point `HOME` at a temp directory that contains a **fake** `advpls` at `.vscode/extensions/totvs.tds-vscode-2.0.16/node_modules/@totvs/tds-ls/bin/linux/advpls` (a shell script that prints the `.ini` it receives with the `psw=` line masked and exits with `$FAKE_EXIT`), and set `PTH_SETTINGS` to a fixture. That is how the argument, validation, role and multi-environment logic was tested (94 cases) without touching a server or a real credential.
+Point `ADVPLS` at a **fake** `advpls` (a shell script that prints the `.ini` it receives with the `psw=` line masked and exits with `$FAKE_EXIT`), and set `PTH_SETTINGS` to a fixture. That is how the argument, validation, role and multi-environment logic was tested (94 cases) without touching a server or a real credential.

@@ -98,6 +98,9 @@
 #   env_job       Ambiente de job/schedule                         opcional
 #   environments  Lista dos ambientes do servidor. Junto com os    opcional
 #                 env_* acima, e o que o -e NOME aceita
+#   includes      Pastas de include NO APPSERVER (caminho absoluto  opcional
+#                 do servidor), varias separadas por virgula. Sem
+#                 ele vale $IncludesPadrao, mais abaixo
 #
 # Campos do WebApp, usados pelo pth-execute.mjs/pth-query (a compilacao so
 # mostra no -h): https, webagent, browser, launch_by_webagent -- descritos no
@@ -150,9 +153,12 @@ else {
     }
 }
 
-# Includes: os mesmos de .vscode/settings.json. O AppServer le estes caminhos
-# no momento da compilacao, entao sao caminhos DELE, nao do Windows.
-$Includes = '/totvs/protheus/includes/includes-standard/2410'
+# Includes: o AppServer le estes caminhos no momento da compilacao, entao sao
+# absolutos e do SERVIDOR (nao do Windows), e cada servidor tem os seus: o campo
+# "includes" do arquivo de configuracao manda. Este padrao (herdado de outro
+# projeto) so vale quando o campo nao existe. Separar por virgula, nao por ";"
+# -- no .ini o ";" pode ser lido como comentario e cortar o resto da linha.
+$IncludesPadrao = '/totvs/protheus/includes/includes-standard/2410'
 
 # Alvo padrao: Global + Projects. Modules fica de fora de proposito -- nao
 # mexemos nele, e recompilar 400 fontes legados a cada rodada so serve para
@@ -213,7 +219,8 @@ function Resumo-Config {
         ('  env_rest     : {0}' -f (Valor-Ou-Traco $c.env_rest)),
         ('  env_workflow : {0}' -f (Valor-Ou-Traco $c.env_workflow)),
         ('  env_job      : {0}' -f (Valor-Ou-Traco $c.env_job)),
-        ('  environments : {0}' -f (Valor-Ou-Traco $envs))
+        ('  environments : {0}' -f (Valor-Ou-Traco $envs)),
+        ('  includes     : {0}' -f (Valor-Ou-Traco $c.includes))
     )
     return ($linhas -join "`n")
 }
@@ -333,7 +340,7 @@ function Forma-Ok($c) {
         }
     }
 
-    foreach ($campo in 'user', 'password', 'env_default', 'env_rest', 'env_workflow', 'env_job') {
+    foreach ($campo in 'user', 'password', 'env_default', 'env_rest', 'env_workflow', 'env_job', 'includes') {
         $v = $c.$campo
         if ($null -ne $v -and $v -isnot [string]) { return $false }
     }
@@ -346,7 +353,7 @@ function Forma-Ok($c) {
 
 if (-not (Forma-Ok $Cfg)) {
     [Console]::Error.WriteLine("$Settings invalido: esperado um objeto com ip (texto), port (numero), environments (lista de textos)")
-    [Console]::Error.WriteLine('e user, password, env_default, env_rest, env_workflow, env_job (texto). ip e nomes de ambiente nao podem ter espacos.')
+    [Console]::Error.WriteLine('e user, password, env_default, env_rest, env_workflow, env_job, includes (texto). ip e nomes de ambiente nao podem ter espacos.')
     [Console]::Error.WriteLine('Veja o topo deste script.')
     exit 3
 }
@@ -359,6 +366,8 @@ $EnvDefault  = [string]$Cfg.env_default
 $EnvRest     = [string]$Cfg.env_rest
 $EnvWorkflow = [string]$Cfg.env_workflow
 $EnvJob      = [string]$Cfg.env_job
+$Includes    = [string]$Cfg.includes
+if ([string]::IsNullOrEmpty($Includes)) { $Includes = $IncludesPadrao }
 
 $Environments = @()
 if ($null -ne $Cfg.environments) {
