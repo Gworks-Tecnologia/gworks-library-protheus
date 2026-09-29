@@ -29,13 +29,13 @@ psw=<password>
 action=compile
 program=/abs/path/one,/abs/path/two        ; files OR directories (recursive)
 recompile=F                                ; T forces rewrite into the RPO
-includes=/totvs/protheus/includes/includes-standard/2410
+includes=<from .vscode/servers.json, comma-separated>
 ```
 
 Hard requirements, each learned the hard way:
 
 - **The `.ini` must be ANSI/CP1252**; in UTF-8 the run fails. The scripts convert on write (and fail loudly on a character outside CP1252, e.g. an emoji in the password). The **source files** must be CP1252 too → `utf8-to-cp1252-conversion`.
-- **`includes` are resolved by the AppServer**, so they are absolute paths *on the server*, not on your machine. The script has one fixed value (`INCLUDES` at the top of `pth-compile.sh`); edit it if the environment's includes differ.
+- **`includes` are resolved by the AppServer**, so they are absolute paths *on the server*, not on your machine. They are **not** in `pth-settings`: `pth-compile` calls `Scripts/pth-getincludes.sh <ip> <port>` (`.ps1` on Windows), which reads `.vscode/servers.json` (the TDS extension's own registry; `PTH_SERVERS_JSON` points elsewhere) and returns the root `includes` plus the `includes` of every configuration whose `address:port` matches the settings' `ip:port`, deduplicated in first-seen order. Another server's includes never enter (could be another `.ch` version). No `servers.json`, or no include for that server → exit 3 before compiling, instead of an error in every source that includes something.
 - **`build=AUTO`** spares hard-coding the AppServer release.
 - The exit code is non-zero on failure — it chains and works in CI.
 - The `.ini` carries the password in plain text: created `chmod 600` in the temp dir and destroyed by `trap EXIT` (`finally` in the `.ps1`), so it does not survive the run even on Ctrl+C.
@@ -125,7 +125,7 @@ After a SmartClient/WebApp/debug session closes, the RPO stays locked ~30 s and 
 
 ## Windows (`pth-compile.ps1`)
 
-Same optional suffix, same flags, same settings files, same exit codes; requires PowerShell 5.1+. Differences: the newest `advpls.exe` under `%USERPROFILE%\.vscode\extensions\totvs.tds-vscode-*` is found automatically (`$env:PTH_ADVPLS` overrides; the `.sh` pins one extension version at the top of the file — if the extension updates and removes that folder the `.sh` stops with a clear message, edit `ADVPLS`); the `.ini` is written with CRLF; stdout and stderr of `advpls` are read separately (stdout first). **Never run on Windows yet.** The top of the file carries a status block and a step-by-step validation script for the user to run; until it passes, do not claim the script works. Suppositions to check first if something fails: where `advpls.exe` sits inside `tds-ls\bin`, whether `advpls` accepts CRLF in the `.ini`, and whether the .NET build has the CP1252 table.
+Same optional suffix, same flags, same settings files, same exit codes; requires PowerShell 5.1+. Differences: the newest `advpls.exe` under `%USERPROFILE%\.vscode\extensions\totvs.tds-vscode-*` is found automatically (`$env:PTH_ADVPLS` overrides; the `.sh` does the same, picking the highest `totvs.tds-vscode-*` version with `sort -V`); the `.ini` is written with CRLF; stdout and stderr of `advpls` are read separately (stdout first). **Never run on Windows yet.** The top of the file carries a status block and a step-by-step validation script for the user to run; until it passes, do not claim the script works. Suppositions to check first if something fails: where `advpls.exe` sits inside `tds-ls\bin`, whether `advpls` accepts CRLF in the `.ini`, and whether the .NET build has the CP1252 table.
 
 ## Troubleshooting
 
@@ -139,7 +139,8 @@ Same optional suffix, same flags, same settings files, same exit codes; requires
 | `O papel "rest" nao esta configurado` | `env_rest` is empty | Fill it or pick another target |
 | `-a e -e nao combinam` | Flags conflict | Use one |
 | `jq nao encontrado` | `jq` missing (bash script) | `sudo apt install jq` |
-| `advpls nao encontrado em: …` | TDS extension updated/removed, or not installed | Edit `ADVPLS` in the `.sh` (or `PTH_ADVPLS` for `.ps1`); install/update the extension |
+| `advpls nao encontrado em: …` | TDS extension not installed | Install the extension (or set `PTH_ADVPLS` for `.ps1`) |
+| `Nao encontrei …/.vscode/servers.json` / `Nenhum include em …` | No `servers.json`, or no `includes` at root nor in the configuration with the settings' `ip:port` | Register the includes through the TDS *Include* assistant (or point `PTH_SERVERS_JSON` at another file) |
 | `COMPILEERROR-300 Failed to open repository` | RPO locked ~30 s after a session closed | Already retried 3×; if it persists another session/service holds the RPO — tell the user |
 | `Nao consegui converter o .ini para CP1252` | Emoji or other non-CP1252 character in user/password/path | Remove it |
 | Garbled characters in messages / compile errors about invalid characters | Source is UTF-8 | `utf8-to-cp1252-conversion`, recompile |
@@ -147,4 +148,4 @@ Same optional suffix, same flags, same settings files, same exit codes; requires
 
 ## Testing the script logic without a server
 
-Point `HOME` at a temp directory that contains a **fake** `advpls` at `.vscode/extensions/totvs.tds-vscode-2.0.16/node_modules/@totvs/tds-ls/bin/linux/advpls` (a shell script that prints the `.ini` it receives with the `psw=` line masked and exits with `$FAKE_EXIT`), and set `PTH_SETTINGS` to a fixture. That is how the argument, validation, role and multi-environment logic was tested (94 cases) without touching a server or a real credential.
+Point `HOME` at a temp directory that contains a **fake** `advpls` at `.vscode/extensions/totvs.tds-vscode-<any version>/node_modules/@totvs/tds-ls/bin/linux/advpls` (a shell script that prints the `.ini` it receives with the `psw=` line masked and exits with `$FAKE_EXIT`), set `PTH_SETTINGS` to a fixture and `PTH_SERVERS_JSON` to a `servers.json` fixture with includes for the fixture's `ip:port`. That is how the argument, validation, role and multi-environment logic was tested (94 cases) without touching a server or a real credential.

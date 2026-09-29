@@ -52,13 +52,18 @@
 #     inclusive se o script morrer no meio (trap EXIT).
 #
 # O pth-execute.mjs e o pth-query.sh leem o mesmo arquivo.
+#
+# INCLUDES nao ficam no pth-settings: vem do .vscode/servers.json (ou do
+# arquivo em PTH_SERVERS_JSON), pelo pth-getincludes.sh -- o "includes" do
+# topo mais o da configuracao de mesmo address:port, sem repetir.
 # ---------------------------------------------------------------------------
 
 set -euo pipefail
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
-ADVPLS="$HOME/.vscode/extensions/totvs.tds-vscode-2.0.16/node_modules/@totvs/tds-ls/bin/linux/advpls"
+# Usa o advpls da versao mais nova da extensao TDS instalada.
+ADVPLS="$(ls -d "$HOME"/.vscode/extensions/totvs.tds-vscode-*/node_modules/@totvs/tds-ls/bin/linux/advpls 2>/dev/null | sort -V | tail -n 1 || true)"
 
 # Primeiro argumento opcional: um sufixo (homolog, cliente-x...) escolhe
 # Scripts/pth-settings.<sufixo>.json. Nome simples (letras, numeros, _ e -,
@@ -72,9 +77,12 @@ if [[ "${1:-}" =~ ^[A-Za-z0-9][A-Za-z0-9_-]*$ ]] && [ ! -e "$1" ]; then
 fi
 SETTINGS="${PTH_SETTINGS:-$REPO/Scripts/pth-settings.json}"
 
-# Includes: os mesmos de .vscode/settings.json. O AppServer le estes caminhos
-# no momento da compilacao, entao precisam ser absolutos.
-INCLUDES="/totvs/protheus/includes/includes-standard/2410"
+# Includes: saem do .vscode/servers.json (o mesmo registro que a extensao TDS
+# usa), via pth-getincludes.sh, depois de ler o pth-settings -- ver "Includes"
+# mais abaixo.
+# O AppServer le estes caminhos no momento da compilacao, entao sao caminhos
+# DELE e precisam ser absolutos.
+INCLUDES=""
 
 # Alvo padrao: Global + Projects. Modules fica de fora de proposito -- nao
 # mexemos nele, e recompilar 400 fontes legados a cada rodada so serve para
@@ -229,6 +237,12 @@ if [ "${#faltando[@]}" -gt 0 ]; then
     echo "Preencha em $SETTINGS: ${lista%, }" >&2
     exit 3
 fi
+
+# ---- Includes (.vscode/servers.json) ---------------------------------------
+# Tudo o que o servers.json declara para este ip:porta (o do topo mais o da
+# configuracao do servidor), sem repetir -- a regra mora no pth-getincludes.sh.
+# Ele ja explica o erro no stderr; aqui so se repassa o codigo de saida.
+INCLUDES="$(bash "$REPO/Scripts/pth-getincludes.sh" "$IP" "$PORTA")" || exit $?
 
 # ---- Em quais ambientes compilar -------------------------------------------
 declare -A PAPEL=( [default]="$ENV_DEFAULT" [rest]="$ENV_REST" [workflow]="$ENV_WORKFLOW" [job]="$ENV_JOB" )

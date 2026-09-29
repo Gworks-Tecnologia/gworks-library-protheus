@@ -150,9 +150,11 @@ else {
     }
 }
 
-# Includes: os mesmos de .vscode/settings.json. O AppServer le estes caminhos
-# no momento da compilacao, entao sao caminhos DELE, nao do Windows.
-$Includes = '/totvs/protheus/includes/includes-standard/2410'
+# Includes: saem do .vscode/servers.json (o mesmo registro que a extensao TDS
+# usa), via pth-getincludes.ps1, depois de ler o pth-settings -- ver "Includes"
+# mais abaixo. O AppServer le estes caminhos no momento da compilacao, entao sao caminhos
+# DELE, nao do Windows.
+$Includes = ''
 
 # Alvo padrao: Global + Projects. Modules fica de fora de proposito -- nao
 # mexemos nele, e recompilar 400 fontes legados a cada rodada so serve para
@@ -374,6 +376,13 @@ if ([string]::IsNullOrEmpty($EnvDefault)) { $Faltando += 'env_default' }
 if ($Faltando.Count -gt 0) {
     Falhar ("Preencha em ${Settings}: " + ($Faltando -join ', ')) 3
 }
+
+# ---- Includes (.vscode/servers.json) ---------------------------------------
+# Tudo o que o servers.json declara para este ip:porta (o do topo mais o da
+# configuracao do servidor), sem repetir -- a regra mora no pth-getincludes.ps1.
+# Ele ja explica o erro no stderr; aqui so se repassa o codigo de saida.
+$Includes = & (Join-Path $PSScriptRoot 'pth-getincludes.ps1') $Ip $Porta
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
 # ---- Em quais ambientes compilar -------------------------------------------
 $Papel = [ordered]@{
