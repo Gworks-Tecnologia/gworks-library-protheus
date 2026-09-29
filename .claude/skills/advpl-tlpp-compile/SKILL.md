@@ -212,7 +212,7 @@ Same as Step 0: right after another skill generated or changed code, ask before 
 bash Scripts/pth-compile.sh -h | sed -n '/^Configuracao/,/^Exemplos/p'            # another file: … <suffix> -h
 ```
 
-It shows the file path, the server, the WebApp keys (`https`, `webagent`, `browser`, `launch_by_webagent`), `production_database`, `env_default`, the optional `env_rest` / `env_workflow` / `env_job` and `includes` (include folders on the AppServer; `-` = the script's default) — never the password. `(nao foi possivel ler …)`, `0.0.0.0:0` or an empty `env_default` means that file is missing or unfilled: ask the user to fill it, or fall back to Route A. **Never read the file and never fill it in for them.**
+It shows the file path, the server, the WebApp keys (`https`, `webagent`, `browser`, `launch_by_webagent`), `production_database`, `env_default` and the optional `env_rest` / `env_workflow` / `env_job` — never the password. `(nao foi possivel ler …)`, `0.0.0.0:0` or an empty `env_default` means that file is missing or unfilled: ask the user to fill it, or fall back to Route A. **Never read the file and never fill it in for them.**
 
 - **Settings selection.** No suffix → `PTH_SETTINGS`, else `Scripts/pth-settings.json`. A suffix (any plain name: letters, digits, `_`, `-`, starting with a letter or digit) as the **first** argument → `Scripts/pth-settings.<suffix>.json`; a missing file is an error, never a silent fallback. A first argument that is an existing path is a source path, not a suffix.
 - **No execute bit.** The repository sits in a Google Drive folder and the `.sh` scripts are not executable: call them as `bash Scripts/pth-compile.sh …`.
