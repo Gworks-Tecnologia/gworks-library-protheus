@@ -88,7 +88,9 @@
 
 import { spawn } from 'node:child_process';
 import { existsSync, readFileSync, writeFileSync, mkdtempSync } from 'node:fs';
-import { ErroConfig, caminhoSettings, lerServidor, lerSettings, resolverAmbiente } from './pth-config.mjs';
+import {
+  ErroConfig, caminhoSettings, conferirWebAgent, lerServidor, lerSettings, lerVersaoWebApp, resolverAmbiente,
+} from './pth-config.mjs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { setTimeout as sleep } from 'node:timers/promises';
@@ -240,6 +242,20 @@ if (LAUNCH) {
   console.log(`programa : ${PROG}`);
   ARGS.forEach((a, i) => console.log(`arg ${i + 1}    : ${a}`));
   console.log(`modo     : launch_by_webagent (${WEBAGENT})`);
+
+  // Versao do WebApp x WebAgent, ANTES de abrir navegador: com a serie errada
+  // a pagina nao fala com o agente e a espera terminaria em "nada em ...".
+  const versaoWeb = await lerVersaoWebApp(BASE);
+  if (versaoWeb) {
+    const c = conferirWebAgent(versaoWeb, WEBAGENT);
+    console.log(`webapp   : ${versaoWeb} -> WebAgent ${c.serie}.x (${c.versaoAgente ? `configurado: ${c.versaoAgente}` : 'configurado: ultima versao instalada, sem numero no caminho'})`);
+    if (c.ok === false) {
+      falha(`WebAgent ${c.versaoAgente} nao serve para o WebApp ${versaoWeb}: precisa de ${c.serie}.x.\n`
+        + `Troque o campo webagent em ${SETTINGS} (bash Scripts/pth-compile.sh -w mostra qual serve).`);
+    }
+  } else {
+    console.log('webapp   : versao nao lida -- segue sem conferir o WebAgent');
+  }
   console.log(`saida    : ${SAIDA}`);
 
   // O --browser do launch recebe um EMBRULHO, nao o navegador direto: com o
@@ -393,6 +409,11 @@ console.log(`programa : ${PROG}`);
 ARGS.forEach((a, i) => console.log(`arg ${i + 1}    : ${a}`));
 console.log(`saida    : ${SAIDA}`);
 console.log(`agente   : porta ${AGENT_PORT} (Agente Local ligado; webagent_port no arquivo de settings)`);
+{
+  // Modo direto: o WebAgent e o do usuario (versao desconhecida aqui); so informa.
+  const versaoWeb = await lerVersaoWebApp(BASE);
+  if (versaoWeb) console.log(`webapp   : ${versaoWeb} -> o WebAgent aberto na porta ${AGENT_PORT} precisa ser ${conferirWebAgent(versaoWeb, '').serie}.x`);
+}
 
 await ligarAgenteLocal(
   url => send('Page.navigate', { url }, s),

@@ -26,7 +26,7 @@ import { homedir } from 'node:os';
 import { basename, extname, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import {
-  ErroConfig, PAPEIS, caminhoSettings, extensoesPermitidas, lerServidor, lerSettings, listarServidores, listarWebAgents, papelEfetivo,
+  ErroConfig, PAPEIS, caminhoSettings, extensoesPermitidas, lerServidor, lerSettings, lerVersaoWebApp, listarServidores, listarWebAgents, papelEfetivo,
   resolverAmbiente, resumo,
 } from './pth-config.mjs';
 
@@ -67,7 +67,9 @@ Opcoes:
               Roda todos mesmo se um falhar. Nao combina com -e
   -l          Lista os servidores do servers.json (id, endereco, ambientes e em
               quais ha login salvo) -- sem token; base para criar um settings
-  -w          Lista os WebAgents instalados (campo webagent do settings)
+  -w          Lista os WebAgents instalados (campo webagent do settings). Com
+              settings (ou sufixo), le a versao do WebApp daquele servidor e
+              marca qual WebAgent serve
   -h          Esta ajuda
 
 Login: token que a extensao TDS salvou ao conectar no VS Code (servidor +
@@ -76,7 +78,7 @@ ambiente). Sem ele, conecte uma vez pelo VS Code e rode de novo.
 ${resumo(SETTINGS)}`;
 }
 
-let recompilar = false, todos = false;
+let recompilar = false, todos = false, listarWA = false;
 const pedidos = [], caminhos = [];
 for (let i = 0; i < argv.length; i++) {
   const a = argv[i];
@@ -88,7 +90,7 @@ for (let i = 0; i < argv.length; i++) {
     else if (f === 'a') todos = true;
     else if (f === 'h') { console.log(uso()); process.exit(0); }
     else if (f === 'l') { console.log(listarServidores()); process.exit(0); }
-    else if (f === 'w') { console.log(listarWebAgents()); process.exit(0); }
+    else if (f === 'w') listarWA = true;
     else if (f === 'e') {
       // Valor vazio e erro, nao "use o padrao": um -e "$AMB" com a variavel
       // vazia por engano nao pode cair em silencio no ambiente padrao.
@@ -101,6 +103,18 @@ for (let i = 0; i < argv.length; i++) {
       falhar(uso(), 2);
     }
   }
+}
+// -w: com um settings legivel, a lista vem marcada pela versao do WebApp.
+if (listarWA) {
+  let ctx = null;
+  try {
+    const st = lerSettings(SETTINGS);
+    const sv = lerServidor(st);
+    const base = `${st.https ? 'https' : 'http'}://${sv.endereco}:${sv.porta}`;
+    ctx = { servidor: `${sv.nome} (${base})`, versaoWebApp: await lerVersaoWebApp(base), atual: st.webagent };
+  } catch { /* sem settings: so a lista */ }
+  console.log(listarWebAgents(ctx));
+  process.exit(0);
 }
 if (todos && pedidos.length) falhar('-a e -e nao combinam: -a ja compila em todos os ambientes configurados.', 2);
 if (!caminhos.length) falhar('Informe o que compilar: arquivo(s) ou pasta(s). -h para ajuda.', 2);

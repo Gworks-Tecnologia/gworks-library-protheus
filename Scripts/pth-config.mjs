@@ -38,6 +38,8 @@
 // com ele os scripts reconectam sem senha, como a propria extensao faz.
 
 import { existsSync, readdirSync, readFileSync, realpathSync, statSync } from 'node:fs';
+import http from 'node:http';
+import https from 'node:https';
 import { homedir } from 'node:os';
 import { dirname, isAbsolute, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -386,7 +388,42 @@ const PASTAS_WEBAGENT = {
 };
 const NOMES_WEBAGENT = /^(web-?agent)(\.exe)?$/i;
 
-export function listarWebAgents() {
+// Versao do WebApp de um servidor: a pagina inicial carrega
+// "webapp-<versao>-frontend.min.js", entao um GET sem login basta. Devolve ''
+// se nao der para ler (servidor fora, certificado, formato novo).
+export function lerVersaoWebApp(base, ms = 15000) {
+  return new Promise(res => {
+    let url;
+    try { url = new URL('/webapp/', base); } catch { res(''); return; }
+    const lib = url.protocol === 'https:' ? https : http;
+    const req = lib.get(url, { rejectUnauthorized: false, timeout: ms }, r => {
+      let corpo = '';
+      r.setEncoding('utf8');
+      r.on('data', d => { corpo += d; if (corpo.length > 2e6) r.destroy(); });
+      r.on('end', () => res((corpo.match(/webapp-(\d+(?:\.\d+)+)/) || [])[1] || ''));
+      r.on('error', () => res(''));
+    });
+    req.on('timeout', () => req.destroy());
+    req.on('error', () => res(''));
+  });
+}
+
+// WebApp 10.2.0 ou mais novo fala com WebAgent 1.1.x (handshake JWT); abaixo,
+// 1.0.x. Com a serie errada a pagina nao conversa com o agente e a execucao
+// simplesmente nao acontece.
+const cmpVersao = (a, b) => a.localeCompare(b, undefined, { numeric: true });
+export const serieWebAgent = versaoWebApp => (cmpVersao(versaoWebApp, '10.2.0') >= 0 ? '1.1' : '1.0');
+export const versaoPeloCaminho = p => ((p || '').match(/(\d+\.\d+\.\d+)/) || [])[1] || '';
+
+// ok: true/false quando a versao do WebAgent e conhecida pelo caminho; null
+// quando nao da para saber (a da raiz da instalacao, "ultima versao").
+export function conferirWebAgent(versaoWebApp, caminho) {
+  const serie = serieWebAgent(versaoWebApp);
+  const va = versaoPeloCaminho(caminho);
+  return { serie, versaoAgente: va, ok: va ? va.startsWith(`${serie}.`) : null };
+}
+
+export function listarWebAgents(ctx = null) {
   const achados = [];
   const varrer = (dir, nivel) => {
     if (nivel > 6) return;
@@ -401,6 +438,12 @@ export function listarWebAgents() {
   const pastas = PASTAS_WEBAGENT[process.platform] || [];
   pastas.forEach(d => varrer(d, 0));
   const linhas = [`WebAgents em: ${pastas.join(', ') || '(sem pasta padrao para este sistema)'}`];
+  const serie = ctx && ctx.versaoWebApp ? serieWebAgent(ctx.versaoWebApp) : '';
+  if (ctx) {
+    linhas.unshift(serie
+      ? `WebApp de ${ctx.servidor}: ${ctx.versaoWebApp} -> precisa de WebAgent ${serie}.x`
+      : `WebApp de ${ctx.servidor}: versao nao lida (servidor inacessivel?)`);
+  }
   if (!achados.length) linhas.push('  (nenhum encontrado: pergunte o caminho ao usuario)');
   // Na raiz da pasta padrao fica a ultima versao que o usuario instalou (o
   // caminho nao traz o numero, e nem precisa); as anteriores ficam em pastas
@@ -408,7 +451,10 @@ export function listarWebAgents() {
   for (const p of achados.sort()) {
     const v = (p.match(/(\d+\.\d+\.\d+)/) || [])[1];
     const naRaiz = pastas.some(d => resolve(dirname(p)) === resolve(d));
-    linhas.push(`  ${p}  ${v ? `(versao ${v}, pelo nome da pasta)` : naRaiz ? '(ultima versao instalada)' : '(versao nao identificada pelo caminho)'}`);
+    let marca = '';
+    if (serie) marca = v ? (v.startsWith(`${serie}.`) ? '  <- serve' : '  (nao serve)') : `  (serve se for ${serie}.x)`;
+    if (ctx && ctx.atual && resolve(ctx.atual) === resolve(p)) marca += '  [no settings]';
+    linhas.push(`  ${p}  ${v ? `(versao ${v}, pelo nome da pasta)` : naRaiz ? '(ultima versao instalada)' : '(versao nao identificada pelo caminho)'}${marca}`);
   }
   linhas.push('Regra: WebApp 10.2.0 ou mais novo -> WebAgent 1.1.x; abaixo -> 1.0.x.');
   return linhas.join('\n');
