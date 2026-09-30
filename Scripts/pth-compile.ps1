@@ -1,15 +1,27 @@
 # ===========================================================================
-# STATUS: NAO VALIDADO EM WINDOWS
-# A implementacao e o pth-compile.mjs (Node), a mesma do Linux, onde foi
-# testada; este arquivo so a chama. O que muda no Windows e so a localizacao do
-# advpls.exe (%USERPROFILE%\.vscode\extensions\totvs.tds-vscode-*\node_modules\
-# @totvs\tds-ls\bin\windows\advpls.exe, suposicao tirada do codigo da extensao)
-# e o proprio "node" no PATH.
+# STATUS: ESTA VERSAO AINDA NAO RODOU NO WINDOWS
+# A versao anterior deste script (advpls cli, senha no settings) foi validada no
+# Windows pelo usuario. Esta e outra implementacao: o pth-compile.mjs (Node), a
+# mesma do Linux, onde foi testada contra um servidor real, com login pelo token
+# salvo pela extensao; este arquivo so a chama. O que e proprio do Windows
+# (suposicoes -- se algo falhar, comece por elas):
+#   a) advpls.exe em %USERPROFILE%\.vscode\extensions\totvs.tds-vscode-*\
+#      node_modules\@totvs\tds-ls\bin\windows\advpls.exe (tirado do codigo da
+#      extensao); PTH_ADVPLS fixa outro.
+#   b) Settings do VS Code em %APPDATA%\Code\User (settings.json, perfis em
+#      profiles\<id>\, associacao pasta->perfil em globalStorage\storage.json,
+#      com a chave "file:///c%3A/..."): o -h mostra de onde leu casa/globo e as
+#      extensoes. servers.json global em %USERPROFILE%\.totvsls.
+#   c) WebAgent em %LOCALAPPDATA%\Programs\web-agent (pasta confirmada pelo
+#      usuario), executavel web-agent.exe ou webagent.exe (nome a confirmar).
+#   d) O proprio "node" no PATH.
 #
 # >>> PARA O CLAUDE: enquanto este bloco existir, NAO afirme que funciona no
 # Windows. Peca ao usuario a saida de:
-#   1. .\Scripts\pth-compile.ps1 -h        (ajuda + configuracao + servers.json)
-#   2. .\Scripts\pth-compile.ps1 <um fonte pequeno, ambiente de TESTE>
+#   1. .\Scripts\pth-compile.ps1 -h        (ajuda + configuracao + servers.json;
+#                                           confira modo casa/globo e o perfil)
+#   2. .\Scripts\pth-compile.ps1 -w        (WebAgents achados e qual serve)
+#   3. .\Scripts\pth-compile.ps1 <um fonte pequeno, ambiente de TESTE>
 # e so entao troque este bloco por "Validado em Windows <versao> em <data>".
 # ===========================================================================
 #

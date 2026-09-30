@@ -145,7 +145,7 @@ After a SmartClient/WebApp/debug session closes, the RPO stays locked ~30 s and 
 
 ## Windows (`pth-compile.ps1`)
 
-A wrapper for the same `pth-compile.mjs`: same suffix, flags, settings and exit codes; needs `node` in the PATH. The only Windows-specific parts are the `advpls.exe` location (`…\tds-ls\bin\windows\advpls.exe`, taken from the extension's code) and `%USERPROFILE%`/`%APPDATA%` for `servers.json` and the user settings. **Never run on Windows yet**: the top of the file lists two checks for the user; until they pass, do not claim it works.
+A wrapper for the same `pth-compile.mjs`: same suffix, flags, settings and exit codes; needs `node` in the PATH. The only Windows-specific parts are the `advpls.exe` location (`…\tds-ls\bin\windows\advpls.exe`, taken from the extension's code) and `%USERPROFILE%`/`%APPDATA%` for `servers.json` and the user settings. The **previous** `.ps1` (`advpls cli`) was validated on Windows by the user; **this wrapper has not run there yet**: the top of the file lists the checks for the user (`-h`, `-w`, one small compile) and the Windows-only suppositions (advpls.exe path, VS Code settings/profile paths, WebAgent executable name); until they pass, do not claim it works.
 
 ## Open questions (check on the first real runs)
 

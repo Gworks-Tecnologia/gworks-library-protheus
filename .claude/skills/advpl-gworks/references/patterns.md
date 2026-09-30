@@ -364,7 +364,7 @@ The same qualification works from outside AdvPL: the Protheus WebApp `P=` parame
 
 When a routine has to exchange a file with something outside Protheus (a script, a browser, the user), do not hard-code `/tmp/` or `C:\temp\`. Compute it from `GetTempPath()`, which answers for the **client** machine, and mind two things:
 
-1. **The separator depends on the client OS**, read from the string itself: `GetTempPath()` starts with `/` on Linux (`/tmp/`), otherwise it is a Windows path (`C:\…\Temp\`, assumed — not yet confirmed live) and the separator is `\`.
+1. **The separator depends on the client OS**, read from the string itself: `GetTempPath()` starts with `/` on Linux (`/tmp/`), otherwise it is a Windows path (`C:\…\Temp\`, confirmed by Windows runs of the ConsultaSql query) and the separator is `\`.
 2. **On a Linux client the path needs the `l:` prefix** (`l:/tmp/x`). The prefix chooses the *machine*, not the syntax: `l:/tmp/x` (Linux) and `c:\tmp\x` (Windows) — "absolute" in TDN's naming — go to the **client**; a path with no prefix is "relative" and goes to the **server**, under its `Protheus_Data`. Getting it wrong raises **no error**: the write lands on the server and the read returns empty, "file not found" for a file sitting exactly where you put it.
 
 Reference implementation — one helper, so every reader and writer agrees (`Templates/ConsultaSql/Common/Functions/GwTemplateConsultaSqlFunctions.tlpp`, namespace `Gworks.Templates.ConsultaSql.Functions`):

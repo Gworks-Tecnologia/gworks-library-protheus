@@ -253,7 +253,7 @@ A locked RPO makes the script wait 30 s and retry up to 3 times on its own; do n
 
 ### B6 — Windows
 
-Use `Scripts/pth-compile.ps1` — a wrapper for the same `pth-compile.mjs` (same suffix, flags, settings and exit codes). **It has never been run on Windows.** The top of the file carries a status block: while it is there, ask the user for the output of the two checks it lists — do not claim it works.
+Use `Scripts/pth-compile.ps1` — a wrapper for the same `pth-compile.mjs` (same suffix, flags, settings and exit codes). The **previous** `.ps1` (`advpls cli`, password in the settings) was validated on Windows by the user; **this wrapper has not run there yet.** The top of the file carries a status block: while it is there, ask the user for the output of the checks it lists (`-h`, `-w`, one small compile) — do not claim it works.
 
 ---
 
@@ -305,4 +305,4 @@ flowchart TD
 - **(Route B) Calling it without a path.** There is no default target; pass the narrowest file or folder.
 - **(Route B) Wrapping the script in a retry loop.** It already retries a locked RPO 3× with 30 s between; more loops only prolong the lock.
 - **(Route B) Treating exit code `0` as "it works".** It means it compiled — see B5.
-- **(Route B) Claiming the `.ps1` scripts work.** They have never run on Windows; ask the user for the checks listed at the top of the file.
+- **(Route B) Claiming the new `pth-compile.ps1` works on Windows.** Only its previous version was validated there; ask the user for the checks listed at the top of the file.

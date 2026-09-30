@@ -33,7 +33,7 @@ The **directory** is computed in one place, `U_ConsultaSqlTempFile( cName )` (`F
 | Client OS | Result of `U_ConsultaSqlTempFile("x")` |
 | --- | --- |
 | Linux / Unix | always `l:/tmp/x` |
-| Windows | `GetTempPath()` + `x` — `C:\Users\…\Temp\x` *(assumed — not yet confirmed)* |
+| Windows | `GetTempPath()` + `x` — `C:\Users\…\Temp\x` (confirmed by the user's Windows runs of `pth-query.ps1`) |
 
 Rules it applies: the **format** of `GetTempPath()` tells the OS — starting with `/` (or `l:/`) is Unix, anything else Windows (`L:\…` is a Windows drive, not the prefix). On Unix the **value** of `GetTempPath()` is not used: WebApp 10.2.1 returns `l:` + the WebApp's per-user folder **on the server** (`l:/…/webapp/user/<session>/`, a WebApp bug removed in 10.2.2), which does not exist on the client — so the directory is fixed to `/tmp/`, where `pth-query.sh` writes and reads. On Windows a trailing separator is added when missing. The OS does not come from `GetRemoteType()`/`U_GwRemoteType` (a second source of truth, and `U_GwRemoteType` throws when it cannot classify the client). The function is meant for calls **with a client** (menu, WebApp); a REST/job thread has no client disk for `l:` to point at.
 

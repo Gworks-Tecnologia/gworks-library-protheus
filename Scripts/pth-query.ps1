@@ -1,18 +1,14 @@
 # ===========================================================================
-# STATUS: NAO VALIDADO EM WINDOWS
-# Escrito em 2026-09-24 numa maquina Linux, SEM PowerShell disponivel: so
-# revisao estatica. Este script depende do pth-execute.mjs e do TLPP do
-# ConsultaSql, que tambem nao foram exercitados no Windows.
+# STATUS: VALIDADO EM WINDOWS PELO USUARIO -- o fluxo da consulta (WebApp,
+# WebAgent, o navegador.cmd que o pth-execute.mjs gera, a pasta %TEMP% do
+# cliente) funcionou. Depois disso mudou so a CONFIGURACAO: o settings passou a
+# apontar um servidor do servers.json da extensao TDS (pth-config.mjs, que tambem
+# le os perfis do VS Code) e o pth-execute passou a conferir a versao do
+# WebApp x WebAgent. Isso ainda nao rodou no Windows.
 #
-# >>> PARA O CLAUDE (ou qualquer leitor futuro deste arquivo) <<<
-# Se este bloco ainda esta aqui, este script NUNCA rodou num Windows. Ao le-lo,
-# ORIENTE O USUARIO a executar o roteiro abaixo antes de confiar nele, e peca a
-# saida completa de cada passo. NAO afirme que "funciona": diga que foi escrito
-# para ser equivalente ao pth-query.sh e que falta validar. Valide primeiro o
-# pth-compile.ps1 (o roteiro dele esta no topo do arquivo): este aqui herda a
-# leitura do pth-settings.json e depende do Node.js. Quando o usuario trouxer os
-# resultados, corrija o que falhar e so entao remova este bloco -- ou troque-o
-# por "Validado em Windows <versao>, PowerShell <versao>, em <data>".
+# >>> PARA O CLAUDE: pode dizer que a consulta funciona no Windows; para a
+# configuracao nova, peca ao usuario a saida dos passos 2 a 4 abaixo na primeira
+# vez que ele usar la, e entao troque este bloco por "Validado em Windows em <data>".
 #
 # ROTEIRO DE VALIDACAO (PowerShell, na raiz do repositorio):
 #
@@ -31,34 +27,34 @@
 #     "Ambiente desconhecido: ZZZ" (exit 3). "node nao encontrado" = falta o
 #     Node.js no PATH.
 #
-#  3. Consulta de verdade -- precisa de: servidor de pe, os campos webagent e
+#  3. WebAgent -- lista os instalados (%LOCALAPPDATA%\Programs\web-agent) e
+#     marca qual serve para a versao do WebApp do servidor:
+#       .\Scripts\pth-compile.ps1 -w
+#     Esperado: "WebApp de <servidor>: <versao> -> precisa de WebAgent 1.x.x" e
+#     a lista. Lista vazia = o nome do executavel ou a pasta sao outros: peca
+#     o caminho ao usuario.
+#
+#  4. Consulta de verdade -- precisa de: servidor de pe, os campos webagent e
 #     browser preenchidos (com launch_by_webagent true) e o Node.js:
 #       .\Scripts\pth-query.ps1 "SELECT TOP 3 A1_COD FROM SA1010 WHERE D_E_L_E_T_ = ' '"
-#     Esperado: o pth-execute.mjs imprime servidor/programa/modo e
+#     Esperado: o pth-execute.mjs imprime servidor/programa/modo, a linha
+#     "webapp   : <versao> -> WebAgent 1.x.x (configurado: ...)" e
 #     "retorno : ...\consultasql-retorno.json (Ns)", exit 0.
-#     Se "Nenhum navegador ... encontrado": preencha "browser" no arquivo.
+#     "WebAgent X nao serve para o WebApp Y" (exit 3) = webagent da serie
+#     errada. "Nenhum navegador ... encontrado": preencha "browser" no arquivo.
 #
-# SUPOSICOES NAO CONFIRMADAS (se um passo falhar, comece por elas):
-#   a) O GetTempPath() do AdvPL, num cliente Windows, devolve a MESMA pasta que
-#      o [System.IO.Path]::GetTempPath() daqui. Se o arquivo de retorno nao
-#      aparecer em %TEMP%, confira no ConOut do AppServer a linha
-#      "[ConsultaSql] retorno gravado em: ..." -- ela mostra o caminho que o
-#      Protheus usou. E se a instrucao nao for encontrada ("Arquivo vazio ou
-#      inexistente: ..."), o caminho da mensagem e o que o Service procurou.
-#      Nos dois casos o ajuste esta na U_ConsultaSqlTempFile (Functions do
-#      ConsultaSql) ou em PROTHEUS_SQL_PATH.
-#   b) O pth-execute.mjs acha o navegador nos lugares padrao de instalacao do
-#      Chrome/Edge no Windows (lista dentro de acharNavegador).
-#   c) O webapp/WebAgent aceita o caminho do arquivo no formato Windows.
-#   d) O web-agent.exe aceita um .cmd no --browser (o pth-execute.mjs gera um
-#      "navegador.cmd" que abre o navegador headless com perfil proprio).
+# CONFIRMADO PELO USO NO WINDOWS: o GetTempPath() do AdvPL num cliente Windows e
+# a mesma pasta do [System.IO.Path]::GetTempPath() daqui; o pth-execute.mjs acha o
+# navegador; o WebApp/WebAgent aceita o caminho no formato Windows; o
+# web-agent.exe aceita o navegador.cmd no --browser. Se um dia falhar, a linha
+# "[ConsultaSql] retorno gravado em: ..." do ConOut mostra o caminho usado.
 #
 # PONTO DE ATENCAO DO TLPP, independente do Windows: o Service do ConsultaSql
 # chama U_GwApiQuery( cSql, @jDados ) (modo direto, versao 1.1 da lib). Se o
 # RPO do ambiente tiver a versao antiga (so REST), toda consulta responde
 # ok=false, status 500, "Resposta invalida da consulta". Nesse caso NAO e
-# defeito deste script: compile Sources\Global\Gworks\Library\Classes\ApiQuery
-# nesse ambiente.
+# defeito deste script: compile <lib>\Library\Classes\ApiQuery nesse ambiente
+# (<lib> = Sources\Global\Gworks num cliente, Sources na gworks-library-protheus).
 #
 # Depois de validar, apague este bloco (ou troque pela linha de "Validado em").
 # ===========================================================================

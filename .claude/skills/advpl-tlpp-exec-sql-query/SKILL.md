@@ -8,7 +8,7 @@ metadata:
   category: Build, Execution and Debugging Automation
   reference_module: Gworks.Templates.ConsultaSql (<lib>/Templates/ConsultaSql)
   version: '1.0.0'
-  status: "Linux flow confirmed end to end on 2026-09-25 against CQSLH5_GWORKS (WebApp 10.1.8, WebAgent 1.0.24) and CQSLH5_PROD (WebApp 10.2.1, WebAgent 1.1.x), with Edge headless, in both modes. Windows scripts never run."
+  status: "Linux flow confirmed end to end on 2026-09-25 against CQSLH5_GWORKS (WebApp 10.1.8, WebAgent 1.0.24) and CQSLH5_PROD (WebApp 10.2.1, WebAgent 1.1.x), with Edge headless, in both modes. Windows: pth-query.ps1 validated by the user (WebApp/WebAgent/.cmd browser wrapper/%TEMP%); the servers.json-based settings not yet run there."
 ---
 
 # Run a SQL query against Protheus from a shell
@@ -97,7 +97,7 @@ Internals (layers, temp-file contract, the `l:` rule, how both run modes work): 
 2. **Both modes work** (`launch_by_webagent` true or false), because `pth-execute.mjs` turns on the WebApp's **"Agente Local"** in the throwaway browser profile before opening the program (the `desktopagentport` key — see internals). Without it, a fresh profile sends every `l:` path to the **server's** disk even with the agent connected, and the query silently never runs.
 3. **The WebAgent version follows the WebApp of each environment**: WebApp 10.2.0 or later requires WebAgent 1.1.x (JWT handshake); below that, 1.0.x. Here: `dev` uses `/opt/web-agent/1.0.24-x64/opt/web-agent/web-agent`, `prd` uses `/opt/web-agent/web-agent` — the **latest version installed** (a 1.1.x; the path at the root of the install folder never carries the number, older versions live in folders named after them). Never suggest changing the version as a fix without checking the WebApp version and asking the user. The scripts check it for you: `pth-execute`/`pth-query` read the WebApp version from its page before opening the browser (line `webapp   : 10.1.8 -> WebAgent 1.0.x (configurado: …)`) and stop at once (exit 3) when the configured WebAgent's version, known from its folder name, is of the other series; `bash Scripts/pth-compile.sh [suffix] -w` marks which installed WebAgent fits. To pick one for a new settings file: `bash Scripts/pth-compile.sh -w` lists the installed WebAgents (`/opt/web-agent/**` on Linux, `%LOCALAPPDATA%\Programs\web-agent\**` on Windows) — ask the user which one (compile skill, *Settings*).
 4. **An older copy of the module may live in some RPO** under the namespace `Applications.ConsultaSql`: it stays live (it executes SQL) until removed by the user.
-5. **Windows is unvalidated.** `pth-query.ps1`, the `.cmd` browser wrapper that `pth-execute.mjs` writes on Windows and the browser lookup were never run there. Point the user to the validation script at the top of each `.ps1` and ask for the output — do not claim it works.
+5. **Windows: the query flow is validated** (by the user): `pth-query.ps1`, the `.cmd` browser wrapper that `pth-execute.mjs` writes, the browser lookup and the client's `%TEMP%` all worked. What changed afterwards — settings pointing at a server of `servers.json`, VS Code profiles, the WebApp × WebAgent check — has not run on Windows yet: the first time, ask the user for steps 2–4 at the top of `pth-query.ps1`.
 6. **Controller environment defaults are inherited from another project:** company `01`, branch `04`, module `PCP` (used only when the thread has no environment yet). Adjust for the target environment (`jRpc`), or a branch-scoped query hits the wrong branch. An invalid branch answers *"Muitos usuários"* — it looks like a license problem and is not.
 7. **The effective REST URL is unconfirmed** (see "REST alternative").
 8. **The `.sh` scripts have no execute bit** (the repository sits in a Google Drive folder). Call them as `bash Scripts/…`.
@@ -144,7 +144,7 @@ bash Scripts/pth-query.sh <suffix> -f file.sql consulta 60        # another conf
 
 Another environment of the same file: `PROTHEUS_ENV=rest bash Scripts/pth-query.sh …` (a role — `default`, `rest`, `workflow`, `job` — or the name of an environment of the server).
 
-**Windows (unvalidated — see Known status #5):**
+**Windows (validated; the new settings not yet — see Known status #5):**
 ```powershell
 .\Scripts\pth-query.ps1 "SELECT TOP 3 A1_COD FROM SA1010 WHERE D_E_L_E_T_ = ' '" consulta 60
 ```
@@ -222,4 +222,4 @@ The same rule answers as a real REST route — `@Post("/GwConsultaSql/consultas"
 - Treating a compile as proof the query works: column names inside SQL strings only meet the database when the query runs.
 - Suggesting a WebAgent version change as a fix — the version follows the WebApp of each environment.
 - Concluding "WebAgent bug" when `ExistDir("l:/tmp")` is `.T.` but `File()` of a client file is `.F.`: that is the "Agente Local" off (`desktopagentport` missing), so `l:` hits the server.
-- Declaring the Windows scripts working without the user's run of the validation script.
+- Declaring the new settings/`servers.json` resolution working on Windows before the user ran steps 2–4 of `pth-query.ps1` there.
