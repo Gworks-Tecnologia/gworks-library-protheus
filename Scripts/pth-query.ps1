@@ -21,8 +21,8 @@
 #     Esperado: as duas linhas de "Uso: ..." e exit 2. "unexpected token" ou
 #     "missing terminator" e ERRO DE SINTAXE DESTE ARQUIVO.
 #
-#  2. Node e configuracao (com o pth-settings.json preenchido, ver o
-#     pth-compile.ps1). Um ambiente inexistente deve ser recusado ANTES de abrir
+#  2. Node e configuracao (com o pth-settings.json criado, ver o topo do
+#     pth-config.mjs). Um ambiente inexistente deve ser recusado ANTES de abrir
 #     navegador:
 #       $env:PROTHEUS_ENV = 'ZZZ'
 #       .\Scripts\pth-query.ps1 "SELECT 1"
@@ -65,7 +65,7 @@
 #
 # Executa uma consulta SQL no Protheus pela rota GwConsultaSql -- versao Windows
 # (PowerShell) do pth-query.sh. Mesmo comportamento, mesma configuracao
-# (Scripts/pth-settings.json, descrito no topo do pth-compile.ps1).
+# (Scripts/pth-settings.json, descrito no topo do pth-config.mjs).
 #
 # Como funciona (o detalhe completo esta no topo do pth-query.sh): o SQL e
 # gravado num ARQUIVO e o webapp e chamado com a sentinela RUNQUERY; a rotina

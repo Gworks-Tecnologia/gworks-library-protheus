@@ -38,14 +38,15 @@
 # SOBRESCREVE o arquivo da anterior: ler antes de disparar a proxima.
 #
 # ALTERNATIVA sem passar pelo webapp/Chromium: a mesma acao tambem responde
-# como rota REST de verdade (na porta do REST Server, NAO na "port" do
-# pth-settings.json, que e a do webapp/compilacao), com Basic Auth -- devolve
-# {"hasNext": bool, "items": [...]} direto no corpo HTTP, sem arquivo, sem
-# screenshot. Usuario e senha sao os do proprio pth-settings.json:
+# como rota REST de verdade (na porta do REST Server, NAO na porta do
+# servidor no servers.json, que e a do webapp/compilacao), com Basic Auth --
+# devolve {"hasNext": bool, "items": [...]} direto no corpo HTTP, sem arquivo,
+# sem screenshot. A senha nao fica em arquivo nenhum: quem chama a digita
+# (read -s nao ecoa nem vai para o historico):
 #
-#   S=Scripts/pth-settings.json
-#   AUTH=$(printf '%s' "$(jq -r '"\(.user):\(.password)"' "$S")" | base64 -w0)
-#   curl -s -X POST "http://$(jq -r .ip "$S"):<porta-rest>/rest/GwConsultaSql/consultas" \
+#   read -rp 'usuario: ' U; read -rsp 'senha: ' P; echo
+#   AUTH=$(printf '%s:%s' "$U" "$P" | base64 -w0); unset P
+#   curl -s -X POST "http://<endereco>:<porta-rest>/rest/GwConsultaSql/consultas" \
 #     -H "Authorization: Basic $AUTH" -H "Content-Type: application/json" \
 #     --data-binary @arquivo-com-o-body.json   # {"query": "SELECT ..."}
 #
@@ -105,9 +106,9 @@
 #   PROTHEUS_BROWSER   Navegador; vale mais que o "browser" do arquivo.
 #
 # Servidor, ambiente, https, navegador e modo (launch_by_webagent) sao
-# resolvidos pelo pth-execute.mjs a partir do arquivo de settings (campos no
-# topo do pth-compile.sh e do pth-execute.mjs); este script so escolhe o
-# arquivo e repassa as variaveis. user e password nao sao usados aqui.
+# resolvidos pelo pth-execute.mjs a partir do arquivo de settings e do
+# servers.json da extensao TDS (campos no topo do pth-config.mjs); este script
+# so escolhe o arquivo e repassa as variaveis. Nao ha login aqui.
 
 set -euo pipefail
 

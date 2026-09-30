@@ -45,9 +45,10 @@
 //   node Scripts/pth-execute.mjs <namespace.U_Funcao> [rotulo] [segundos] [arg...]
 //
 // A configuracao sai de PTH_SETTINGS ou, sem ela, de Scripts/pth-settings.json
-// -- o mesmo arquivo do pth-compile.sh, cujos campos estao no topo dele (o
-// pth-query escolhe Scripts/pth-settings.<sufixo>.json por PTH_SETTINGS). user
-// e password nao sao usados aqui. Campos deste script:
+// -- o mesmo arquivo do pth-compile, lido pelo pth-config.mjs (campos no topo
+// dele; o pth-query escolhe Scripts/pth-settings.<sufixo>.json por
+// PTH_SETTINGS). Endereco, porta e ambientes do servidor vem do servers.json da
+// extensao TDS; login nao ha (a execucao nao autentica). Campos deste script:
 //   https     true/false (default false): o WebApp daquele servidor atende em
 //             https. Servidor so-https responde vazio (ERR_EMPTY_RESPONSE) a http.
 //   webagent  caminho do executavel do WebAgent daquele cliente (a versao muda
@@ -62,13 +63,14 @@
 // Variaveis de ambiente:
 //   PROTHEUS_ENV   ambiente onde executar: um papel (default, rest, workflow,
 //                  job, que valem env_default, env_rest, env_workflow e
-//                  env_job) ou o nome de um ambiente de "environments".
-//                  Default: env_default
+//                  env_job) ou o nome de um ambiente do servidor.
+//                  Default: env_default ou, vazio, o primeiro ambiente do
+//                  servidor no servers.json
 //   PTH_SETTINGS   caminho do arquivo de settings (um arquivo = um servidor)
 //   PROTHEUS_URL   URL do WebApp, sem consultar o arquivo -- exige
 //                  PROTHEUS_ENV (nome do ambiente, nao papel) junto, porque
 //                  ambiente sem o servidor certo e o RPO errado. O WebApp
-//                  usa a porta do AppServer: http(s)://<ip>:<port>
+//                  usa a porta do AppServer: http(s)://<endereco>:<porta>
 //   PROTHEUS_BROWSER  navegador; vale mais que o "browser" do arquivo. Sem
 //                  nenhum dos dois, procura nos lugares de instalacao de
 //                  Linux, Windows e macOS.
@@ -86,9 +88,9 @@
 
 import { spawn } from 'node:child_process';
 import { existsSync, readFileSync, writeFileSync, mkdtempSync } from 'node:fs';
+import { ErroConfig, caminhoSettings, lerServidor, lerSettings, resolverAmbiente } from './pth-config.mjs';
 import { tmpdir } from 'node:os';
-import { join, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { join } from 'node:path';
 import { setTimeout as sleep } from 'node:timers/promises';
 
 const PROG   = process.argv[2];
@@ -101,20 +103,17 @@ if (!PROG) {
   process.exit(2);
 }
 
-const SETTINGS = process.env.PTH_SETTINGS
-  || join(dirname(fileURLToPath(import.meta.url)), 'pth-settings.json');
+const SETTINGS = caminhoSettings('');
 
 function falha(msg) {
   console.error(msg);
   process.exit(3);
 }
 
-const PAPEIS = ['default', 'rest', 'workflow', 'job'];
-
-// Mesma regra do pth-compile.sh: o ambiente e um papel (default, rest,
-// workflow, job -> env_default, env_rest, ...) ou um nome conhecido, isto e,
-// listado em "environments" ou um dos env_* preenchidos. Erro de digitacao
-// vira erro aqui, nao codigo velho rodando em outro RPO.
+// Servidor e ambiente: pth-config.mjs (settings do projeto + servers.json da
+// extensao TDS). O ambiente e um papel (default, rest, workflow, job) ou um
+// nome conhecido -- erro de digitacao vira erro aqui, nao codigo velho rodando
+// em outro RPO.
 function resolverServidor() {
   const { PROTHEUS_URL: url, PROTHEUS_ENV: pedido } = process.env;
 
@@ -123,72 +122,18 @@ function resolverServidor() {
     return { base: url, env: pedido, agentPort: 21021 };
   }
 
-  let cfg;
   try {
-    // O BOM (﻿) vem de editores que gravam UTF-8 com assinatura, comum em
-    // arquivo que passa pelo Drive. O jq do pth-compile.sh ignora; o JSON.parse nao.
-    cfg = JSON.parse(readFileSync(SETTINGS, 'utf8').replace(/^﻿/, ''));
+    const cfg = lerSettings(SETTINGS);
+    const srv = lerServidor(cfg);
+    const ambiente = resolverAmbiente(cfg, srv, pedido || 'default');
+    return {
+      base: `${cfg.https ? 'https' : 'http'}://${srv.endereco}:${srv.porta}`, env: ambiente,
+      browser: cfg.browser, webagent: cfg.webagent, launch: cfg.launch, agentPort: cfg.webagentPort,
+    };
   } catch (e) {
-    falha(`Nao consegui ler ${SETTINGS} como JSON: ${e.message}`);
+    if (e instanceof ErroConfig) falha(e.message);
+    throw e;
   }
-
-  // Formato. Valor errado vira erro na hora, com o arquivo apontado. ip e nomes
-  // de ambiente nao tem espaco (mesma regra do pth-compile.sh).
-  const texto = v => v == null || typeof v === 'string';
-  const semEspaco = v => v == null || /^\S*$/.test(v);
-  const formaOk = cfg && typeof cfg === 'object' && !Array.isArray(cfg)
-    && typeof cfg.ip === 'string' && /^[0-9]+$/.test(String(cfg.port))
-    && (cfg.environments == null
-        || (Array.isArray(cfg.environments) && cfg.environments.every(a => typeof a === 'string')))
-    && [cfg.user, cfg.password, cfg.env_default, cfg.env_rest, cfg.env_workflow, cfg.env_job].every(texto)
-    && (cfg.https == null || typeof cfg.https === 'boolean')
-    && texto(cfg.webagent) && texto(cfg.browser)
-    && [cfg.launch_by_webagent, cfg.production_database].every(v => v == null || typeof v === 'boolean')
-    && (cfg.webagent_port == null || /^[0-9]+$/.test(String(cfg.webagent_port)))
-    && [cfg.ip, cfg.env_default, cfg.env_rest, cfg.env_workflow, cfg.env_job, ...(cfg.environments ?? [])].every(semEspaco);
-  if (!formaOk) {
-    falha(`${SETTINGS} invalido: esperado um objeto com ip (texto), port (numero), environments (lista de textos)\n`
-        + 'e user, password, env_default, env_rest, env_workflow, env_job (texto). ip e nomes de ambiente nao podem ter espacos.\n'
-        + 'https, launch_by_webagent e production_database, se houver, sao true ou false; webagent e browser, se houver, sao texto (caminho do executavel).\n'
-        + 'Veja o topo do pth-compile.sh.');
-  }
-
-  const papel = {
-    default:  cfg.env_default  || '',
-    rest:     cfg.env_rest     || '',
-    workflow: cfg.env_workflow || '',
-    job:      cfg.env_job      || '',
-  };
-
-  // Execucao so precisa de servidor e ambiente; user/password ficam de fora.
-  const faltando = [];
-  if (!cfg.ip || cfg.ip === '0.0.0.0') faltando.push('ip');
-  if (!(Number(cfg.port) >= 1)) faltando.push('port');
-  if (!papel.default) faltando.push('env_default');
-  if (faltando.length) falha(`Preencha em ${SETTINGS}: ${faltando.join(', ')}`);
-
-  const environments = cfg.environments ?? [];
-  const alvo = pedido || 'default';
-  let ambiente;
-
-  if (PAPEIS.includes(alvo)) {
-    ambiente = papel[alvo];
-    if (!ambiente) falha(`O papel "${alvo}" nao esta configurado: env_${alvo} esta vazio em ${SETTINGS}`);
-  } else {
-    const conhecidos = [...environments, ...Object.values(papel).filter(Boolean)];
-    if (!conhecidos.includes(alvo)) {
-      falha(`Ambiente desconhecido: ${alvo}\n`
-          + PAPEIS.filter(p => papel[p]).map(p => `  ${p} -> ${papel[p]}\n`).join('')
-          + `  environments: ${environments.join(', ') || '(vazio)'}`);
-    }
-    ambiente = alvo;
-  }
-
-  return {
-    base: `${cfg.https ? 'https' : 'http'}://${cfg.ip}:${cfg.port}`, env: ambiente,
-    browser: cfg.browser || '', webagent: cfg.webagent || '', launch: cfg.launch_by_webagent === true,
-    agentPort: Number(cfg.webagent_port) || 21021,
-  };
 }
 
 const {

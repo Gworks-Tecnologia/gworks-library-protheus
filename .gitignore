@@ -1,6 +1,5 @@
 .vscode/*
 console_error.log
 
-# Credenciais dos scripts pth-* (so o exemplo e versionado)
+# Configuracao local dos scripts pth-* (servidor e caminhos desta maquina; sem senha)
 Scripts/pth-settings*.json
-!Scripts/pth-settings.example.json
