@@ -402,9 +402,13 @@ export function listarWebAgents() {
   pastas.forEach(d => varrer(d, 0));
   const linhas = [`WebAgents em: ${pastas.join(', ') || '(sem pasta padrao para este sistema)'}`];
   if (!achados.length) linhas.push('  (nenhum encontrado: pergunte o caminho ao usuario)');
+  // Na raiz da pasta padrao fica a ultima versao que o usuario instalou (o
+  // caminho nao traz o numero, e nem precisa); as anteriores ficam em pastas
+  // com a versao no nome.
   for (const p of achados.sort()) {
     const v = (p.match(/(\d+\.\d+\.\d+)/) || [])[1];
-    linhas.push(`  ${p}  ${v ? `(versao ${v}, pelo nome da pasta)` : '(versao nao identificada pelo caminho)'}`);
+    const naRaiz = pastas.some(d => resolve(dirname(p)) === resolve(d));
+    linhas.push(`  ${p}  ${v ? `(versao ${v}, pelo nome da pasta)` : naRaiz ? '(ultima versao instalada)' : '(versao nao identificada pelo caminho)'}`);
   }
   linhas.push('Regra: WebApp 10.2.0 ou mais novo -> WebAgent 1.1.x; abaixo -> 1.0.x.');
   return linhas.join('\n');

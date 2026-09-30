@@ -8,7 +8,7 @@ metadata:
   category: Build, Execution and Debugging Automation
   reference_module: Gworks.Templates.ConsultaSql (<lib>/Templates/ConsultaSql)
   version: '1.0.0'
-  status: "Linux flow confirmed end to end on 2026-09-25 against CQSLH5_GWORKS (WebApp 10.1.8, WebAgent 1.0.24) and CQSLH5_PROD (WebApp 10.2.1, WebAgent 1.1.1), with Edge headless, in both modes. Windows scripts never run."
+  status: "Linux flow confirmed end to end on 2026-09-25 against CQSLH5_GWORKS (WebApp 10.1.8, WebAgent 1.0.24) and CQSLH5_PROD (WebApp 10.2.1, WebAgent 1.1.x), with Edge headless, in both modes. Windows scripts never run."
 ---
 
 # Run a SQL query against Protheus from a shell
@@ -83,7 +83,9 @@ Internals (layers, temp-file contract, the `l:` rule, how both run modes work): 
    | Settings | Server | WebApp | WebAgent | Result |
    | --- | --- | --- | --- | --- |
    | `dev` → `CQSLH5_GWORKS` | `minerasul215598…:10214` | 10.1.8 | 1.0.24 | `ok: true`, ~13 s |
-   | `prd` → `CQSLH5_PROD` | `minerasul215597…:10064` | 10.2.1 | 1.1.1 | `ok: true`, ~8–9 s |
+   | `prd` → `CQSLH5_PROD` | `minerasul215597…:10064` | 10.2.1 | 1.1.x | `ok: true`, ~8–9 s |
+
+   Re-confirmed on 2026-09-29 with the token-free settings (`server` → `servers.json`): `dev`/`CQSLH5_GWORKS`, WebApp 10.1.8 read from the page (`webapp-10.1.8`), WebAgent 1.0.24, `ok: true` in ~11 s. The same run with the latest WebAgent installed (1.1.x) returned nothing after 60 s — the version rule in #3 is not optional.
 
    The module and the dual-mode `GwApiQuery` (v1.1: `U_GwApiQuery( cSql, @jDados )`, no `oRest`) are compiled in both. Another environment has its own RPO — check the library signature and compile both if needed:
 
@@ -93,7 +95,7 @@ Internals (layers, temp-file contract, the `l:` rule, how both run modes work): 
    bash Scripts/pth-compile.sh <suffix> <lib>/Library <lib>/Templates/ConsultaSql
    ```
 2. **Both modes work** (`launch_by_webagent` true or false), because `pth-execute.mjs` turns on the WebApp's **"Agente Local"** in the throwaway browser profile before opening the program (the `desktopagentport` key — see internals). Without it, a fresh profile sends every `l:` path to the **server's** disk even with the agent connected, and the query silently never runs.
-3. **The WebAgent version follows the WebApp of each environment**: WebApp 10.2.0 or later requires WebAgent 1.1.x (JWT handshake); below that, 1.0.x. Here: `dev` uses `/opt/web-agent/1.0.24-x64/opt/web-agent/web-agent`, `prd` uses `/opt/web-agent/web-agent` (1.1.1). Never suggest changing the version as a fix without checking the WebApp version and asking the user. To pick one for a new settings file: `bash Scripts/pth-compile.sh -w` lists the installed WebAgents (`/opt/web-agent/**` on Linux, `%LOCALAPPDATA%\Programs\web-agent\**` on Windows) — ask the user which one (compile skill, *Settings*).
+3. **The WebAgent version follows the WebApp of each environment**: WebApp 10.2.0 or later requires WebAgent 1.1.x (JWT handshake); below that, 1.0.x. Here: `dev` uses `/opt/web-agent/1.0.24-x64/opt/web-agent/web-agent`, `prd` uses `/opt/web-agent/web-agent` — the **latest version installed** (a 1.1.x; the path at the root of the install folder never carries the number, older versions live in folders named after them). Never suggest changing the version as a fix without checking the WebApp version and asking the user. To pick one for a new settings file: `bash Scripts/pth-compile.sh -w` lists the installed WebAgents (`/opt/web-agent/**` on Linux, `%LOCALAPPDATA%\Programs\web-agent\**` on Windows) — ask the user which one (compile skill, *Settings*).
 4. **An older copy of the module may live in some RPO** under the namespace `Applications.ConsultaSql`: it stays live (it executes SQL) until removed by the user.
 5. **Windows is unvalidated.** `pth-query.ps1`, the `.cmd` browser wrapper that `pth-execute.mjs` writes on Windows and the browser lookup were never run there. Point the user to the validation script at the top of each `.ps1` and ask for the output — do not claim it works.
 6. **Controller environment defaults are inherited from another project:** company `01`, branch `04`, module `PCP` (used only when the thread has no environment yet). Adjust for the target environment (`jRpc`), or a branch-scoped query hits the wrong branch. An invalid branch answers *"Muitos usuários"* — it looks like a license problem and is not.

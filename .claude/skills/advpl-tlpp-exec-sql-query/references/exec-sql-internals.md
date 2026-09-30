@@ -68,6 +68,10 @@ The page must reach a **WebAgent** on `127.0.0.1` before `E=`/`P=` take effect �
 
 Connecting to the agent is not enough. The WebApp's gear option **"Agente Local"** (Habilita/Desabilita o Agente Local) lives in the browser's `localStorage` for that origin, under the key **`desktopagentport`** (the port): present = on, absent = off. With it off, **every `l:` path goes to the server's disk even with the agent connected** — `ExistDir("l:/tmp")` is `.T.` (the server also has `/tmp`), `File()`/`MemoRead()` of a client file give `.F.`/`""`, the SQL is never read and the result never written. A user's everyday browser has it on; a throwaway profile never does.
 
+**In the UI** (to check by hand): on the WebApp start screen (*Programa Inicial* / *Ambiente no servidor*), the **gear button** (*Botão configuração*) → section **Agente Local** → checkbox **"Habilita/Desabilita o Agente Local"** and the **Porta** of the WebAgent (the same section links the WebAgent installers for Windows, Linux and Mac). Checked + port = the `desktopagentport` key below.
+
+**Forced by the server.** The WebAgent can be made mandatory in the AppServer's `appserver.ini` (user-confirmed; done at some clients). Then the checkbox does not even appear and the WebApp always uses the agent. The key the script writes is simply redundant there — nothing to change; a missing checkbox on such a client is expected, not a symptom.
+
 So, in both modes, `pth-execute.mjs` first loads the WebApp start page (`<base>/webapp/`, no `P=`), sets `localStorage.desktopagentport` to the agent's port, and only then opens the program URL. The run prints `agente : porta <n> (Agente Local ligado)`.
 
 Other WebApp keys seen in `localStorage` (10.2.1): `desktopagentdontshow`, `language`, `viewmode`, `x:\smartclient.ini.*`. The source of truth is the WebApp bundle (`resources/js/webapp-<ver>-frontend.min.js`: `DesktopAgentPort`, `setPort`/`clearPort`).
