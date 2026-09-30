@@ -1,110 +1,130 @@
 # pth CLI compile reference (Route B)
 
-Reference for Route B of the `advpl-tlpp-compile` skill: compiling from a shell with `Scripts/pth-compile.sh` (Linux/macOS) or `Scripts/pth-compile.ps1` (Windows), no VS Code. Everything below was read from those scripts; the Linux script was exercised end to end against a **fake** `advpls` (no server): 94 automated cases passed on 2026-09-24. It has **not** been run against a real AppServer since the rewrite, and the `.ps1` has never run at all.
+Reference for Route B of the `advpl-tlpp-compile` skill: compiling from a shell with `Scripts/pth-compile.sh` (Linux/macOS) or `Scripts/pth-compile.ps1` (Windows), no VS Code and **no password in any file**. Both are wrappers for `Scripts/pth-compile.mjs` (Node 20+), which reads its configuration through `Scripts/pth-config.mjs` (shared with `pth-execute.mjs`/`pth-query`).
 
-## How it works
+**Status.** Checked against a **fake** `advpls` that speaks the same protocol (52 cases: roles and the empty-default fallback, `-a`, retries, house/globe, VS Code profiles, the extension filter and `.app`, includes, exit codes, the exact request sent) and against the **real** `advpls` 2.1.4 locally: it accepts the handshake and the reconnect request, and rejects an invalid token in under a second (exit 4). **Confirmed against a real AppServer on 2026-09-29** (Minerasul DEV-DEBUG, AppServer `7.00.240223P`, secure connection, environment `CQSLH5_GWORKS`, TDS 2.1.4, token saved by VS Code, no password anywhere): unchanged source → `[SKIPPED] … already compiled`, `resultado: SKIPPED 1`, exit 0; `-r` → `[SUCCESS] … compiled successfully`, `resultado: SUCCESS 1`, exit 0; syntax error → `[FATAL] Aborting: X.PRW(4) C2003 Syntax Error`, rollback, `resultado: FATAL 1`, exit 1. ~7 s per run. Three consecutive runs reused the **same** saved token.
 
-The TDS VS Code extension does not compile anything itself: it ships a language-server binary that talks to the AppServer. `advpls` has a `cli` mode that runs a **script of actions** — the extension is only a face over it:
+## How it works — the extension's own login, reused
 
+The TDS extension does not compile anything itself: it runs `advpls language-server` and talks to it over JSON-RPC (LSP framing). `pth-compile.mjs` does exactly the same, with the same requests the extension sends:
+
+1. `initialize` / `initialized` — start the language server.
+2. `$totvsserver/reconnect { reconnectInfo: { connectionToken, serverName, connType: 3 } }` — log in with the **token the extension saved** when the user connected in VS Code. The token carries the server's address itself ("Encoded server info"); the reply brings a session token.
+3. `$totvsserver/compilation { compilationInfo: { connectionToken, authorizationToken, environment, includeUris, fileUris, compileOptions, extensionsAllowed, includeUrisRequired, syntaxOnly } }` — compile. The reply has `returnCode` and `compileInfos[]` (`status` — seen: `SUCCESS`, `SKIPPED` (unchanged, already in the RPO), `FATAL`; also `WARN`/`ERROR` — plus `filePath`, `message`, `detail`); progress arrives as `window/logMessage`.
+4. `shutdown` / `exit`.
+
+Where the token comes from: every successful connection in VS Code (TOTVS → Servers → server → environment) makes the extension save it in `servers.json` → `savedTokens`, keyed `<server id>:<environment>`. **One token per environment**: an environment the user never connected to in VS Code has none (`SEM TOKEN` in `-h`, exit 4). When the password changes or the token expires, the reconnect fails (exit 4) and one new connection in VS Code fixes it.
+
+`authorizationToken` follows the extension's rule: from build `7.00.191205P` on, the RPO token saved by the extension (`rpoToken`, when enabled); before that, the compile key in `permissions`. Usually empty — only needed on AppServers that require a compile token.
+
+`advpls cli` (the `.ini` scripts) was **not** used on purpose: its `[authentication]` accepts only `user` + `psw`, which would mean a password stored somewhere. Its "tokens" are compile tokens (Harpia), not logins.
+
+## Where `servers.json` is — the house/globe icon
+
+The icon in the VS Code status bar shows the setting `totvsLanguageServer.workspaceServerConfig` (read from the extension's code, 2.1.4):
+
+| Icon | Setting | File |
+| --- | --- | --- |
+| house `$(home)` | `true` | `<project>/.vscode/servers.json` |
+| globe `$(globe)` | `false` (the default) | `~/.totvsls/servers.json` (`%USERPROFILE%\.totvsls\servers.json` on Windows) |
+
+Clicking the icon writes the setting to the project's `.vscode/settings.json`. `pth-config.mjs` resolves every plugin setting it needs (this one and the extension filter below) the way VS Code does for this folder:
+
+1. the project's `.vscode/settings.json`;
+2. the settings of the **VS Code profile associated with the folder** — `globalStorage/storage.json` → `profileAssociations.workspaces["file:///<folder>"]` → `profiles/<location>/settings.json` under the user folder (`~/.config/Code/User/` on Linux, `%APPDATA%\Code\User\` on Windows, `~/Library/Application Support/Code/User/` on macOS); a folder with no profile, or a profile that inherits settings (`useDefaultFlags.settings`), uses the user folder's `settings.json`;
+3. the extension's default.
+
+All read as JSONC (comments and trailing commas allowed). `-h` prints each value and where it came from (file and profile name). `.code-workspace` settings are not read: if `-h` disagrees with the icon, that is why — `PTH_SERVERS_JSON=<file>` pins a `servers.json`. On this machine the Protheus folders use **"Profile Advpl - Linux"**.
+
+## Settings file: `Scripts/pth-settings.json`
+
+One file = one server + (optionally) the environment of each role. **No secret in it** — the agent creates, reads and edits it. Server, user, environments and includes come from `servers.json`, looked up by `server`. There is no example file in the repository: this section is the template.
+
+```json
+{
+  "server": "<id of the configuration in servers.json — see pth-compile -l>",
+  "env_default": "",
+  "env_rest": "",
+  "env_workflow": "",
+  "env_job": "",
+  "https": false,
+  "webagent": "",
+  "browser": "",
+  "launch_by_webagent": true,
+  "production_database": false
+}
 ```
-~/.vscode/extensions/totvs.tds-vscode-<ver>/node_modules/@totvs/tds-ls/bin/linux/advpls cli <script.ini>
-```
-
-`pth-compile` generates that `.ini` for each target environment, runs it, and removes it:
-
-```ini
-showConsoleOutput=true
-
-[authentication]
-action=authentication
-server=<ip>
-port=<port>
-secure=0
-build=AUTO
-environment=<environment>
-user=<user>
-psw=<password>
-
-[compile]
-action=compile
-program=/abs/path/one,/abs/path/two        ; files OR directories (recursive)
-recompile=F                                ; T forces rewrite into the RPO
-includes=<from .vscode/servers.json, comma-separated>
-```
-
-Hard requirements, each learned the hard way:
-
-- **The `.ini` must be ANSI/CP1252**; in UTF-8 the run fails. The scripts convert on write (and fail loudly on a character outside CP1252, e.g. an emoji in the password). The **source files** must be CP1252 too → `utf8-to-cp1252-conversion`.
-- **`includes` are resolved by the AppServer**, so they are absolute paths *on the server*, not on your machine. They are **not** in `pth-settings`: `pth-compile` calls `Scripts/pth-getincludes.sh <ip> <port>` (`.ps1` on Windows), which reads `.vscode/servers.json` (the TDS extension's own registry; `PTH_SERVERS_JSON` points elsewhere) and returns the root `includes` plus the `includes` of every configuration whose `address:port` matches the settings' `ip:port`, deduplicated in first-seen order. Another server's includes never enter (could be another `.ch` version). No `servers.json`, or no include for that server → exit 3 before compiling, instead of an error in every source that includes something.
-- **`build=AUTO`** spares hard-coding the AppServer release.
-- The exit code is non-zero on failure — it chains and works in CI.
-- The `.ini` carries the password in plain text: created `chmod 600` in the temp dir and destroyed by `trap EXIT` (`finally` in the `.ps1`), so it does not survive the run even on Ctrl+C.
-- *Observed elsewhere, not implemented by the scripts:* `action=validate` needs **no credentials** and answers with the build/secure pair — the cheapest connectivity probe. The grammar is documented in the package itself: `@totvs/tds-ls/TDS-cli-script.md` — read it before inventing syntax.
-
-## Settings files: `Scripts/pth-settings.json` and `Scripts/pth-settings.<suffix>.json`
-
-One file = **one server**. The user creates and fills them — the agent never reads them. There can be as many as needed: each extra configuration is a `Scripts/pth-settings.<suffix>.json` with any suffix. The **first argument** of every script picks the file:
-
-| First argument | File used |
-| --- | --- |
-| *(none)* | `PTH_SETTINGS`, else `Scripts/pth-settings.json` |
-| a suffix — plain name (letters, digits, `_`, `-`) starting with a letter or digit | `Scripts/pth-settings.<suffix>.json`; missing file → `Arquivo de configuracao nao encontrado` (exit 3), never a silent fallback |
-
-Options (`-h`, `-e`, `-f`…) start with a dash, so they are never a suffix. In `pth-compile`, a first argument that is an existing file or directory is a source path, not a suffix. Same rule in `pth-compile.sh`/`.ps1` and `pth-query.sh`/`.ps1`; the query scripts hand the choice to `pth-execute.mjs` through `PTH_SETTINGS` (the `.ps1` restores the previous value when `node` exits, and `pth-compile.ps1` keeps it in a local variable, so nothing leaks into the user's PowerShell session). `pth-execute.mjs` called directly reads only `PTH_SETTINGS` (default `Scripts/pth-settings.json`).
 
 | Key | Meaning | Required |
 | --- | --- | --- |
-| `ip` | AppServer host | yes (`"0.0.0.0"` counts as unfilled) |
-| `port` | AppServer port (also the WebApp port) | yes (`0` counts as unfilled; number or numeric string) |
-| `user` / `password` | Protheus credentials, plain text | yes for compile |
-| `env_default` | Environment (RPO) for normal compilation | **yes** |
+| `server` | `id` (or unique `name`) of the configuration in `servers.json` | yes |
+| `env_default` | Environment (RPO) for compilation and for `pth-execute`/`pth-query` | optional — empty = the **first environment of the server** in `servers.json` (`-h` shows which) |
 | `env_rest` | Environment the REST Server serves | optional |
 | `env_workflow` | Workflow environment | optional |
 | `env_job` | Job/schedule environment | optional |
-| `environments` | Every environment on the server; with the `env_*` values it is what `-e NAME` accepts | optional |
 | `https` | `true` when that server's WebApp answers https (an https-only WebApp answers http with an empty response) | optional (default `false`) |
 | `webagent` | Path of that environment's WebAgent executable — the version follows the WebApp (10.2.0+ → 1.1.x; below → 1.0.x) | required when `launch_by_webagent` is `true` |
-| `browser` | Path of the Chromium/Chrome/Edge used for WebApp runs (`PROTHEUS_BROWSER` overrides it; without both, the usual install locations are searched). This machine uses Edge (`/usr/bin/microsoft-edge`) | optional |
-| `webagent_port` | Port of the user's own WebAgent, used by the direct mode (`launch_by_webagent` false) to turn on the WebApp's "Agente Local" | optional (default `21021`) |
+| `browser` | Chromium/Chrome/Edge for WebApp runs (`PROTHEUS_BROWSER` overrides it; without both, the usual install locations are searched). This machine uses Edge (`/usr/bin/microsoft-edge`) | optional |
+| `webagent_port` | Port of the user's own WebAgent, used by the direct mode (`launch_by_webagent` false) | optional (default `21021`) |
 | `launch_by_webagent` | `true`: WebApp runs go through `<webagent> launch` with an isolated headless browser (see the exec-sql-query skill) | optional (default `false`) |
-| `production_database` | `true` when that configuration's database is production. Informative only — no script changes behaviour; the agent confirms with the user before running against it | optional (default `false`) |
+| `production_database` | `true` when that server's database is production. Informative only — the agent confirms with the user before running against it | optional (default `false`) |
 
-Compilation uses only `ip`, `port`, `user`, `password` and the environments; the WebApp keys are used by `pth-execute.mjs`/`pth-query`. `-h` shows every key except the password.
+Empty `""` = not configured. Environment names have no whitespace.
 
-Validation (same rule in `.sh` and `.ps1`, and in `pth-execute.mjs`): must be a JSON object; `ip` a string, `port` digits, `environments` a list of strings, the rest strings or absent; **`ip` and environment names contain no whitespace** (a trailing space in `"TESTE5 "` would only surface as "environment not found" on the server). `pth-execute.mjs` also checks that `https`, `launch_by_webagent` and `production_database` are booleans, `webagent`/`browser` strings and `webagent_port` digits. A syntax error is reported with the parser's own message; a UTF-8 BOM is accepted. Missing required values are all listed at once: `Preencha em <file>: ip, port, user, password, env_default`.
+**The roles are markers** — they tell whoever runs the scripts (the agent included) what each environment is for, so `-e rest` / `PROTHEUS_ENV=job` hit the right RPO. `env_rest`, `env_workflow` and `env_job` exist only when **the user** named them; they are never inferred from environment names. A file with `ip`, `port`, `user`, `password`, `environments` or `includes` is the **old format** and is rejected with a migration message (delete the password with it).
 
-- **The project folder is synced (Google Drive)** — the settings files and their passwords sync with it. In a folder that is also a git repository, `Scripts/pth-settings*.json` must be in `.gitignore` (only `pth-settings.example.json` is versioned); check it before the first commit that touches `Scripts/`.
-- To use a file outside `Scripts/`, pass no suffix and export `PTH_SETTINGS=<path>` (`$env:PTH_SETTINGS` on Windows).
-- The `.sh` scripts have no execute bit (Google Drive folder): call them as `bash Scripts/pth-compile.sh …`.
+**Several servers:** one file per server, `Scripts/pth-settings.<suffix>.json`, chosen by a suffix as the **first** argument of every script (plain name: letters, digits, `_`, `-`, starting with a letter or digit; a first argument that is an existing path is a source path). No suffix → `PTH_SETTINGS`, else `Scripts/pth-settings.json`. A missing file is an error, never a silent fallback.
+
+The settings files stay in `.gitignore` — not secret, but machine-specific (paths of WebAgent and browser, server ids of this machine's `servers.json`).
+
+### Creating one (agent procedure)
+
+1. `bash Scripts/pth-compile.sh -l` — lists the servers of the resolved `servers.json` (name, id, address, user, environments, and in which there is a saved login), never a token. Empty or missing → the user registers the server in the extension first (Route A, Step 3).
+2. Ask the user **which server** (never guess when there are several). Then the roles:
+   - `env_default`: leave empty — the scripts use the server's first environment in `servers.json`; tell the user which one that is, and fill it only if they want another.
+   - `env_rest`, `env_workflow`, `env_job`: **ask the user** (optional; empty when they have none or do not say). Offer the server's environments as options, but do not guess from the names.
+3. Ask what `servers.json` cannot tell: `https`, the **WebAgent**, `browser`, and whether the database is **production**. The WebAgent is needed to run queries through the WebApp (the JSON result is written on this machine through it) and `servers.json` knows nothing about it:
+   - `bash Scripts/pth-compile.sh -w` lists the WebAgents installed in the default folders — `/opt/web-agent/**` on Linux, `%LOCALAPPDATA%\Programs\web-agent\**` (`C:\Users\<user>\AppData\Local\Programs\web-agent`) on Windows — with the version when the folder name carries it; nothing is executed.
+   - Ask the user with those paths as options (plus "another path" and "use my running WebAgent"), stating the rule: **WebApp 10.2.0 or later → WebAgent 1.1.x; below → 1.0.x**. Chosen path → `"launch_by_webagent": true` + `"webagent": "<path>"`. Running WebAgent → `"launch_by_webagent": false` (+ `webagent_port` if not 21021): no path needed, but the run waits the whole time limit.
+   - Before writing, check that the chosen path exists and is executable; if not, ask again.
+4. Write the file from the template (suffix when it is not the project's main server), then `bash Scripts/pth-compile.sh [suffix] -h`: the server must resolve, and every role you will use must appear under `conectados` — an environment under `SEM TOKEN` needs one connection in VS Code first.
+
+## Includes
+
+As in the extension: the include folders of the server's configuration in `servers.json`; if it has none, the `includes` at the top of the file. `${workspaceFolder}` and relative paths resolve from the project root, and only folders that **exist on this machine** are kept — the language server reads them locally (the extension discards the others the same way). None left → exit 3 before compiling. Register them with the extension's *Include* assistant.
 
 ## Command line
 
 ```
-bash Scripts/pth-compile.sh [suffix] [-r] [-e <target>]... [-a] [-h] [path ...]
+bash Scripts/pth-compile.sh [suffix] [-r] [-e <target>]... [-a] [-h] <path>...
+bash Scripts/pth-compile.sh -l
+bash Scripts/pth-compile.sh -w
 ```
 
 | Flag | Meaning |
 | --- | --- |
-| `suffix` | Settings file `Scripts/pth-settings.<suffix>.json` (see above). Must be the **first** argument |
+| `suffix` | Settings file `Scripts/pth-settings.<suffix>.json`. Must be the **first** argument |
 | `-r` | Recompile (rewrite into the RPO even without a detected change) |
-| `-e <target>` | Environment to compile into. `<target>` is a **role** — `default`, `rest`, `workflow`, `job`, resolving to `env_default`, `env_rest`, … — or a **name** listed in `environments` (or equal to one of the `env_*`). Repeatable: `-e rest -e workflow`. Roles win over names; matching is case-sensitive. Default: `default` |
-| `-a` | Compile into **every configured** `env_*`, in order default → rest → workflow → job, without repeating equal ones. Does not combine with `-e` |
-| `-h` | Usage + a **password-free** summary of the configuration |
-| `path…` | Files or directories (recursive); made absolute because the AppServer does not know your cwd |
+| `-e <target>` | Environment: a **role** — `default`, `rest`, `workflow`, `job` → `env_default`, `env_rest`, … — or the **name** of an environment of the server (or equal to an `env_*`). Repeatable. Roles win over names; case-sensitive. Default: `default` |
+| `-a` | The default environment (`env_default` or, empty, the server's first) plus every filled `env_rest`/`env_workflow`/`env_job`, in that order, without repeating equal ones. Does not combine with `-e` |
+| `-l` | Servers of `servers.json`, without tokens (works without a settings file) |
+| `-w` | WebAgents installed in the default folders, with the version when the path carries it (works without a settings file) |
+| `-h` | Usage + token-free summary of the settings and of what was resolved from `servers.json` |
+| `path…` | Files or folders (recursive). A folder with a `.tdscompileignore` file is skipped; only the extensions the **plugin** allows are sent — `totvsLanguageServer.folder.extensionsAllowed` (default `.prw .prx .prg .ppx .ppp .tlpp .apw .aph .apl .ahu .tres .png .bmp .res .4gl .per .js .rptdesign`), or everything if `totvsLanguageServer.folder.enableExtensionsFilter` is `false`, resolved as above. A **`.app`** (PO UI app package opened by `FWCallApp`) compiles only if `.APP` is in that list — exactly as in VS Code; a file named on the command line and left out by the filter is reported (`ignorado: x.app -- .APP fora de …`), and a folder prints how many were left out per extension **Required** — there is no default target |
 
-An empty value (`-e ""`) is an error, not "use the default" — an empty variable must not silently fall through to the default environment. An unknown target lists the known roles and names.
+An empty value (`-e ""`) is an error, not "use the default". An unknown target lists the configured roles and the server's environments.
 
-**Multiple environments** run one after another, **all of them even if one fails** (a locked RPO must not hide the others), with a `=== ambiente n/total ===` header per environment and a `=== resumo ===` at the end. The exit code is that of the **first** failure.
+**Multiple environments** run one after another, **all of them even if one fails**, with a `=== ambiente n/total ===` header each and a `=== resumo ===` at the end; one language-server process serves them all. The exit code is that of the **first** failure.
 
 | Exit | Meaning |
 | --- | --- |
-| `0` | Every environment compiled |
-| `1` | Could not convert the `.ini` to CP1252 (bash) / unexpected error (`.ps1`) |
-| `2` | Bad usage: unknown option, `-e` without value, `-a` with `-e`, unknown or unconfigured target, path not found |
-| `3` | Setup: `jq` missing, settings missing/invalid/incomplete, `advpls` not found |
-| other | The `advpls` exit code of the first environment that failed |
+| `0` | Every environment compiled (no `ERROR`/`FATAL`) |
+| `1` | Compile errors, or the server refused the compilation |
+| `2` | Bad usage: unknown option, `-e` without value, `-a` with `-e`, unknown or unconfigured target, no path, path not found, nothing compilable |
+| `3` | Setup: `node` missing, settings missing/invalid/old format, server not in `servers.json`, no include folder, `advpls` not found |
+| `4` | Login: no saved token for that server/environment, or the token was not accepted |
 
-**Default target caveat:** without a path the script compiles `Sources/AdvPL/Global` + `Sources/AdvPL/Projects` (inherited from another project's layout). **They do not exist in the Gworks projects — always pass an explicit path** (e.g. `Sources/Global/Gworks/Templates/ConsultaSql` in a client project, `Sources/Templates/ConsultaSql` in `gworks-library-protheus`).
+Environment variables: `PTH_SETTINGS` (settings file when no suffix), `PTH_SERVERS_JSON` (pin a `servers.json`), `ADVPLS`/`PTH_ADVPLS` (pin an `advpls`; default: the newest `totvs.tds-vscode-*` extension installed), `PTH_DEBUG` (also print the language server's internal log lines and, on failure, its stderr), `PTH_ESPERA_RPO` (seconds between retries; tests only).
 
 ## Environment = RPO — the trap that costs the most
 
@@ -116,7 +136,7 @@ Observed elsewhere (older binaries): compiling into the REST environment while i
 
 ## Pacing and the RPO lock
 
-After a SmartClient/WebApp/debug session closes, the RPO stays locked ~30 s and the next compile fails with `COMPILEERROR-300 Failed to open repository`. Nothing is wrong with the source or the credentials. The scripts already **retry 3 times, 30 s apart, only on that message** — do not add your own retry loop, and do not start two compiles at once. Leave ~5 s between two *runs* (WebApp executions).
+After a SmartClient/WebApp/debug session closes, the RPO stays locked ~30 s and the next compile fails with `COMPILEERROR-300 Failed to open repository`. Nothing is wrong with the source or the login. The script already **retries 3 times, 30 s apart, only on that message** — do not add your own retry loop, and do not start two compiles at once. Leave ~5 s between two *runs* (WebApp executions).
 
 ## What a compile proves — and does not
 
@@ -125,27 +145,36 @@ After a SmartClient/WebApp/debug session closes, the RPO stays locked ~30 s and 
 
 ## Windows (`pth-compile.ps1`)
 
-Same optional suffix, same flags, same settings files, same exit codes; requires PowerShell 5.1+. Differences: the newest `advpls.exe` under `%USERPROFILE%\.vscode\extensions\totvs.tds-vscode-*` is found automatically (`$env:PTH_ADVPLS` overrides; the `.sh` does the same, picking the highest `totvs.tds-vscode-*` version with `sort -V`); the `.ini` is written with CRLF; stdout and stderr of `advpls` are read separately (stdout first). **Never run on Windows yet.** The top of the file carries a status block and a step-by-step validation script for the user to run; until it passes, do not claim the script works. Suppositions to check first if something fails: where `advpls.exe` sits inside `tds-ls\bin`, whether `advpls` accepts CRLF in the `.ini`, and whether the .NET build has the CP1252 table.
+A wrapper for the same `pth-compile.mjs`: same suffix, flags, settings and exit codes; needs `node` in the PATH. The only Windows-specific parts are the `advpls.exe` location (`…\tds-ls\bin\windows\advpls.exe`, taken from the extension's code) and `%USERPROFILE%`/`%APPDATA%` for `servers.json` and the user settings. **Never run on Windows yet**: the top of the file lists two checks for the user; until they pass, do not claim it works.
+
+## Open questions (check on the first real runs)
+
+- **Token lifetime.** The extension reconnects with saved tokens after VS Code restarts, so they outlive a session — how long, and whether a password change or server restart voids them, is not measured. Exit 4 is the signal; one connection in VS Code renews it.
+- **Token rotation.** The reconnect answers with a new session token; the extension saves it back, the script does **not** write to `servers.json`. Three consecutive runs reused the same saved token (2026-09-29), so a reconnect does not void it right away. If VS Code ever asks for the password after script runs, this is the suspect — then the script must save the new token the way the extension does.
+- **Locked RPO wording.** Normal and error output were seen on a real server; the locked-RPO case was not reproduced yet — the retry matches `COMPILEERROR-300` / `Failed to open repository` anywhere in the reply or the log, the texts `advpls cli` used to print.
 
 ## Troubleshooting
 
 | Message / symptom | Cause | Action |
 | --- | --- | --- |
-| `Arquivo de configuracao nao encontrado: <file>` | Wrong suffix, or that settings file does not exist | Check the suffix; if the file itself is missing, the user creates it |
-| `Preencha em <file>: …` | Required values empty (`0.0.0.0` / `0` count as empty) | User fills them |
-| `<file> invalido: esperado um objeto com ip…` | Wrong type, whitespace in `ip`/environment names | Fix the file |
-| `Nao consegui ler <file> como JSON: …` | Syntax error (comment, trailing comma, missing quote) | Fix the file; the parser's message says where |
-| `Ambiente desconhecido: X` (+ known roles/names) | `-e X` is neither a role nor listed | Fix the typo, or add it to `environments` |
+| `Arquivo de configuracao nao encontrado: <file>` | Wrong suffix, or no settings file yet | Check the suffix, or create the file (*Creating one*) |
+| `… esta no formato antigo (ip, port, …)` | Settings from before the token login | Rewrite it from the template (`server` + roles); delete the password |
+| `Preencha em <file>: server` | `server` empty | Fill it (`-l` lists the ids) |
+| `Sem ambiente padrao: env_default vazio … nao tem ambientes` | `env_default` empty and the server has no environment in `servers.json` | Connect once in VS Code to an environment of it, or fill `env_default` |
+| `Servidor "X" … nao existe em <servers.json>` | `server` has a wrong id, or `-h` resolved another `servers.json` (house/globe) | `-l` to see the ids; check the `modo` line of `-h` |
+| `Nao encontrei <servers.json> (…, decidido por: …)` | No server registered for that mode | Register it in the extension, or check the house/globe setting |
+| `Sem token salvo para <server> no ambiente <env>` (exit 4) | The user never connected to that environment in VS Code | Ask the user to connect once in VS Code to it |
+| `O token salvo … nao foi aceito` (exit 4) | Token invalid/expired, or the password changed | Ask the user to connect again in VS Code to that environment |
+| `ignorado: x.app -- .APP fora de totvsLanguageServer.folder.extensionsAllowed` | The plugin's extension list (project or profile settings) lacks `.APP` | Add `.APP` to that list in VS Code (the same setting makes the plugin compile it) |
+| `Nenhuma pasta de include existente nesta maquina` | Include folders missing locally | Register/fix them in the extension's *Include* assistant |
+| `Ambiente desconhecido: X` | `-e X` is neither a role nor an environment of the server | Fix the typo |
 | `O papel "rest" nao esta configurado` | `env_rest` is empty | Fill it or pick another target |
-| `-a e -e nao combinam` | Flags conflict | Use one |
-| `jq nao encontrado` | `jq` missing (bash script) | `sudo apt install jq` |
-| `advpls nao encontrado em: …` | TDS extension not installed | Install the extension (or set `PTH_ADVPLS` for `.ps1`) |
-| `Nao encontrei …/.vscode/servers.json` / `Nenhum include em …` | No `servers.json`, or no `includes` at root nor in the configuration with the settings' `ip:port` | Register the includes through the TDS *Include* assistant (or point `PTH_SERVERS_JSON` at another file) |
+| `advpls nao encontrado` | TDS extension not installed | Install/update `TOTVS.tds-vscode`, or `ADVPLS=<path>` |
+| `node nao encontrado` | Node.js missing | Install Node.js 20+ |
 | `COMPILEERROR-300 Failed to open repository` | RPO locked ~30 s after a session closed | Already retried 3×; if it persists another session/service holds the RPO — tell the user |
-| `Nao consegui converter o .ini para CP1252` | Emoji or other non-CP1252 character in user/password/path | Remove it |
-| Garbled characters in messages / compile errors about invalid characters | Source is UTF-8 | `utf8-to-cp1252-conversion`, recompile |
-| Authentication error | Wrong `user`/`password`/`environment` for that server (also: passwords with `;` or `#` may be cut by the `.ini` parser — unverified, inherited) | Ask the user to check the file |
+| `Token de RPO expirado` | The AppServer requires a compile token and the saved one expired | Renew it in the extension (*RPO Token* in the status bar) |
+| Garbled characters / invalid-character errors | Source is UTF-8 | `utf8-to-cp1252-conversion`, recompile |
 
 ## Testing the script logic without a server
 
-Point `HOME` at a temp directory that contains a **fake** `advpls` at `.vscode/extensions/totvs.tds-vscode-<any version>/node_modules/@totvs/tds-ls/bin/linux/advpls` (a shell script that prints the `.ini` it receives with the `psw=` line masked and exits with `$FAKE_EXIT`), set `PTH_SETTINGS` to a fixture and `PTH_SERVERS_JSON` to a `servers.json` fixture with includes for the fixture's `ip:port`. That is how the argument, validation, role and multi-environment logic was tested (94 cases) without touching a server or a real credential.
+Point `ADVPLS` at a **fake** `advpls`: a small Node script that speaks the LSP framing, answers `initialize`/`shutdown`, accepts `$totvsserver/reconnect` for tokens with a known prefix and returns `compileInfos` for `$totvsserver/compilation` (an `ERROR` for files with a known name, a `COMPILEERROR-300` on the first call for a "locked" environment), and appends every request to a log. Set `HOME`/`XDG_CONFIG_HOME` to temp dirs holding a fixture `~/.totvsls/servers.json` and user `settings.json`, copy the `Scripts/*.mjs` into a temp "repo" with its own `.vscode/` (to test house vs globe), and `PTH_ESPERA_RPO=1`. For profiles, a fixture `globalStorage/storage.json` associating the temp repo with a profile folder. That is how the 52 cases above were checked — no server, no real token.

@@ -47,8 +47,12 @@ Like PO UI it is NgModule-based, but **all its services are `providedIn: 'root'`
 3. **Zip ONE top folder named after the app, with `index.html` directly inside it.** Angular 21 puts the build in `dist/<name>/browser/` —
    zip the *contents* of `browser/` under `<app-name>/`, not the `browser/` folder. Rename `.zip` → **`.app`**.
 4. **`FWCallApp("<app-name>")`** — the `.app` file name **without the extension**.
-5. **Compile the `.app` into the RPO as a resource.** The TDS VS Code UI filters extensions (turn off
-   `totvsLanguageServer.folder.enableExtensionsFilter`); the `advpls cli` compile action accepts it as is (`[SUCCESS] Resource compiled`).
+5. **Compile the `.app` into the RPO as a resource.** The TDS plugin only compiles the extensions in
+   `totvsLanguageServer.folder.extensionsAllowed`, and **`.APP` is not in the default list**: add `".APP"` to it in the VS Code settings
+   (here: the user settings of the *Profile Advpl - Linux* profile), or the plugin silently ignores the file. The Gworks
+   `Scripts/pth-compile.sh <file.app>` reads the same setting (`advpl-tlpp-compile` skill) and says `ignorado: … .APP fora de …` when it is
+   missing. The old `advpls cli` route answered `[SUCCESS] Resource compiled`; the current script's language-server route has not compiled a
+   real `.app` yet — check the `resultado:` line the first time.
 6. Make the zip **deterministic** (fixed dates/permissions per entry) if the `.app` is versioned in git: same code → same bytes.
 
 A working script: `Sources/NodeJs/CertificadoVimetal/scripts/empacotar-app.sh` (vimetal-protheus repo).
