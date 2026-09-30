@@ -23,10 +23,10 @@ The Service delegates the actual query to `U_GwApiQuery` (`<lib>/Library/Classes
 
 | File | Written by | Read by | Name |
 | --- | --- | --- | --- |
-| Statement | the script (`pth-query.*`) | the Service (`MemoRead`) | `consultasql.sql` |
+| Statement | the script (`pth.mjs query`) | the Service (`MemoRead`) | `consultasql.sql` |
 | Result | the Controller (`MemoWrite`) | the agent | `consultasql-retorno.json` |
 
-Names are fixed on purpose: the reader is a script outside Protheus that must know the path *before* the call. The price is that two runs overwrite each other — fine for debugging, one call at a time. `pth-query` deletes the result file before each run, so a failed run never leaves the previous result to be read as fresh, and in launch mode its appearance is the completion signal.
+Names are fixed on purpose: the reader is a script outside Protheus that must know the path *before* the call. The price is that two runs overwrite each other — fine for debugging, one call at a time. `pth.mjs query` deletes the result file before each run, so a failed run never leaves the previous result to be read as fresh, and in launch mode its appearance is the completion signal.
 
 The **directory** is computed in one place, `U_ConsultaSqlTempFile( cName )` (`Functions`):
 
@@ -35,7 +35,7 @@ The **directory** is computed in one place, `U_ConsultaSqlTempFile( cName )` (`F
 | Linux / Unix | always `l:/tmp/x` |
 | Windows | `GetTempPath()` + `x` — `C:\Users\…\Temp\x` (confirmed by the user's Windows runs of `pth-query.ps1`) |
 
-Rules it applies: the **format** of `GetTempPath()` tells the OS — starting with `/` (or `l:/`) is Unix, anything else Windows (`L:\…` is a Windows drive, not the prefix). On Unix the **value** of `GetTempPath()` is not used: WebApp 10.2.1 returns `l:` + the WebApp's per-user folder **on the server** (`l:/…/webapp/user/<session>/`, a WebApp bug removed in 10.2.2), which does not exist on the client — so the directory is fixed to `/tmp/`, where `pth-query.sh` writes and reads. On Windows a trailing separator is added when missing. The OS does not come from `GetRemoteType()`/`U_GwRemoteType` (a second source of truth, and `U_GwRemoteType` throws when it cannot classify the client). The function is meant for calls **with a client** (menu, WebApp); a REST/job thread has no client disk for `l:` to point at.
+Rules it applies: the **format** of `GetTempPath()` tells the OS — starting with `/` (or `l:/`) is Unix, anything else Windows (`L:\…` is a Windows drive, not the prefix). On Unix the **value** of `GetTempPath()` is not used: WebApp 10.2.1 returns `l:` + the WebApp's per-user folder **on the server** (`l:/…/webapp/user/<session>/`, a WebApp bug removed in 10.2.2), which does not exist on the client — so the directory is fixed to `/tmp/`, where `pth.mjs query` writes and reads. On Windows a trailing separator is added when missing. The OS does not come from `GetRemoteType()`/`U_GwRemoteType` (a second source of truth, and `U_GwRemoteType` throws when it cannot classify the client). The function is meant for calls **with a client** (menu, WebApp); a REST/job thread has no client disk for `l:` to point at.
 
 ### The `l:` prefix chooses the MACHINE, not the syntax
 
@@ -52,7 +52,7 @@ Because the agent driving the browser *is* the client, this turns two hard probl
 
 `PROTHEUS_SQL_PATH` overrides where the script writes; the Service still only looks at `U_ConsultaSqlTempFile("consultasql.sql")`, so the override is only useful when the client's real `GetTempPath()` is not `/tmp/`.
 
-## How `pth-execute.mjs` runs a User Function
+## How `pth.mjs exec` runs a User Function
 
 The AppServer publishes the SmartClient WebApp on the same port as the TCP driver:
 
@@ -72,7 +72,7 @@ Connecting to the agent is not enough. The WebApp's gear option **"Agente Local"
 
 **Forced by the server.** The WebAgent can be made mandatory in the AppServer's `appserver.ini` (user-confirmed; done at some clients). Then the checkbox does not even appear and the WebApp always uses the agent. The key the script writes is simply redundant there — nothing to change; a missing checkbox on such a client is expected, not a symptom.
 
-So, in both modes, `pth-execute.mjs` first loads the WebApp start page (`<base>/webapp/`, no `P=`), sets `localStorage.desktopagentport` to the agent's port, and only then opens the program URL. The run prints `agente : porta <n> (Agente Local ligado)`.
+So, in both modes, `pth.mjs` first loads the WebApp start page (`<base>/webapp/`, no `P=`), sets `localStorage.desktopagentport` to the agent's port, and only then opens the program URL. The run prints `agente : porta <n> (Agente Local ligado)`.
 
 Other WebApp keys seen in `localStorage` (10.2.1): `desktopagentdontshow`, `language`, `viewmode`, `x:\smartclient.ini.*`. The source of truth is the WebApp bundle (`resources/js/webapp-<ver>-frontend.min.js`: `DesktopAgentPort`, `setPort`/`clearPort`).
 
@@ -83,10 +83,10 @@ Other WebApp keys seen in `localStorage` (10.2.1): `desktopagentdontshow`, `lang
 ```
 
 - `web-agent launch` starts an agent dedicated to that page on a **random port** and calls the browser with the URL plus `agent-started=launch&agent-port=<port>`; the page connects to `wss://127.0.0.1:<port>/agent`.
-- Given a real browser executable, the WebAgent opens the URL **in the user's already-open browser session** (a new tab on their screen — "Opening in existing browser session"). So `pth-execute.mjs` writes a **wrapper** into its output dir (`navegador.sh`; `navegador.cmd` on Windows) and passes it as `--browser`. The wrapper **saves the launch arguments** to `launch-args.txt` and starts the settings `browser` on `about:blank`: `--headless=new`, a throwaway `--user-data-dir`, CDP on 9253, `--ignore-certificate-errors --allow-insecure-localhost` and `--disable-features=LocalNetworkAccessChecks`.
+- Given a real browser executable, the WebAgent opens the URL **in the user's already-open browser session** (a new tab on their screen — "Opening in existing browser session"). So `pth.mjs` writes a **wrapper** into its output dir (`navegador.sh`; `navegador.cmd` on Windows) and passes it as `--browser`. The wrapper **saves the launch arguments** to `launch-args.txt` and starts the settings `browser` on `about:blank`: `--headless=new`, a throwaway `--user-data-dir`, CDP on 9253, `--ignore-certificate-errors --allow-insecure-localhost` and `--disable-features=LocalNetworkAccessChecks`.
 - The script reads the URL from `launch-args.txt`, takes its `agent-port`, turns on the "Agente Local" with that port, then opens that URL.
 - `LocalNetworkAccessChecks` off: the page is public https and the agent is loopback, so current Chromium treats it as local-network access and asks the user for permission; headless has nobody to accept and the WebSocket fails with `net::ERR_BLOCKED_BY_LOCAL_NETWORK_ACCESS_CHECKS`.
-- Completion is the file named by `PROTHEUS_WAIT_FILE` appearing (`pth-query` passes the result file and deletes it beforehand). Exit `0` when it appears, `2` after the limit.
+- Completion is the file named by `PROTHEUS_WAIT_FILE` appearing (`query` passes the result file and deletes it beforehand). Exit `0` when it appears, `2` after the limit.
 - At the end the script closes the browser through CDP (`Browser.close`, trying `127.0.0.1` and `[::1]` — Edge may listen on either) and kills the `web-agent launch` process, which otherwise stays listening on its random port.
 
 ### Direct mode (`launch_by_webagent: false`)
@@ -111,7 +111,7 @@ Modal windows cannot be dismissed with the keyboard (the canvas never takes focu
 
 **Cleanup.** Every headless run consumes an AppServer session that only drops on inactivity timeout, and the page auto-reconnects. The script ends with CDP `Browser.close` *before* killing the process; a browser left alive reopens its session when the service restarts and consumes a license again.
 
-**Pacing** (observed elsewhere): ~5 s between two runs, ~30 s between two compiles (the RPO stays locked after a session closes — `COMPILEERROR-300`). `pth-compile` already retries the lock; the 5 s between runs is on the caller.
+**Pacing** (observed elsewhere): ~5 s between two runs, ~30 s between two compiles (the RPO stays locked after a session closes — `COMPILEERROR-300`). `pth.mjs compile` already retries the lock; the 5 s between runs is on the caller.
 
 ## Environment inside the Controller
 

@@ -74,7 +74,7 @@ Exact command IDs (from the extension `package.json`). Many connection commands 
 | macOS | `$HOME/.totvsls/servers.json` |
 | Linux | `$HOME/.totvsls/servers.json` |
 
-Enabling **File → Preferences → Settings → Extensions → TOTVS → Workspace server config** (`totvsLanguageServer.workspaceServerConfig`) stores a workspace-local `servers.json` (`<project>/.vscode/servers.json`) instead, which overrides the user-level one for that workspace. The status-bar icon shows which one is active — house `$(home)` = workspace, globe `$(globe)` = user-level — and clicking it (`totvs-developer-studio.toggleSaveLocation`) toggles the setting in the project's `.vscode/settings.json`. `Scripts/pth-config.mjs` resolves the same file the same way (see `pth-cli-reference.md`).
+Enabling **File → Preferences → Settings → Extensions → TOTVS → Workspace server config** (`totvsLanguageServer.workspaceServerConfig`) stores a workspace-local `servers.json` (`<project>/.vscode/servers.json`) instead, which overrides the user-level one for that workspace. The status-bar icon shows which one is active — house `$(home)` = workspace, globe `$(globe)` = user-level — and clicking it (`totvs-developer-studio.toggleSaveLocation`) toggles the setting in the project's `.vscode/settings.json`. `Scripts/pth.mjs` resolves the same file the same way (see `pth-cli-reference.md`).
 
 ### Schema (key fields)
 
@@ -154,7 +154,7 @@ Default `totvsLanguageServer.folder.extensionsAllowed` list (case-insensitive):
 `.PRW` `.PRX` `.PRG` `.PPX` `.PPP` `.TLPP` `.APW` `.APH` `.APL` `.AHU` `.TRES` `.PNG` `.BMP` `.RES` `.4GL` `.PER` `.JS` `.RPTDESIGN`
 
 - The `.PPP`/`.PPX` files are pre-processed output; generate `.ppo` via the *Generate PPO file* option (`totvsLanguageServer.compilation.generatePpoFile`) when needed.
-- **`.APP` is not in the default list**: to compile a PO UI app package (a zipped Angular build renamed to `.app`, opened by `FWCallApp`), add `".APP"` to `totvsLanguageServer.folder.extensionsAllowed` — otherwise the plugin silently ignores the file. On this machine it is in the user settings of the *Profile Advpl - Linux* VS Code profile. `Scripts/pth-compile.sh` reads the same setting (project, then the folder's profile).
+- **`.APP` is not in the default list**: to compile a PO UI app package (a zipped Angular build renamed to `.app`, opened by `FWCallApp`), add `".APP"` to `totvsLanguageServer.folder.extensionsAllowed` — otherwise the plugin silently ignores the file. On this machine it is in the user settings of the *Profile Advpl - Linux* VS Code profile. `node Scripts/pth.mjs compile` reads the same setting (project, then the folder's profile).
 - Or disable the filter altogether with *Enable Extension Filter* off (`totvsLanguageServer.folder.enableExtensionsFilter`) to compile any extension as a resource.
 
 ---
