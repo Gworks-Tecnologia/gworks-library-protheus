@@ -169,24 +169,32 @@ Monta o ambiente quando nao houver um.
      ERP, ou REST com PrepareIn no appserver.ini) nao se toca em nada --
      preparar duas vezes e pior do que nao preparar.
 
-@obs Os defaults (empresa "01", filial "04", modulo "PCP") sao de exemplo:
-     ajuste ao ERP de destino, com a filial no tamanho do campo de filial dele.
-     Filial invalida faz o RpcSetEnv responder "Muitos usuarios", que parece
-     problema de licenca e nao e.
+@obs Empresa e filial, quando nao vierem no jRpc, sao as primeiras da
+     SYS_COMPANY (ver fFirstCompany) -- assim a rotina roda em qualquer ERP sem
+     ajuste. Filial invalida faz o RpcSetEnv responder "Muitos usuarios", que
+     parece problema de licenca e nao e.
 /*/
 Static Function fSetEnvironment( jRpc as json )
 
+	Local aCompany := {} as array
+
 	Default jRpc := JsonObject():New()
 
-	jRpc["cRpcEmpresa"]  := iif( jRpc["cRpcEmpresa"]  != nil, jRpc["cRpcEmpresa"] , "01"          )
-	jRpc["cRpcFilial"]   := iif( jRpc["cRpcFilial"]   != nil, jRpc["cRpcFilial"]  , "04"          )
-	jRpc["cRpcUser"]     := iif( jRpc["cRpcUser"]     != nil, jRpc["cRpcUser"]    , nil           )
-	jRpc["cRpcPassword"] := iif( jRpc["cRpcPassword"] != nil, jRpc["cRpcPassword"], nil           )
-	jRpc["cRpcMod"]      := iif( jRpc["cRpcMod"]      != nil, jRpc["cRpcMod"]     , "PCP"         )
-	jRpc["cRpcRotina"]   := iif( jRpc["cRpcRotina"]   != nil, jRpc["cRpcRotina"]  , "ConsultaSql" )
-	jRpc["aRpcTables"]   := iif( jRpc["aRpcTables"]   != nil, jRpc["aRpcTables"]  , {}            )
-
 	if( ( type("cFilAnt") == "U" .or. empty(cFilAnt) ) .and. !lRpcSetEnv_ .and. !fwIsInCallStack("U_GMNUEXEC") )
+
+		// So consulta o banco quando falta empresa ou filial: quem as passou
+		// (ex.: &A= do webapp) nao paga uma conexao a mais.
+		if jRpc["cRpcEmpresa"] == nil .or. jRpc["cRpcFilial"] == nil
+			aCompany := fFirstCompany()
+		endif
+
+		jRpc["cRpcEmpresa"]  := iif( jRpc["cRpcEmpresa"]  != nil, jRpc["cRpcEmpresa"] , iif( len(aCompany) > 0, aCompany[1], nil ) )
+		jRpc["cRpcFilial"]   := iif( jRpc["cRpcFilial"]   != nil, jRpc["cRpcFilial"]  , iif( len(aCompany) > 0, aCompany[2], nil ) )
+		jRpc["cRpcUser"]     := iif( jRpc["cRpcUser"]     != nil, jRpc["cRpcUser"]    , nil           )
+		jRpc["cRpcPassword"] := iif( jRpc["cRpcPassword"] != nil, jRpc["cRpcPassword"], nil           )
+		jRpc["cRpcMod"]      := iif( jRpc["cRpcMod"]      != nil, jRpc["cRpcMod"]     , "PCP"         )
+		jRpc["cRpcRotina"]   := iif( jRpc["cRpcRotina"]   != nil, jRpc["cRpcRotina"]  , "ConsultaSql" )
+		jRpc["aRpcTables"]   := iif( jRpc["aRpcTables"]   != nil, jRpc["aRpcTables"]  , {}            )
 
 		RpcSetEnv( ;
 			jRpc["cRpcEmpresa"],;
@@ -203,6 +211,50 @@ Static Function fSetEnvironment( jRpc as json )
 	endif
 
 Return
+
+/*/{Protheus.doc} fFirstCompany
+Primeira empresa/filial cadastrada na SYS_COMPANY.
+@type function
+@version 12.1.2510
+@author Gworks - Giovani
+@since 9/30/2026
+@return array, { empresa, filial }; vazio quando nao foi possivel ler.
+@obs Roda ANTES do RpcSetEnv, sem ambiente: por isso abre a propria conexao
+     (TCLink sem parametros usa o DBAccess do appserver.ini) e a fecha no fim.
+@obs SQL sem TOP/ROWNUM/LIMIT, que mudam de banco para banco: ordena e le so
+     o primeiro registro.
+/*/
+Static Function fFirstCompany() as array
+
+	Local aCompany := {} as array
+	Local cAlias := "" as character
+	Local nHandle := 0 as numeric
+
+	nHandle := TCLink()
+
+	if nHandle < 0
+		ConOut( "[ConsultaSql] TCLink falhou (" + cValToChar(nHandle) + "): empresa/filial ficam vazias" )
+		Return aCompany
+	endif
+
+	cAlias := GetNextAlias()
+
+	BeginSql Alias cAlias
+		SELECT M0_CODIGO, M0_CODFIL
+		FROM SYS_COMPANY
+		WHERE %notDel%
+		ORDER BY M0_CODIGO, M0_CODFIL
+	EndSql
+
+	if !(cAlias)->(Eof())
+		aCompany := { AllTrim( (cAlias)->M0_CODIGO ), AllTrim( (cAlias)->M0_CODFIL ) }
+	endif
+
+	(cAlias)->(dbCloseArea())
+
+	TCUnlink( nHandle )
+
+Return aCompany
 
 /*/{Protheus.doc} fResetEnvironment
 Encerra o ambiente, se foi este Controller que o montou.

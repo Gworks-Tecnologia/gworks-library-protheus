@@ -52,15 +52,30 @@ Executa uma instrucao SELECT e devolve o resultado em json.
 @author Gworks - Giovani
 @since 9/16/2026
 @param xParam, variant, { query } ou a propria instrucao como texto.
+@param cEmpRpc, character, Empresa do RpcSetEnv quando nao ha ambiente (opcional).
+@param cFilRpc, character, Filial do RpcSetEnv quando nao ha ambiente (opcional).
 @return json, { ok, data: { hasNext, items } }.
 @obs Espelha GwConsultaSqlApi:PostConsulta().
+@obs Pelo webapp cada &A= da URL chega como um parametro, na ordem:
+     &A=RUNQUERY&A=01&A=0101. Sem empresa/filial o Controller usa a primeira
+     da SYS_COMPANY; filial invalida derruba a sessao.
 @sample
     // Pela IDE, passando o SQL cru:
     U_ConsultaSqlPostConsulta("SELECT A1_COD, A1_NOME FROM SA1010 WHERE D_E_L_E_T_ = ' '")
 /*/
 
-User Function ConsultaSqlPostConsulta( xParam as variant )
+User Function ConsultaSqlPostConsulta( xParam as variant, cEmpRpc as character, cFilRpc as character )
+
+	Local jRpc := JsonObject():New() as json
+
+	if !empty(cEmpRpc)
+		jRpc["cRpcEmpresa"] := AllTrim(cEmpRpc)
+	endif
+
+	if !empty(cFilRpc)
+		jRpc["cRpcFilial"] := AllTrim(cFilRpc)
+	endif
 
 	nConsultaSqlOpc___ := oConsultaSqlEnum___:GetEnum('Executar')
 
-Return( U_ConsultaSqlController( nConsultaSqlOpc___, xParam ) )
+Return( U_ConsultaSqlController( nConsultaSqlOpc___, xParam, jRpc ) )
