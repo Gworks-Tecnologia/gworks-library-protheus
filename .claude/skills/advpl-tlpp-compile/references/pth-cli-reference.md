@@ -1,6 +1,6 @@
 # pth CLI compile reference (Route B)
 
-Reference for Route B of the `advpl-tlpp-compile` skill: compiling from a shell with **`node Scripts/pth.mjs compile`**, no VS Code and **no password in any file**. `Scripts/pth.mjs` is one Node.js 22+ script, the same on Linux, macOS and Windows, with the subcommands `compile`, `query`, `exec` (the last two: `advpl-tlpp-exec-sql-query` skill), `servers`, `webagents` and `info`; all share the same configuration (settings + `servers.json`).
+Reference for Route B of the `advpl-tlpp-compile` skill: compiling from a shell with **`node .claude/scripts/pth.mjs compile`**, no VS Code and **no password in any file**. `.claude/scripts/pth.mjs` is one Node.js 22+ script, the same on Linux, macOS and Windows, with the subcommands `compile`, `query`, `exec` (the last two: `advpl-tlpp-exec-sql-query` skill), `servers`, `webagents` and `info`; all share the same configuration (settings + `servers.json`).
 
 **Status.** Checked against a **fake** `advpls` that speaks the same protocol (65 checks on the single `pth.mjs`: roles and the empty-default fallback, `-a`, retries, house/globe, VS Code profiles, the extension filter and `.app`, includes, exit codes, the exact request sent, and the `exec`/`query` argument and configuration paths) and against the **real** `advpls` 2.1.4 locally: it accepts the handshake and the reconnect request, and rejects an invalid token in under a second (exit 4). **Confirmed against a real AppServer on 2026-09-29** (Minerasul DEV-DEBUG, AppServer `7.00.240223P`, secure connection, environment `CQSLH5_GWORKS`, TDS 2.1.4, token saved by VS Code, no password anywhere): unchanged source → `[SKIPPED] … already compiled`, `resultado: SKIPPED 1`, exit 0; `-r` → `[SUCCESS] … compiled successfully`, `resultado: SUCCESS 1`, exit 0; syntax error → `[FATAL] Aborting: X.PRW(4) C2003 Syntax Error`, rollback, `resultado: FATAL 1`, exit 1. ~7 s per run. Three consecutive runs reused the **same** saved token. Re-run through `pth.mjs` (compile `SKIPPED`, query `ok`) after the merge into one file.
 
@@ -34,15 +34,15 @@ Clicking the icon writes the setting to the project's `.vscode/settings.json`. `
 2. the settings of the **VS Code profile associated with the folder** — `globalStorage/storage.json` → `profileAssociations.workspaces["file:///<folder>"]` → `profiles/<location>/settings.json` under the user folder (`~/.config/Code/User/` on Linux, `%APPDATA%\Code\User\` on Windows, `~/Library/Application Support/Code/User/` on macOS); a folder with no profile, or a profile that inherits settings (`useDefaultFlags.settings`), uses the user folder's `settings.json`;
 3. the extension's default.
 
-All read as JSONC (comments and trailing commas allowed). `node Scripts/pth.mjs info` prints each value and where it came from (file and profile name). `.code-workspace` settings are not read: if `-h` disagrees with the icon, that is why — `PTH_SERVERS_JSON=<file>` pins a `servers.json`. On this machine the Protheus folders use **"Profile Advpl - Linux"**.
+All read as JSONC (comments and trailing commas allowed). `node .claude/scripts/pth.mjs info` prints each value and where it came from (file and profile name). `.code-workspace` settings are not read: if `-h` disagrees with the icon, that is why — `PTH_SERVERS_JSON=<file>` pins a `servers.json`. On this machine the Protheus folders use **"Profile Advpl - Linux"**.
 
-## Settings file: `Scripts/pth-settings.json`
+## Settings file: `.claude/config/pth-settings.json`
 
 One file = one server + (optionally) the environment of each role. **No secret in it** — the agent creates, reads and edits it. Server, user, environments and includes come from `servers.json`, looked up by `server`. There is no example file in the repository: this section is the template.
 
 ```json
 {
-  "server": "<id of the configuration in servers.json — see node Scripts/pth.mjs servers>",
+  "server": "<id of the configuration in servers.json — see node .claude/scripts/pth.mjs servers>",
   "env_default": "",
   "env_rest": "",
   "env_workflow": "",
@@ -73,21 +73,21 @@ Empty `""` = not configured. Environment names have no whitespace.
 
 **The roles are markers** — they tell whoever runs the scripts (the agent included) what each environment is for, so `-e rest` / `PROTHEUS_ENV=job` hit the right RPO. `env_rest`, `env_workflow` and `env_job` exist only when **the user** named them; they are never inferred from environment names. A file with `ip`, `port`, `user`, `password`, `environments` or `includes` is the **old format** and is rejected with a migration message (delete the password with it).
 
-**Several servers:** one file per server, `Scripts/pth-settings.<suffix>.json`, chosen by a suffix as the **first** argument of every script (plain name: letters, digits, `_`, `-`, starting with a letter or digit; a first argument that is an existing path is a source path). No suffix → `PTH_SETTINGS`, else `Scripts/pth-settings.json`. A missing file is an error, never a silent fallback.
+**Several servers:** one file per server, `.claude/config/pth-settings.<suffix>.json`, chosen by a suffix as the **first** argument of every script (plain name: letters, digits, `_`, `-`, starting with a letter or digit; a first argument that is an existing path is a source path). No suffix → `PTH_SETTINGS`, else `.claude/config/pth-settings.json`. A missing file is an error, never a silent fallback.
 
 The settings files stay in `.gitignore` — not secret, but machine-specific (paths of WebAgent and browser, server ids of this machine's `servers.json`).
 
 ### Creating one (agent procedure)
 
-1. `node Scripts/pth.mjs servers` — lists the servers of the resolved `servers.json` (name, id, address, user, environments, and in which there is a saved login), never a token. Empty or missing → the user registers the server in the extension first (Route A, Step 3).
+1. `node .claude/scripts/pth.mjs servers` — lists the servers of the resolved `servers.json` (name, id, address, user, environments, and in which there is a saved login), never a token. Empty or missing → the user registers the server in the extension first (Route A, Step 3).
 2. Ask the user **which server** (never guess when there are several). Then the roles:
    - `env_default`: leave empty — the scripts use the server's first environment in `servers.json`; tell the user which one that is, and fill it only if they want another.
    - `env_rest`, `env_workflow`, `env_job`: **ask the user** (optional; empty when they have none or do not say). Offer the server's environments as options, but do not guess from the names.
 3. Ask what `servers.json` cannot tell: `https`, the **WebAgent**, `browser`, and whether the database is **production**. The WebAgent is needed to run queries through the WebApp (the JSON result is written on this machine through it) and `servers.json` knows nothing about it:
-   - `node Scripts/pth.mjs webagents` lists the WebAgents installed in the default folders — `/opt/web-agent/**` on Linux, `%LOCALAPPDATA%\Programs\web-agent\**` (`C:\Users\<user>\AppData\Local\Programs\web-agent`) on Windows — with the version when the folder name carries it — the executable at the **root** of the install folder is the **latest version installed** (its path never carries the number); nothing is executed.
-   - **Know the WebApp version first**: write the file with `server` and `https`, then run `node Scripts/pth.mjs webagents [suffix]` — it reads the version from the server's WebApp page (`webapp-<version>-frontend.min.js`, one GET, no login) and marks each WebAgent `<- serve` / `(nao serve)` / `(serve se for 1.x.x)` for the one at the root (latest installed, number unknown), plus `[no settings]` for the configured one. Ask the user with those paths as options (the one marked `<- serve` first, plus "another path" and "use my running WebAgent"); the rule: **WebApp 10.2.0 or later → WebAgent 1.1.x; below → 1.0.x**. Chosen path → `"launch_by_webagent": true` + `"webagent": "<path>"`. Running WebAgent → `"launch_by_webagent": false` (+ `webagent_port` — the port shown in the WebApp's gear → *Agente Local*, if not 21021): no path needed, but the run waits the whole time limit.
+   - `node .claude/scripts/pth.mjs webagents` lists the WebAgents installed in the default folders — `/opt/web-agent/**` on Linux, `%LOCALAPPDATA%\Programs\web-agent\**` (`C:\Users\<user>\AppData\Local\Programs\web-agent`) on Windows — with the version when the folder name carries it — the executable at the **root** of the install folder is the **latest version installed** (its path never carries the number); nothing is executed.
+   - **Know the WebApp version first**: write the file with `server` and `https`, then run `node .claude/scripts/pth.mjs webagents [suffix]` — it reads the version from the server's WebApp page (`webapp-<version>-frontend.min.js`, one GET, no login) and marks each WebAgent `<- serve` / `(nao serve)` / `(serve se for 1.x.x)` for the one at the root (latest installed, number unknown), plus `[no settings]` for the configured one. Ask the user with those paths as options (the one marked `<- serve` first, plus "another path" and "use my running WebAgent"); the rule: **WebApp 10.2.0 or later → WebAgent 1.1.x; below → 1.0.x**. Chosen path → `"launch_by_webagent": true` + `"webagent": "<path>"`. Running WebAgent → `"launch_by_webagent": false` (+ `webagent_port` — the port shown in the WebApp's gear → *Agente Local*, if not 21021): no path needed, but the run waits the whole time limit.
    - Before writing, check that the chosen path exists and is executable; if not, ask again.
-4. Write the file from the template (suffix when it is not the project's main server), then `node Scripts/pth.mjs info [suffix]`: the server must resolve, and every role you will use must appear under `conectados` — an environment under `SEM TOKEN` needs one connection in VS Code first.
+4. Write the file from the template (suffix when it is not the project's main server), then `node .claude/scripts/pth.mjs info [suffix]`: the server must resolve, and every role you will use must appear under `conectados` — an environment under `SEM TOKEN` needs one connection in VS Code first.
 
 ## Includes
 
@@ -96,16 +96,16 @@ As in the extension: the include folders of the server's configuration in `serve
 ## Command line
 
 ```
-node Scripts/pth.mjs compile   [suffix] [-r] [-e <target>]... [-a] [-h] <path>...
-node Scripts/pth.mjs servers                   servers of servers.json, no tokens (no settings needed)
-node Scripts/pth.mjs webagents [suffix]        installed WebAgents; with a settings: that server's WebApp version and which fits
-node Scripts/pth.mjs info      [suffix]        settings + what was resolved from servers.json, no tokens
-node Scripts/pth.mjs                           list of subcommands
+node .claude/scripts/pth.mjs compile   [suffix] [-r] [-e <target>]... [-a] [-h] <path>...
+node .claude/scripts/pth.mjs servers                   servers of servers.json, no tokens (no settings needed)
+node .claude/scripts/pth.mjs webagents [suffix]        installed WebAgents; with a settings: that server's WebApp version and which fits
+node .claude/scripts/pth.mjs info      [suffix]        settings + what was resolved from servers.json, no tokens
+node .claude/scripts/pth.mjs                           list of subcommands
 ```
 
 | Flag | Meaning |
 | --- | --- |
-| `suffix` | Settings file `Scripts/pth-settings.<suffix>.json`. Must come right after the subcommand |
+| `suffix` | Settings file `.claude/config/pth-settings.<suffix>.json`. Must come right after the subcommand |
 | `-r` | Recompile (rewrite into the RPO even without a detected change) |
 | `-e <target>` | Environment: a **role** — `default`, `rest`, `workflow`, `job` → `env_default`, `env_rest`, … — or the **name** of an environment of the server (or equal to an `env_*`). Repeatable. Roles win over names; case-sensitive. Default: `default` |
 | `-a` | The default environment (`env_default` or, empty, the server's first) plus every filled `env_rest`/`env_workflow`/`env_job`, in that order, without repeating equal ones. Does not combine with `-e` |
@@ -128,7 +128,7 @@ Environment variables: `PTH_SETTINGS` (settings file when no suffix), `PTH_SERVE
 
 ## Environment = RPO — the trap that costs the most
 
-Each environment has its **own RPO**, and compiling into one does not publish to the others. With the wrong RPO the route still answers (the API scan found the annotation somewhere) and runs **old code**: the fix you just compiled simply does not show up and nothing says it went to the wrong place. Several rounds of "correct change, same error" are the signature. That is why the roles exist: the WebApp (`pth.mjs exec`/`query`) runs in `env_default`; a REST route runs in `env_rest` → `node Scripts/pth.mjs compile -e rest <source>`.
+Each environment has its **own RPO**, and compiling into one does not publish to the others. With the wrong RPO the route still answers (the API scan found the annotation somewhere) and runs **old code**: the fix you just compiled simply does not show up and nothing says it went to the wrong place. Several rounds of "correct change, same error" are the signature. That is why the roles exist: the WebApp (`pth.mjs exec`/`query`) runs in `env_default`; a REST route runs in `env_rest` → `node .claude/scripts/pth.mjs compile -e rest <source>`.
 
 **REST after a compile — no restart on this project's server (user-confirmed 2026-09-24).** With the current binaries the REST service picks up the newly compiled code **by itself, within up to 120 seconds**. So after `-e rest` do not ask the user for a restart: wait, then hit the route again. Calls alternating between `200` and `500`, or the old behaviour still answering, in that first ~2 minutes is the expected signature, not a failure — retry a few times over the window before concluding the compile did not take. Only if the old code is *still* served after ~2 minutes (and the compile went to the right environment: `info` shows `env_rest`) is a manual restart worth raising with the user — it is theirs to do.
 
@@ -145,7 +145,7 @@ After a SmartClient/WebApp/debug session closes, the RPO stays locked ~30 s and 
 
 ## Windows
 
-The same `node Scripts\pth.mjs …` (Node.js 22+ in the PATH; no PowerShell execution policy involved). The Windows-specific parts are the `advpls.exe` location (`…\tds-ls\bin\windows\advpls.exe`, taken from the extension's code), `%APPDATA%\Code\User` for the VS Code settings/profiles, `%USERPROFILE%\.totvsls` for the global `servers.json`, `%LOCALAPPDATA%\Programs\web-agent` for the WebAgent and the user's temp folder for the query files. The **previous** Windows scripts (`pth-compile.ps1` with `advpls cli`, `pth-query.ps1`) were validated there by the user; **`pth.mjs` has not run on Windows yet**: the *WINDOWS* paragraph at the top of the file lists the suppositions and the checks (`info`, `webagents`, one small compile, one query); until they pass, do not claim it works.
+The same `node .claude\scripts\pth.mjs …` (Node.js 22+ in the PATH; no PowerShell execution policy involved). The Windows-specific parts are the `advpls.exe` location (`…\tds-ls\bin\windows\advpls.exe`, taken from the extension's code), `%APPDATA%\Code\User` for the VS Code settings/profiles, `%USERPROFILE%\.totvsls` for the global `servers.json`, `%LOCALAPPDATA%\Programs\web-agent` for the WebAgent and the user's temp folder for the query files. The **previous** Windows scripts (`pth-compile.ps1` with `advpls cli`, `pth-query.ps1`) were validated there by the user; **`pth.mjs` has not run on Windows yet**: the *WINDOWS* paragraph at the top of the file lists the suppositions and the checks (`info`, `webagents`, one small compile, one query); until they pass, do not claim it works.
 
 ## Open questions (check on the first real runs)
 
@@ -159,9 +159,9 @@ The same `node Scripts\pth.mjs …` (Node.js 22+ in the PATH; no PowerShell exec
 | --- | --- | --- |
 | `Arquivo de configuracao nao encontrado: <file>` | Wrong suffix, or no settings file yet | Check the suffix, or create the file (*Creating one*) |
 | `… esta no formato antigo (ip, port, …)` | Settings from before the token login | Rewrite it from the template (`server` + roles); delete the password |
-| `Preencha em <file>: server` | `server` empty | Fill it (`node Scripts/pth.mjs servers` lists the ids) |
+| `Preencha em <file>: server` | `server` empty | Fill it (`node .claude/scripts/pth.mjs servers` lists the ids) |
 | `Sem ambiente padrao: env_default vazio … nao tem ambientes` | `env_default` empty and the server has no environment in `servers.json` | Connect once in VS Code to an environment of it, or fill `env_default` |
-| `Servidor "X" … nao existe em <servers.json>` | `server` has a wrong id, or `info` resolved another `servers.json` (house/globe) | `node Scripts/pth.mjs servers` to see the ids; check the `modo` line of `info` |
+| `Servidor "X" … nao existe em <servers.json>` | `server` has a wrong id, or `info` resolved another `servers.json` (house/globe) | `node .claude/scripts/pth.mjs servers` to see the ids; check the `modo` line of `info` |
 | `Nao encontrei <servers.json> (…, decidido por: …)` | No server registered for that mode | Register it in the extension, or check the house/globe setting |
 | `Sem token salvo para <server> no ambiente <env>` (exit 4) | The user never connected to that environment in VS Code | Ask the user to connect once in VS Code to it |
 | `O token salvo … nao foi aceito` (exit 4) | Token invalid/expired, or the password changed | Ask the user to connect again in VS Code to that environment |
@@ -177,4 +177,4 @@ The same `node Scripts\pth.mjs …` (Node.js 22+ in the PATH; no PowerShell exec
 
 ## Testing the script logic without a server
 
-Point `ADVPLS` at a **fake** `advpls`: a small Node script that speaks the LSP framing, answers `initialize`/`shutdown`, accepts `$totvsserver/reconnect` for tokens with a known prefix and returns `compileInfos` for `$totvsserver/compilation` (an `ERROR` for files with a known name, a `COMPILEERROR-300` on the first call for a "locked" environment), and appends every request to a log. Set `HOME`/`XDG_CONFIG_HOME` to temp dirs holding a fixture `~/.totvsls/servers.json` and user `settings.json`, copy `Scripts/pth.mjs` into a temp "repo" with its own `.vscode/` (to test house vs globe), and `PTH_ESPERA_RPO=1`. For profiles, a fixture `globalStorage/storage.json` associating the temp repo with a profile folder. That is how the 65 checks above were run — no server, no real token.
+Point `ADVPLS` at a **fake** `advpls`: a small Node script that speaks the LSP framing, answers `initialize`/`shutdown`, accepts `$totvsserver/reconnect` for tokens with a known prefix and returns `compileInfos` for `$totvsserver/compilation` (an `ERROR` for files with a known name, a `COMPILEERROR-300` on the first call for a "locked" environment), and appends every request to a log. Set `HOME`/`XDG_CONFIG_HOME` to temp dirs holding a fixture `~/.totvsls/servers.json` and user `settings.json`, copy `.claude/scripts/pth.mjs` into a temp "repo" with its own `.vscode/` (to test house vs globe), and `PTH_ESPERA_RPO=1`. For profiles, a fixture `globalStorage/storage.json` associating the temp repo with a profile folder. That is how the 65 checks above were run — no server, no real token.

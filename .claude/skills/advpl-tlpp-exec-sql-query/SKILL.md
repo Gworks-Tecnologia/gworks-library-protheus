@@ -1,6 +1,6 @@
 ---
 name: advpl-tlpp-exec-sql-query
-description: "Run a read-only SQL query (SELECT / WITH) against the Protheus database from a plain shell — no SmartClient, no VS Code, no human clicking — and read the result back as JSON. Drives `node Scripts/pth.mjs query` (one Node 22+ script, same command on Linux/macOS/Windows), configured by Scripts/pth-settings.json (or Scripts/pth-settings.<suffix>.json when a suffix is passed as first argument), which writes the statement to a file in the client's temp directory, opens the Protheus WebApp in an isolated headless browser (launched through the WebAgent's `launch` command when launch_by_webagent is true), runs the ConsultaSql template (namespace Gworks.Templates.ConsultaSql) and reads back consultasql-retorno.json. Also documents the REST alternative (POST /rest/GwConsultaSql/consultas). Use when the user says 'executar query', 'rodar SQL no Protheus', 'consultar o banco', 'ver os dados da tabela', 'como estão os dados', 'SELECT no Protheus', 'pth-query', 'pth.mjs query', 'ConsultaSql', 'run a query against Protheus', 'what does the data look like', or when an agent needs real table data to write or validate AdvPL/TLPP or SQL. Read-only: it never executes INSERT/UPDATE/DELETE."
+description: "Run a read-only SQL query (SELECT / WITH) against the Protheus database from a plain shell — no SmartClient, no VS Code, no human clicking — and read the result back as JSON. Drives `node .claude/scripts/pth.mjs query` (one Node 22+ script, same command on Linux/macOS/Windows), configured by .claude/config/pth-settings.json (or .claude/config/pth-settings.<suffix>.json when a suffix is passed as first argument), which writes the statement to a file in the client's temp directory, opens the Protheus WebApp in an isolated headless browser (launched through the WebAgent's `launch` command when launch_by_webagent is true), runs the ConsultaSql template (namespace Gworks.Templates.ConsultaSql) and reads back consultasql-retorno.json. Also documents the REST alternative (POST /rest/GwConsultaSql/consultas). Use when the user says 'executar query', 'rodar SQL no Protheus', 'consultar o banco', 'ver os dados da tabela', 'como estão os dados', 'SELECT no Protheus', 'pth-query', 'pth.mjs query', 'ConsultaSql', 'run a query against Protheus', 'what does the data look like', or when an agent needs real table data to write or validate AdvPL/TLPP or SQL. Read-only: it never executes INSERT/UPDATE/DELETE."
 license: Internal
 metadata:
   domain: Protheus
@@ -18,7 +18,7 @@ metadata:
 An agent that writes AdvPL/TLPP or SQL needs to see what the data actually looks like. This skill closes that loop without a human: **statement in → JSON out**, through the `ConsultaSql` template in this repository.
 
 ```
-node Scripts/pth.mjs query [suffix] "<SQL>"        (same command on Windows)
+node .claude/scripts/pth.mjs query [suffix] "<SQL>"        (same command on Windows)
    │  writes  <client temp>/consultasql.sql, removes the old consultasql-retorno.json
    ▼
 pth.mjs exec  (the same file)
@@ -39,9 +39,9 @@ Apps → Controller → Service → (GwApiQuery) → database
 
 | Piece | Where | Role |
 | --- | --- | --- |
-| `pth.mjs query` | `Scripts/pth.mjs` | Picks the settings file, writes the SQL file, removes the old result, runs `exec` with the `RUNQUERY` sentinel and the result file to wait for |
-| `pth.mjs exec` | `Scripts/pth.mjs` | Runs any User Function through the WebApp, by one of the two modes above (`node Scripts/pth.mjs exec [suffix] [-e <target>] <namespace.U_Func> [label] [seconds] [arg...]`) |
-| `pth-settings.json` / `pth-settings.<suffix>.json` | `Scripts/` | One server per file: which server of the TDS extension's `servers.json` (address and environments come from there), the role of each environment, WebApp and browser settings — no secret (template and creation in the compile skill's [pth-cli-reference.md § Settings](../advpl-tlpp-compile/references/pth-cli-reference.md#settings-file-scriptspth-settingsjson)) |
+| `pth.mjs query` | `.claude/scripts/pth.mjs` | Picks the settings file, writes the SQL file, removes the old result, runs `exec` with the `RUNQUERY` sentinel and the result file to wait for |
+| `pth.mjs exec` | `.claude/scripts/pth.mjs` | Runs any User Function through the WebApp, by one of the two modes above (`node .claude/scripts/pth.mjs exec [suffix] [-e <target>] <namespace.U_Func> [label] [seconds] [arg...]`) |
+| `pth-settings.json` / `pth-settings.<suffix>.json` | `.claude/config/` | One server per file: which server of the TDS extension's `servers.json` (address and environments come from there), the role of each environment, WebApp and browser settings — no secret (template and creation in the compile skill's [pth-cli-reference.md § Settings](../advpl-tlpp-compile/references/pth-cli-reference.md#settings-file-claudeconfigpth-settingsjson)) |
 | ConsultaSql module | `<lib>/Templates/ConsultaSql/` | Apps (menu/IDE door), Api (REST door), Controller, Service, Functions |
 
 `<lib>` is the Gworks library root: `Sources/Global/Gworks` in a client project, `Sources` in the `gworks-library-protheus` repository. Check which one exists before running any command below.
@@ -65,8 +65,8 @@ Internals (layers, temp-file contract, the `l:` rule, how both run modes work): 
 ## CRITICAL — Agent Execution Rules
 
 1. **Read-only.** Only `SELECT ` / `WITH `. Never try to smuggle a write through this route, never suggest exposing `U_GWQUPD` casually.
-2. **No password, no token in the output.** The WebApp run does not log in, and the settings file holds no secret (the agent may read and create it — compile skill, *Settings*). What must never be printed is the TDS extension's `servers.json` (saved login tokens): see servers with `node Scripts/pth.mjs servers` and a configuration with `node Scripts/pth.mjs info`, both token-free. Never ask the user for the password.
-3. **Pick the configuration deliberately.** No suffix = `Scripts/pth-settings.json`; `node Scripts/pth.mjs query <suffix> …` = `Scripts/pth-settings.<suffix>.json`. Before the first run of a session, read `node Scripts/pth.mjs info [suffix]` and say in the report which file, server and environment ran. This is the real database.
+2. **No password, no token in the output.** The WebApp run does not log in, and the settings file holds no secret (the agent may read and create it — compile skill, *Settings*). What must never be printed is the TDS extension's `servers.json` (saved login tokens): see servers with `node .claude/scripts/pth.mjs servers` and a configuration with `node .claude/scripts/pth.mjs info`, both token-free. Never ask the user for the password.
+3. **Pick the configuration deliberately.** No suffix = `.claude/config/pth-settings.json`; `node .claude/scripts/pth.mjs query <suffix> …` = `.claude/config/pth-settings.<suffix>.json`. Before the first run of a session, read `node .claude/scripts/pth.mjs info [suffix]` and say in the report which file, server and environment ran. This is the real database.
 4. **`production_database: true` means production.** Before the first run against such a configuration, confirm with the user in this conversation. The scripts do not enforce it — you do.
 5. **Run outside the agent sandbox.** The run talks to the WebAgent on `127.0.0.1` and starts processes (`web-agent`, the browser); inside the sandbox it fails in misleading ways.
 6. **Bound every query.** `TOP n` / explicit columns / a `WHERE` on the key, `D_E_L_E_T_ = ' '`, and `xx_FILIAL` (via `xFilial` logic) on branch-scoped tables. Never `SELECT *` on a large table.
@@ -93,15 +93,15 @@ Internals (layers, temp-file contract, the `l:` rule, how both run modes work): 
    ```bash
    grep -n "^User Function GwApiQuery" <lib>/Library/Classes/ApiQuery/GwLibraryApiQuery.tlpp
    #   expected: (cQuery as Character, jResult as Json)
-   node Scripts/pth.mjs compile <suffix> <lib>/Library <lib>/Templates/ConsultaSql
+   node .claude/scripts/pth.mjs compile <suffix> <lib>/Library <lib>/Templates/ConsultaSql
    ```
 2. **Both modes work** (`launch_by_webagent` true or false), because `pth.mjs` (`exec`, which `query` uses) turns on the WebApp's **"Agente Local"** in the throwaway browser profile before opening the program (the `desktopagentport` key — see internals). Without it, a fresh profile sends every `l:` path to the **server's** disk even with the agent connected, and the query silently never runs.
-3. **The WebAgent version follows the WebApp of each environment**: WebApp 10.2.0 or later requires WebAgent 1.1.x (JWT handshake); below that, 1.0.x. Here: `dev` uses `/opt/web-agent/1.0.24-x64/opt/web-agent/web-agent`, `prd` uses `/opt/web-agent/web-agent` — the **latest version installed** (a 1.1.x; the path at the root of the install folder never carries the number, older versions live in folders named after them). Never suggest changing the version as a fix without checking the WebApp version and asking the user. The script checks it for you: `pth.mjs exec`/`query` read the WebApp version from its page before opening the browser (line `webapp   : 10.1.8 -> WebAgent 1.0.x (configurado: …)`) and stop at once (exit 3) when the configured WebAgent's version, known from its folder name, is of the other series; `node Scripts/pth.mjs webagents [suffix]` marks which installed WebAgent fits. To pick one for a new settings file: `node Scripts/pth.mjs webagents` lists the installed WebAgents (`/opt/web-agent/**` on Linux, `%LOCALAPPDATA%\Programs\web-agent\**` on Windows) — ask the user which one (compile skill, *Settings*).
+3. **The WebAgent version follows the WebApp of each environment**: WebApp 10.2.0 or later requires WebAgent 1.1.x (JWT handshake); below that, 1.0.x. Here: `dev` uses `/opt/web-agent/1.0.24-x64/opt/web-agent/web-agent`, `prd` uses `/opt/web-agent/web-agent` — the **latest version installed** (a 1.1.x; the path at the root of the install folder never carries the number, older versions live in folders named after them). Never suggest changing the version as a fix without checking the WebApp version and asking the user. The script checks it for you: `pth.mjs exec`/`query` read the WebApp version from its page before opening the browser (line `webapp   : 10.1.8 -> WebAgent 1.0.x (configurado: …)`) and stop at once (exit 3) when the configured WebAgent's version, known from its folder name, is of the other series; `node .claude/scripts/pth.mjs webagents [suffix]` marks which installed WebAgent fits. To pick one for a new settings file: `node .claude/scripts/pth.mjs webagents` lists the installed WebAgents (`/opt/web-agent/**` on Linux, `%LOCALAPPDATA%\Programs\web-agent\**` on Windows) — ask the user which one (compile skill, *Settings*).
 4. **An older copy of the module may live in some RPO** under the namespace `Applications.ConsultaSql`: it stays live (it executes SQL) until removed by the user.
-5. **Windows: the query flow was validated** by the user with the former `pth-query.ps1`: the `.cmd` browser wrapper (still generated the same way), the browser lookup and the client's `%TEMP%` all worked. The single `pth.mjs` (settings pointing at `servers.json`, VS Code profiles, the WebApp × WebAgent check, the query logic now in Node) has not run on Windows yet: the first time, ask the user for the checks in the *WINDOWS* paragraph at the top of `Scripts/pth.mjs`.
+5. **Windows: the query flow was validated** by the user with the former `pth-query.ps1`: the `.cmd` browser wrapper (still generated the same way), the browser lookup and the client's `%TEMP%` all worked. The single `pth.mjs` (settings pointing at `servers.json`, VS Code profiles, the WebApp × WebAgent check, the query logic now in Node) has not run on Windows yet: the first time, ask the user for the checks in the *WINDOWS* paragraph at the top of `.claude/scripts/pth.mjs`.
 6. **Controller environment defaults are inherited from another project:** company `01`, branch `04`, module `PCP` (used only when the thread has no environment yet). Adjust for the target environment (`jRpc`), or a branch-scoped query hits the wrong branch. An invalid branch answers *"Muitos usuários"* — it looks like a license problem and is not.
 7. **The effective REST URL is unconfirmed** (see "REST alternative").
-8. **Always `node Scripts/pth.mjs …`** (Node.js 22+) — no shell or PowerShell script, no execute bit; the same command on Windows.
+8. **Always `node .claude/scripts/pth.mjs …`** (Node.js 22+) — no shell or PowerShell script, no execute bit; the same command on Windows.
 
 ---
 
@@ -110,7 +110,7 @@ Internals (layers, temp-file contract, the `l:` rule, how both run modes work): 
 ### 1 — Check the setup (read-only)
 
 ```bash
-node Scripts/pth.mjs info          # or: node Scripts/pth.mjs info <suffix>
+node .claude/scripts/pth.mjs info          # or: node .claude/scripts/pth.mjs info <suffix>
 ```
 
 Expect the server resolved from `servers.json` (name and address), the right `https`, and for launch mode a `webagent` path, a `browser` path and `launch_by_webagent : true`; note `production_database` (rule 4). A missing file or one in the old format (`ip`/`password`…) → create it with the compile skill's *Settings* procedure.
@@ -122,7 +122,7 @@ Prerequisites on the machine: **Node.js 20+** (the script passes `--experimental
 The function runs in `env_default` (empty: the server's first environment; or `PROTHEUS_ENV`) of the chosen settings file. Compile there first, with the `advpl-tlpp-compile` skill (Route B), using the same configuration you will query with:
 
 ```bash
-node Scripts/pth.mjs compile <lib>/Templates/ConsultaSql        # env_default of pth-settings.json
+node .claude/scripts/pth.mjs compile <lib>/Templates/ConsultaSql        # env_default of pth-settings.json
 ```
 Each environment has its own RPO — compiling into one does not publish to another.
 
@@ -135,19 +135,19 @@ Each environment has its own RPO — compiling into one does not publish to anot
 ### 4 — Run (outside the sandbox)
 
 ```bash
-node Scripts/pth.mjs query "SELECT TOP 3 A1_COD, A1_NOME FROM SA1010 WHERE D_E_L_E_T_ = ' '" consulta 60
-node Scripts/pth.mjs query <suffix> -f file.sql consulta 60        # another configuration; long or quote-heavy SQL
+node .claude/scripts/pth.mjs query "SELECT TOP 3 A1_COD, A1_NOME FROM SA1010 WHERE D_E_L_E_T_ = ' '" consulta 60
+node .claude/scripts/pth.mjs query <suffix> -f file.sql consulta 60        # another configuration; long or quote-heavy SQL
 ```
-`node Scripts/pth.mjs query [suffix] [-e <target>] "<SQL>" [label] [seconds]` or `… query [suffix] [-e <target>] -f file.sql [label] [seconds]`. The suffix, when given, comes right after `query` (a plain name: letters, digits, `_`, `-`, starting with a letter or digit). The script prints `config : <file>` — confirm it is the one you meant.
+`node .claude/scripts/pth.mjs query [suffix] [-e <target>] "<SQL>" [label] [seconds]` or `… query [suffix] [-e <target>] -f file.sql [label] [seconds]`. The suffix, when given, comes right after `query` (a plain name: letters, digits, `_`, `-`, starting with a letter or digit). The script prints `config : <file>` — confirm it is the one you meant.
 
 - **Launch mode** (`launch_by_webagent: true`): the script ends as soon as the result file appears (`retorno : … (11.0s)`, exit `0`) or after `[seconds]` without it (`nada em …`, exit `2`). 60 s is a comfortable limit for a simple query.
 - **Direct headless mode** (`false`): the routine draws no window, so the script cannot detect completion and waits the whole limit; its exit code says nothing about the result. Pass 20–30 s for a simple query.
 
-Another environment of the same file: `node Scripts/pth.mjs query -e rest …` (a role — `default`, `rest`, `workflow`, `job` — or the name of an environment of the server).
+Another environment of the same file: `node .claude/scripts/pth.mjs query -e rest …` (a role — `default`, `rest`, `workflow`, `job` — or the name of an environment of the server).
 
 **Windows (same command; not yet run there — see Known status #5):**
 ```powershell
-node Scripts\pth.mjs query "SELECT TOP 3 A1_COD FROM SA1010 WHERE D_E_L_E_T_ = ' '" consulta 60
+node .claude\scripts\pth.mjs query "SELECT TOP 3 A1_COD FROM SA1010 WHERE D_E_L_E_T_ = ' '" consulta 60
 ```
 The files go to the user's temp folder (the same one the AdvPL `GetTempPath()` returns on a Windows client).
 
@@ -179,7 +179,7 @@ Say which settings file, server and environment ran, the statement, row count an
 | `400 "Nao foi possivel ler a consulta do arquivo."` + `Arquivo vazio ou inexistente: <path>` | The Service looked for the SQL at `<path>` and found nothing: wrong machine/dir or the script wrote elsewhere | Compare `<path>` with where the script wrote (`sql : …` line). See internals: temp-file contract, `PROTHEUS_SQL_PATH` |
 | `400 "Nao foi possivel executar a consulta."` | The database rejected it; `detailedMessage` is the database's own message | Fix the SQL (invalid column, syntax…) |
 | `500 "Resposta invalida da consulta."` | The RPO of this environment has the old REST-only `GwApiQuery` | Compile `<lib>/Library/Classes/ApiQuery` into that environment (with the user's OK), then retry |
-| `WebAgent X nao serve para o WebApp Y: precisa de 1.x.x` (exit 3, before any browser) | The configured WebAgent is of the other series | Point `webagent` at one marked `<- serve` by `node Scripts/pth.mjs webagents [suffix]` |
+| `WebAgent X nao serve para o WebApp Y: precisa de 1.x.x` (exit 3, before any browser) | The configured WebAgent is of the other series | Point `webagent` at one marked `<- serve` by `node .claude/scripts/pth.mjs webagents [suffix]` |
 | `nada em /tmp/consultasql-retorno.json apos Ns` | The function ran and could not read the SQL / write the result on the client, or never ran | Check the `agente : porta … (Agente Local ligado)` line; then debug per [internals](references/exec-sql-internals.md): page console, and in the AdvPL debugger `File("l:/tmp/consultasql.sql")` / `MemoRead(...)` — `.F.`/`""` with the file present means `l:` is going to the server |
 | `agente : nao foi possivel ligar o Agente Local` (launch mode) | The wrapper did not record the launch URL or the browser's CDP was unreachable | Rerun once; check nothing else holds port 9253 (`ss -ltnp \| grep 9253`) |
 | Result file exists with **0 bytes** | A selected column has accented text (CP1252) and the JSON conversion failed (e.g. `X2_NOME`, `X5_DESCRI`, `*_DESCR`) | Drop the column, or read it as hex: `CONVERT(VARCHAR(200), CAST(col AS VARBINARY(100)), 2)` and decode with `bytes.fromhex(h).decode('cp1252')` |
@@ -189,7 +189,7 @@ Say which settings file, server and environment ran, the statement, row count an
 | Function not in the AppMap on the **first** call (`InterFunctionCall: cannot find function U_…` in ConOut) | No `using namespace` at the caller — an AppServer limitation | Run again; if the second attempt works, that is it |
 | `Arquivo de configuracao nao encontrado: …/pth-settings.<suffix>.json` | Wrong suffix, or that file does not exist | Check the suffix, or create the file (compile skill, *Settings*) |
 | `launch_by_webagent exige o campo webagent`, `webagent nao existe`, `browser do arquivo de settings nao existe` | Settings incomplete or a path is wrong | Ask the user for the right path and fix the file |
-| `Ambiente desconhecido…`, `Preencha em …`, `… invalido`, `… formato antigo`, `Servidor "X" … nao existe` | Configuration | `node Scripts/pth.mjs info [suffix]` (and `-l`); fix the file |
+| `Ambiente desconhecido…`, `Preencha em …`, `… invalido`, `… formato antigo`, `Servidor "X" … nao existe` | Configuration | `node .claude/scripts/pth.mjs info [suffix]` (and `-l`); fix the file |
 | Accented text makes the JSON fail | Protheus is CP1252, JSON is UTF-8: one accented value empties the whole response (see the 0-byte row) | Hex workaround above; the durable fix is `EncodeUTF8()` in the library's row formatting |
 
 ---
@@ -203,7 +203,7 @@ The same rule answers as a real REST route — `@Post("/GwConsultaSql/consultas"
 - **Auth.** Basic auth with the user's Protheus login. No file holds the password: the **user** runs the call and types it (`read -rsp 'senha: ' P`, then `AUTH=$(printf '%s:%s' "$U" "$P" | base64 -w0)`) — the agent never asks for it nor builds it.
 - **`tenantId: <company>,<branch>` header** selects company and branch (branch codes have the length of the ERP's branch field). Without it the thread gets *a* default and a query scoped by branch quietly runs against the wrong one — a `200` with empty `items`, which reads as "no data".
 - **Send the body from a file** (`--data-binary @body.json`); mixed quotes on the command line break and can send an empty body.
-- **Compile into the environment REST runs** (`node Scripts/pth.mjs compile -e rest …`). On this project's server no restart is needed: the REST service serves the new code **by itself within up to 120 seconds**. Until then the old code (or alternating `200`/`500`) may answer — wait about 2 minutes and hit the route several times before believing any single answer. Only if the old code is still served after that is a restart worth raising (it belongs to the user).
+- **Compile into the environment REST runs** (`node .claude/scripts/pth.mjs compile -e rest …`). On this project's server no restart is needed: the REST service serves the new code **by itself within up to 120 seconds**. Until then the old code (or alternating `200`/`500`) may answer — wait about 2 minutes and hit the route several times before believing any single answer. Only if the old code is still served after that is a restart worth raising (it belongs to the user).
 - **Security:** this endpoint runs SQL that arrives from outside and exposes unrestricted read access to anyone who can reach it. Authentication is the REST Server's (appserver.ini), not the code's. Do not publish it without that decision made.
 
 ---

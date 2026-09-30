@@ -273,6 +273,6 @@ For the REST modes the server side is the same. Two things to get right, both de
 
 - `tlpp-rest-endpoint-generator` — the TLPP side of the endpoint PO UI consumes (REST modes).
 - `advpl-gworks-pattern` — the Controller/Service layering behind the no-API channel's `JsToAdvpl`.
-- `advpl-tlpp-exec-sql-query` — the `Scripts/pth-*` that also open an embedded app headless for terminal tests.
+- `advpl-tlpp-exec-sql-query` — the `.claude/scripts/pth.mjs` that also opens an embedded app headless for terminal tests.
 - `advpl-gworks` — the AdvPL/TLPP library backing those endpoints.
 - `query-builder` — the SQL behind the paginated list.

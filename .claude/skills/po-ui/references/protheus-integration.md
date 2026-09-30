@@ -50,7 +50,7 @@ Like PO UI it is NgModule-based, but **all its services are `providedIn: 'root'`
 5. **Compile the `.app` into the RPO as a resource.** The TDS plugin only compiles the extensions in
    `totvsLanguageServer.folder.extensionsAllowed`, and **`.APP` is not in the default list**: add `".APP"` to it in the VS Code settings
    (here: the user settings of the *Profile Advpl - Linux* profile), or the plugin silently ignores the file. The Gworks
-   `node Scripts/pth.mjs compile <file.app>` reads the same setting (`advpl-tlpp-compile` skill) and says `ignorado: … .APP fora de …` when it is
+   `node .claude/scripts/pth.mjs compile <file.app>` reads the same setting (`advpl-tlpp-compile` skill) and says `ignorado: … .APP fora de …` when it is
    missing. The old `advpls cli` route answered `[SUCCESS] Resource compiled`; the current script's language-server route has not compiled a
    real `.app` yet — check the `resultado:` line the first time.
 6. Make the zip **deterministic** (fixed dates/permissions per entry) if the `.app` is versioned in git: same code → same bytes.
@@ -184,7 +184,7 @@ export function chamarProtheus<T>(ponte: ProJsToAdvplService, acao: string, dado
 
 ## Testing an embedded app from the terminal ✅
 
-With the Gworks `Scripts/pth.mjs` (see the `advpl-tlpp-exec-sql-query` skill), `node Scripts/pth.mjs exec U_POAPP001 poapp 90`
+With the Gworks `.claude/scripts/pth.mjs` (see the `advpl-tlpp-exec-sql-query` skill), `node .claude/scripts/pth.mjs exec U_POAPP001 poapp 90`
 opens the WebApp headless (CDP on 9253). Then, from another script:
 
 1. `Page.getFrameTree`, pick the frame whose URL matches `/\/<app>[^/]*\/(index\.html)?([?#]|$)/` (**not** `preindex…`);

@@ -1,6 +1,6 @@
 ---
 name: advpl-tlpp-compile
-description: "Compile AdvPL/TLPP sources (.prw, .prg, .prx, .tlpp, .ppx, .ppp, .apw, .aph, .apl, .ahu and resources) by one of two routes: (A) inside VS Code with the TOTVS Developer Studio (tds-vscode) extension and the servers.json connection registry, or (B) from a shell with `node Scripts/pth.mjs compile` (one Node 22+ script, same on Linux/macOS/Windows, driving the TDS advpls language server), which logs in with the token the TDS extension saved in servers.json when the user connected in VS Code — no password stored anywhere, no VS Code open, no keypress — configured by Scripts/pth-settings.json (or Scripts/pth-settings.<suffix>.json, suffix as first argument), a password-free file the agent creates pointing at a server of that servers.json (the extension's house/globe setting decides which servers.json), including compiling into the REST / workflow / job environments or into all configured environments at once (-a). Route A orchestrates the full flow: verifies the TOTVS.tds-vscode extension is installed (installs it if missing), validates/creates the server configuration in servers.json, asks the user which server to use when more than one is registered, drives the connect/authenticate step (password typed by the user — never seen by the agent), runs the build/rebuild command, and reports the compilation result. Use when user says 'compile', 'recompile', 'build source', 'compilar fonte', 'compilar prw/tlpp', 'send to RPO', 'compile in appserver', 'compilar pelo terminal', 'compilar sem VS Code', 'compilar no ambiente rest', 'compilar em todos os ambientes', 'pth-compile', 'pth.mjs', 'criar pth-settings', 'configurar compilação pelo terminal', or after generating/migrating/refactoring AdvPL/TLPP code."
+description: "Compile AdvPL/TLPP sources (.prw, .prg, .prx, .tlpp, .ppx, .ppp, .apw, .aph, .apl, .ahu and resources) by one of two routes: (A) inside VS Code with the TOTVS Developer Studio (tds-vscode) extension and the servers.json connection registry, or (B) from a shell with `node .claude/scripts/pth.mjs compile` (one Node 22+ script, same on Linux/macOS/Windows, driving the TDS advpls language server), which logs in with the token the TDS extension saved in servers.json when the user connected in VS Code — no password stored anywhere, no VS Code open, no keypress — configured by .claude/config/pth-settings.json (or .claude/config/pth-settings.<suffix>.json, suffix as first argument), a password-free file the agent creates pointing at a server of that servers.json (the extension's house/globe setting decides which servers.json), including compiling into the REST / workflow / job environments or into all configured environments at once (-a). Route A orchestrates the full flow: verifies the TOTVS.tds-vscode extension is installed (installs it if missing), validates/creates the server configuration in servers.json, asks the user which server to use when more than one is registered, drives the connect/authenticate step (password typed by the user — never seen by the agent), runs the build/rebuild command, and reports the compilation result. Use when user says 'compile', 'recompile', 'build source', 'compilar fonte', 'compilar prw/tlpp', 'send to RPO', 'compile in appserver', 'compilar pelo terminal', 'compilar sem VS Code', 'compilar no ambiente rest', 'compilar em todos os ambientes', 'pth-compile', 'pth.mjs', 'criar pth-settings', 'configurar compilação pelo terminal', or after generating/migrating/refactoring AdvPL/TLPP code."
 license: MIT
 metadata:
   domain: Protheus
@@ -19,7 +19,7 @@ Compile AdvPL and TLPP source files against a Protheus AppServer. Compilation in
 | Route | How | Needs a human? | Use when |
 | --- | --- | --- | --- |
 | **A — VS Code** | The **TOTVS Developer Studio for VSCode** extension (`TOTVS.tds-vscode`), reading its connection registry from `servers.json` | Yes: the user types the password in the connection prompt | No CLI scripts, the settings file is not filled, or the user asks for VS Code |
-| **B — Command line** | `node Scripts/pth.mjs compile …` (one Node 22+ script for Linux, macOS and Windows) drives the extension's own `advpls` in language-server mode: it **reconnects with the login token the extension saved** in `servers.json` and compiles. Server, user, environments and includes come from that `servers.json`; `Scripts/pth-settings.json` (or `.<suffix>.json`) only says which server and which environment plays each role | Only once: the user connects in VS Code to each environment the scripts will use (that saves the token). No password in any file | `Scripts/pth.mjs` exists (**preferred for an agent**: closes the *edit → compile → read the error* loop alone). If the settings file is missing, the agent creates it |
+| **B — Command line** | `node .claude/scripts/pth.mjs compile …` (one Node 22+ script for Linux, macOS and Windows) drives the extension's own `advpls` in language-server mode: it **reconnects with the login token the extension saved** in `servers.json` and compiles. Server, user, environments and includes come from that `servers.json`; `.claude/config/pth-settings.json` (or `.<suffix>.json`) only says which server and which environment plays each role | Only once: the user connects in VS Code to each environment the scripts will use (that saves the token). No password in any file | `.claude/scripts/pth.mjs` exists (**preferred for an agent**: closes the *edit → compile → read the error* loop alone). If the settings file is missing, the agent creates it |
 
 See **Route selection** below. Route A, step by step — this skill orchestrates the complete path so a single "compile" request works end-to-end even on a fresh machine:
 
@@ -52,15 +52,15 @@ Use this skill when:
 
 > **These rules are MANDATORY.** Rules 2–3 concern Route A, rules 8–11 concern Route B; rules 1 and 4–7 apply to both.
 
-1. **NEVER ask for, read, store, echo, or write the AppServer password — nor a login token.** Route A: authentication is interactive — the user types the password directly in the VS Code connection prompt; if a step needs it, instruct the user to type it in the prompt and wait — do not collect it with any tool. Route B has **no password at all**: it logs in with the token the extension saved in `servers.json` when the user connected in VS Code. Token values (`token`, `savedTokens`, `rpoToken`, `authorizationToken`) are used only inside the scripts: never print, copy, grep or `cat` them — list servers with `node Scripts/pth.mjs servers` and see a configuration with `node Scripts/pth.mjs info [suffix]`, both token-free.
+1. **NEVER ask for, read, store, echo, or write the AppServer password — nor a login token.** Route A: authentication is interactive — the user types the password directly in the VS Code connection prompt; if a step needs it, instruct the user to type it in the prompt and wait — do not collect it with any tool. Route B has **no password at all**: it logs in with the token the extension saved in `servers.json` when the user connected in VS Code. Token values (`token`, `savedTokens`, `rpoToken`, `authorizationToken`) are used only inside the scripts: never print, copy, grep or `cat` them — list servers with `node .claude/scripts/pth.mjs servers` and see a configuration with `node .claude/scripts/pth.mjs info [suffix]`, both token-free.
 2. **ALWAYS use the extension UI to register and connect servers.** Never edit `servers.json` by hand. Server registration goes through the *Add Server* assistant and connection goes through the connection prompt, so the extension validates the data and fills generated fields (`id`, `buildVersion`, `secure`, `token`) itself.
 3. **NEVER write `token`, `savedTokens`, or `authorizationtoken` values into `servers.json`.** Those are generated by the extension after a successful connection. The agent does not write to `servers.json` at all, and reads it only through the script (`servers`, `info`), which leaves the tokens out.
 4. **Ensure the source is CP1252 before compiling.** The Protheus compiler only accepts Windows-1252 files. If the file was created/edited by an AI agent (UTF-8), run the `utf8-to-cp1252-conversion` skill first, otherwise compilation fails with garbled characters.
 5. **Always confirm the target server with the user when more than one is registered.** Never guess.
 6. **When this skill runs as a follow-up to code generation/migration/refactoring, ASK the user whether they want to compile before starting.** Do not auto-compile silently after another skill produced code.
 7. **Read the result before declaring success.** A command running without error is NOT proof of a successful compile — check the compilation output/Problems for errors and warnings.
-8. **(Route B) The settings file holds no secret: the agent creates, reads and edits it.** It names a server of `servers.json` by `id` plus the roles and WebApp keys — never `ip`, `port`, `user`, `password`, `environments` or `includes` (the scripts reject that old format with a migration message). Create it with the procedure and template in [pth-cli-reference.md § Settings](references/pth-cli-reference.md#settings-file-scriptspth-settingsjson), asking the user what `servers.json` cannot tell.
-9. **(Route B) Pick the configuration deliberately.** No suffix = `Scripts/pth-settings.json`; a suffix as first argument = `Scripts/pth-settings.<suffix>.json`. Read `node Scripts/pth.mjs info [suffix]` before the first compile of a session, and say in the report which file, server and environment(s) were used. If it shows `production_database : true`, confirm with the user in this conversation before compiling. If it lists an environment under `SEM TOKEN`, see rule 11.
+8. **(Route B) The settings file holds no secret: the agent creates, reads and edits it.** It names a server of `servers.json` by `id` plus the roles and WebApp keys — never `ip`, `port`, `user`, `password`, `environments` or `includes` (the scripts reject that old format with a migration message). Create it with the procedure and template in [pth-cli-reference.md § Settings](references/pth-cli-reference.md#settings-file-claudeconfigpth-settingsjson), asking the user what `servers.json` cannot tell.
+9. **(Route B) Pick the configuration deliberately.** No suffix = `.claude/config/pth-settings.json`; a suffix as first argument = `.claude/config/pth-settings.<suffix>.json`. Read `node .claude/scripts/pth.mjs info [suffix]` before the first compile of a session, and say in the report which file, server and environment(s) were used. If it shows `production_database : true`, confirm with the user in this conversation before compiling. If it lists an environment under `SEM TOKEN`, see rule 11.
 10. **(Route B) Do not add your own retry loops or run compiles in parallel.** The script already waits 30 s and retries up to 3 times on a locked RPO (`COMPILEERROR-300`). Always pass an explicit path: the script has no default target.
 11. **(Route B) No saved login for an environment (`SEM TOKEN` in `info`, exit 4) → ask the user to connect once in VS Code to that server and environment** (TOTVS → Servers → server → environment; the extension saves the token), then run again. Never try to log in any other way, and never ask for the password.
 
@@ -83,10 +83,10 @@ Decide before anything else.
 
 | Situation | Route |
 | --- | --- |
-| `Scripts/pth.mjs` exists **and** `node Scripts/pth.mjs info [suffix]` resolves the server and the target environment is not under `SEM TOKEN` | **B** |
-| `Scripts/pth.mjs` exists but the settings file is missing (`Arquivo de configuracao nao encontrado`) or in the old format | **Create it** ([reference § Settings](references/pth-cli-reference.md#settings-file-scriptspth-settingsjson)), then **B** |
+| `.claude/scripts/pth.mjs` exists **and** `node .claude/scripts/pth.mjs info [suffix]` resolves the server and the target environment is not under `SEM TOKEN` | **B** |
+| `.claude/scripts/pth.mjs` exists but the settings file is missing (`Arquivo de configuracao nao encontrado`) or in the old format | **Create it** ([reference § Settings](references/pth-cli-reference.md#settings-file-claudeconfigpth-settingsjson)), then **B** |
 | The environment has no saved login (`SEM TOKEN`, exit 4) | Ask the user to connect once in VS Code to that environment (rule 11), then **B** |
-| No `Scripts/pth.mjs`, or the user asks for VS Code / the IDE | **A** |
+| No `.claude/scripts/pth.mjs`, or the user asks for VS Code / the IDE | **A** |
 
 Both routes share: confirm intent when chained (Step 0), CP1252 (Step 6), read the result before declaring success.
 
@@ -211,15 +211,15 @@ Same as Step 0: right after another skill generated or changed code, ask before 
 ### B1 — Check (or create) the configuration
 
 ```bash
-node Scripts/pth.mjs info      # another file: … <suffix> -h
+node .claude/scripts/pth.mjs info      # another file: … <suffix> -h
 ```
 
 It shows the settings (server id, roles, WebApp keys, `production_database`) and what the scripts resolved from `servers.json`: which file and why (house/globe), server name and address, user, environments, **which environments have a saved login** (`conectados`) and which configured roles do not (`SEM TOKEN`), and the include folders — never a token.
 
-- **File missing or old format** → create it: [reference § Settings](references/pth-cli-reference.md#settings-file-scriptspth-settingsjson) (list servers with `node Scripts/pth.mjs servers`, ask the user which server, leave `env_default` empty (= the server's first environment) unless they want another, ask them for `env_rest`/`env_workflow`/`env_job` (optional), ask for the WebAgent with `node Scripts/pth.mjs webagents`, write the file from the template).
+- **File missing or old format** → create it: [reference § Settings](references/pth-cli-reference.md#settings-file-claudeconfigpth-settingsjson) (list servers with `node .claude/scripts/pth.mjs servers`, ask the user which server, leave `env_default` empty (= the server's first environment) unless they want another, ask them for `env_rest`/`env_workflow`/`env_job` (optional), ask for the WebAgent with `node .claude/scripts/pth.mjs webagents`, write the file from the template).
 - **`SEM TOKEN` for the environment you need** → rule 11.
-- **Settings selection.** No suffix → `PTH_SETTINGS`, else `Scripts/pth-settings.json`. A suffix (any plain name: letters, digits, `_`, `-`, starting with a letter or digit) as the **first** argument → `Scripts/pth-settings.<suffix>.json`; a missing file is an error, never a silent fallback. A first argument that is an existing path is a source path, not a suffix.
-- **Always through `node`** (Node.js 22+): `node Scripts/pth.mjs <subcommand> …` — no execute bit or shell script involved, the same command on Windows (`node Scripts\pth.mjs …`).
+- **Settings selection.** No suffix → `PTH_SETTINGS`, else `.claude/config/pth-settings.json`. A suffix (any plain name: letters, digits, `_`, `-`, starting with a letter or digit) as the **first** argument → `.claude/config/pth-settings.<suffix>.json`; a missing file is an error, never a silent fallback. A first argument that is an existing path is a source path, not a suffix.
+- **Always through `node`** (Node.js 22+): `node .claude/scripts/pth.mjs <subcommand> …` — no execute bit or shell script involved, the same command on Windows (`node .claude\scripts\pth.mjs …`).
 
 ### B2 — Ensure CP1252
 
@@ -235,10 +235,10 @@ Same as Step 6: sources generated or edited by an agent are UTF-8 and must be co
 ### B4 — Run
 
 ```bash
-node Scripts/pth.mjs compile <lib>/Templates/ConsultaSql                    # env_default of pth-settings.json
-node Scripts/pth.mjs compile -e rest <lib>/Templates/ConsultaSql/Api        # the environment the REST Server serves
-node Scripts/pth.mjs compile -a -r <lib>/Templates/ConsultaSql              # recompile in every configured environment
-node Scripts/pth.mjs compile <suffix> <lib>/Templates/ConsultaSql           # another configuration: pth-settings.<suffix>.json
+node .claude/scripts/pth.mjs compile <lib>/Templates/ConsultaSql                    # env_default of pth-settings.json
+node .claude/scripts/pth.mjs compile -e rest <lib>/Templates/ConsultaSql/Api        # the environment the REST Server serves
+node .claude/scripts/pth.mjs compile -a -r <lib>/Templates/ConsultaSql              # recompile in every configured environment
+node .claude/scripts/pth.mjs compile <suffix> <lib>/Templates/ConsultaSql           # another configuration: pth-settings.<suffix>.json
 ```
 
 A locked RPO makes the script wait 30 s and retry up to 3 times on its own; do not add loops and do not run two compiles at once.
@@ -253,7 +253,7 @@ A locked RPO makes the script wait 30 s and retry up to 3 times on its own; do n
 
 ### B6 — Windows
 
-The same `node Scripts\pth.mjs compile …` (same suffix, flags, settings and exit codes). The **previous** Windows scripts (`pth-compile.ps1` with `advpls cli`, `pth-query.ps1`) were validated there by the user; **`pth.mjs` has not run on Windows yet.** Its header carries a *WINDOWS* paragraph: while it is there, ask the user for the output of `info`, `webagents`, one small compile and one query — do not claim it works.
+The same `node .claude\scripts\pth.mjs compile …` (same suffix, flags, settings and exit codes). The **previous** Windows scripts (`pth-compile.ps1` with `advpls cli`, `pth-query.ps1`) were validated there by the user; **`pth.mjs` has not run on Windows yet.** Its header carries a *WINDOWS* paragraph: while it is there, ask the user for the output of `info`, `webagents`, one small compile and one query — do not claim it works.
 
 ---
 
@@ -296,10 +296,10 @@ flowchart TD
 - **Declaring success without reading the result.** Always verify the console/Problems output.
 - **Compiling UTF-8 files.** Convert to CP1252 first.
 - **Guessing the server when several exist.** Always confirm with the user.
-- **(Route B) Printing a token** — `cat`/`jq`/`grep` on `servers.json` shows the saved logins. Use `node Scripts/pth.mjs servers` / `info`.
+- **(Route B) Printing a token** — `cat`/`jq`/`grep` on `servers.json` shows the saved logins. Use `node .claude/scripts/pth.mjs servers` / `info`.
 - **(Route B) Putting `ip`/`port`/`user`/`password`/`includes` in a settings file**, or asking for the password in chat. The server comes from `servers.json`; the login is the saved token.
 - **(Route B) Working around a missing token** (another login method, a password somewhere). Ask the user to connect once in VS Code to that environment.
-- **(Route B) Choosing the server or the rest/workflow/job roles yourself when creating a settings file.** Show `node Scripts/pth.mjs servers` and ask. Only `env_default` may stay empty (the server's first environment); the other roles come from the user, never from guessing environment names.
+- **(Route B) Choosing the server or the rest/workflow/job roles yourself when creating a settings file.** Show `node .claude/scripts/pth.mjs servers` and ask. Only `env_default` may stay empty (the server's first environment); the other roles come from the user, never from guessing environment names.
 - **(Route B) Compiling against a `production_database: true` configuration without the user's confirmation in this conversation.**
 - **(Route B) Compiling into the wrong environment and concluding the fix did not work.** Each environment has its own RPO; check which one the failing thing runs in (`env_default` for the WebApp, `env_rest` for REST) before touching the code again.
 - **(Route B) Calling it without a path.** There is no default target; pass the narrowest file or folder.

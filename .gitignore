@@ -2,4 +2,4 @@
 console_error.log
 
 # Configuracao local dos scripts pth-* (servidor e caminhos desta maquina; sem senha)
-Scripts/pth-settings*.json
+.claude/config/pth-settings*.json

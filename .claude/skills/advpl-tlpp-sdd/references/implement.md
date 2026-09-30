@@ -119,7 +119,7 @@ Follow [coding-principles.md](coding-principles.md):
 > - **No** → document in Step 6 and continue without compiling
 
 1. Run the `advpl-tlpp-compile` skill passing the exact list of files generated/modified in the current task (scope: file, not workspace).
-2. The skill picks the route: **B** (`node Scripts/pth.mjs compile <files>`, no VS Code, login by the token the extension saved) when the `Scripts/pth-*` exist — creating `Scripts/pth-settings.json` if missing — otherwise **A** (VS Code: verifying `TOTVS.tds-vscode`, the extension's `servers.json`, connection, and `totvs-developer-studio.rebuild.file` for each file).
+2. The skill picks the route: **B** (`node .claude/scripts/pth.mjs compile <files>`, no VS Code, login by the token the extension saved) when `.claude/scripts/pth.mjs` exists — creating `.claude/config/pth-settings.json` if missing — otherwise **A** (VS Code: verifying `TOTVS.tds-vscode`, the extension's `servers.json`, connection, and `totvs-developer-studio.rebuild.file` for each file).
 3. **Capture the result** from the compilation output.
 4. **Verify success:**
    - Route B: exit code `0` and a closing `resultado: SUCCESS n` (or `SKIPPED n` = unchanged) with no `ERROR`/`FATAL` (exit `4` = no saved login for that environment: ask the user to connect once in VS Code).
@@ -139,7 +139,7 @@ Follow [coding-principles.md](coding-principles.md):
 6. **After successful compilation (zero errors):**
    Ask the user:
    > "✅ Compilation completed successfully! Do you want to open SmartClient WebApp in the browser?"
-   > - **Yes** → open the URL in the format `http://<IP>:<PORT>/webapp`, using the server address shown by `node Scripts/pth.mjs info` (the `servidor` line, resolved from the extension's `servers.json` — house `.vscode/servers.json` or globe `~/.totvsls/servers.json`) (e.g., `http://192.168.10.163:32280/webapp`). Never `cat` `servers.json`: it holds the saved login tokens.
+   > - **Yes** → open the URL in the format `http://<IP>:<PORT>/webapp`, using the server address shown by `node .claude/scripts/pth.mjs info` (the `servidor` line, resolved from the extension's `servers.json` — house `.vscode/servers.json` or globe `~/.totvsls/servers.json`) (e.g., `http://192.168.10.163:32280/webapp`). Never `cat` `servers.json`: it holds the saved login tokens.
    >
    >   **Opening strategy (in order of preference):**
    >   1. **Builtin browser tool** (`open_browser_page`) — absolute preference when available in the agent.

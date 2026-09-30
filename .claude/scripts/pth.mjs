@@ -2,17 +2,17 @@
 // pth -- Protheus pela linha de comando, sem VS Code, sem ninguem clicando e
 // SEM SENHA EM ARQUIVO. Um arquivo so, o mesmo no Linux, macOS e Windows:
 //
-//   node Scripts/pth.mjs compile   [sufixo] [-r] [-e <alvo>]... [-a] <caminho>...
-//   node Scripts/pth.mjs query     [sufixo] [-e <alvo>] "<SQL>" | -f arquivo.sql  [rotulo] [segundos]
-//   node Scripts/pth.mjs exec      [sufixo] [-e <alvo>] <namespace.U_Funcao> [rotulo] [segundos] [arg...]
-//   node Scripts/pth.mjs servers                   servidores do servers.json (sem token)
-//   node Scripts/pth.mjs webagents [sufixo]        WebAgents instalados e qual serve
-//   node Scripts/pth.mjs info      [sufixo]        configuracao resolvida (sem token)
+//   node .claude/scripts/pth.mjs compile   [sufixo] [-r] [-e <alvo>]... [-a] <caminho>...
+//   node .claude/scripts/pth.mjs query     [sufixo] [-e <alvo>] "<SQL>" | -f arquivo.sql  [rotulo] [segundos]
+//   node .claude/scripts/pth.mjs exec      [sufixo] [-e <alvo>] <namespace.U_Funcao> [rotulo] [segundos] [arg...]
+//   node .claude/scripts/pth.mjs servers                   servidores do servers.json (sem token)
+//   node .claude/scripts/pth.mjs webagents [sufixo]        WebAgents instalados e qual serve
+//   node .claude/scripts/pth.mjs info      [sufixo]        configuracao resolvida (sem token)
 //
 // Requer Node.js 22 ou mais novo (WebSocket nativo).
 //
-// sufixo: Scripts/pth-settings.<sufixo>.json (um arquivo por servidor); sem ele
-// vale PTH_SETTINGS ou Scripts/pth-settings.json. <alvo>: um papel -- default,
+// sufixo: .claude/config/pth-settings.<sufixo>.json (um arquivo por servidor); sem ele
+// vale PTH_SETTINGS ou .claude/config/pth-settings.json. <alvo>: um papel -- default,
 // rest, workflow, job -- ou o nome de um ambiente do servidor.
 //
 // COMPILE. Usa o advpls da extensao TDS no mesmo modo em que a extensao o usa
@@ -54,7 +54,7 @@
 // "file:///c%3A/..."); servers.json global em %USERPROFILE%\.totvsls; WebAgent
 // em %LOCALAPPDATA%\Programs\web-agent (web-agent.exe ou webagent.exe).
 // >>> PARA O CLAUDE: nao afirme que este arquivo funciona no Windows antes de o
-// usuario rodar la: node Scripts\pth.mjs info / webagents / compile <fonte
+// usuario rodar la: node .claude\scripts\pth.mjs info / webagents / compile <fonte
 // pequeno, ambiente de teste> / query "SELECT ..." -- depois troque este
 // paragrafo por "Validado em Windows em <data>".
 //
@@ -65,7 +65,7 @@
 // PROTHEUS_CDP_PORT (padrao 9253), PROTHEUS_SQL_PATH.
 //
 // ---------------------------------------------------------------------------
-// SETTINGS (Scripts/pth-settings.json ou Scripts/pth-settings.<sufixo>.json)
+// SETTINGS (.claude/config/pth-settings.json ou .claude/config/pth-settings.<sufixo>.json)
 // guarda so o que NAO esta no servers.json -- nada de ip, porta, usuario,
 // senha ou includes:
 //
@@ -125,7 +125,12 @@ function falhar(msg, codigo) {
 // CONFIGURACAO: settings + servers.json + VS Code
 // =============================================================================
 
-const REPO = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+// Este arquivo mora em <projeto>/.claude/scripts/; os settings, em
+// <projeto>/.claude/config/. REPO e a raiz do projeto (a pasta aberta no VS
+// Code): e dela que saem .vscode/, os includes relativos e o perfil.
+const AQUI = dirname(fileURLToPath(import.meta.url));
+const REPO = resolve(AQUI, '..', '..');
+const CONFIG = resolve(AQUI, '..', 'config');
 const PAPEIS = ['default', 'rest', 'workflow', 'job'];
 
 class ErroConfig extends Error {}
@@ -165,8 +170,8 @@ function lerJson(arquivo, { jsonc = false } = {}) {
 
 // ---- Settings ------------------------------------------------------------------
 function caminhoSettings(sufixo) {
-  if (sufixo) return join(REPO, 'Scripts', `pth-settings.${sufixo}.json`);
-  return process.env.PTH_SETTINGS || join(REPO, 'Scripts', 'pth-settings.json');
+  if (sufixo) return join(CONFIG, `pth-settings.${sufixo}.json`);
+  return process.env.PTH_SETTINGS || join(CONFIG, 'pth-settings.json');
 }
 
 function lerSettings(arquivo) {
@@ -598,7 +603,7 @@ function resumo(settingsArquivo) {
 const SUFIXO_RE = /^[A-Za-z0-9][A-Za-z0-9_-]*$/;
 
 // Sufixo opcional como primeiro argumento do subcomando: nome simples ->
-// Scripts/pth-settings.<sufixo>.json; sem o arquivo, erro (nao queda silenciosa
+// .claude/config/pth-settings.<sufixo>.json; sem o arquivo, erro (nao queda silenciosa
 // no padrao). "ehSufixo" decide o caso ambiguo de cada subcomando.
 function tirarSufixo(args, ehSufixo) {
   if (args.length && SUFIXO_RE.test(args[0]) && ehSufixo(args[0])) {
@@ -611,10 +616,10 @@ function tirarSufixo(args, ehSufixo) {
 }
 
 function usoCompile(settingsArquivo) {
-  return `Uso: node Scripts/pth.mjs compile [sufixo] [opcoes] <caminho>...
+  return `Uso: node .claude/scripts/pth.mjs compile [sufixo] [opcoes] <caminho>...
 
-  sufixo      Scripts/pth-settings.<sufixo>.json. Sem ele: PTH_SETTINGS ou
-              Scripts/pth-settings.json. Tem que vir logo depois de "compile".
+  sufixo      .claude/config/pth-settings.<sufixo>.json. Sem ele: PTH_SETTINGS ou
+              .claude/config/pth-settings.json. Tem que vir logo depois de "compile".
   caminho     Arquivo ou pasta (pasta e varrida recursivamente; uma pasta com
               .tdscompileignore fica de fora, como na extensao).
 
@@ -1110,7 +1115,7 @@ async function cmdExec(o) {
       console.log(`webapp   : ${versaoWeb} -> WebAgent ${c.serie}.x (${c.versaoAgente ? `configurado: ${c.versaoAgente}` : 'configurado: ultima versao instalada, sem numero no caminho'})`);
       if (c.ok === false) {
         falha(`WebAgent ${c.versaoAgente} nao serve para o WebApp ${versaoWeb}: precisa de ${c.serie}.x.\n`
-          + `Troque o campo webagent em ${SETTINGS} (node Scripts/pth.mjs webagents mostra qual serve).`);
+          + `Troque o campo webagent em ${SETTINGS} (node .claude/scripts/pth.mjs webagents mostra qual serve).`);
       }
     } else {
       console.log('webapp   : versao nao lida -- segue sem conferir o WebAgent');
@@ -1355,10 +1360,10 @@ function lerOpcoesExec(args, aceitaF) {
   return { alvo, arquivoSql };
 }
 
-const USO_EXEC = `Uso: node Scripts/pth.mjs exec [sufixo] [-e <alvo>] <namespace.U_Funcao> [rotulo] [segundos] [arg...]
+const USO_EXEC = `Uso: node .claude/scripts/pth.mjs exec [sufixo] [-e <alvo>] <namespace.U_Funcao> [rotulo] [segundos] [arg...]
   Roda a funcao pelo WebApp headless. rotulo nomeia o screenshot (modo direto);
   segundos e o limite (padrao 180). Cada arg vira um &A= da URL.
-  sufixo so e reconhecido se Scripts/pth-settings.<sufixo>.json existir (uma
+  sufixo so e reconhecido se .claude/config/pth-settings.<sufixo>.json existir (uma
   funcao sem namespace, como U_TESTE, tambem e um nome simples).`;
 
 async function cmdExecCli(args) {
@@ -1379,8 +1384,8 @@ const FUNCAO_CONSULTA = 'Gworks.Templates.ConsultaSql.Apps.U_ConsultaSqlPostCons
 // Unix; no Windows, a temp do usuario (GetTempPath() do AdvPL = os.tmpdir()).
 const TEMP_CLIENTE = process.platform === 'win32' ? tmpdir() : '/tmp';
 
-const USO_QUERY = `Uso: node Scripts/pth.mjs query [sufixo] [-e <alvo>] "<SQL>" [rotulo] [segundos]
-     node Scripts/pth.mjs query [sufixo] [-e <alvo>] -f arquivo.sql [rotulo] [segundos]
+const USO_QUERY = `Uso: node .claude/scripts/pth.mjs query [sufixo] [-e <alvo>] "<SQL>" [rotulo] [segundos]
+     node .claude/scripts/pth.mjs query [sufixo] [-e <alvo>] -f arquivo.sql [rotulo] [segundos]
   Somente SELECT/WITH (seguido de espaco). Resultado em ${join(TEMP_CLIENTE, 'consultasql-retorno.json')}.`;
 
 async function cmdQuery(args) {
@@ -1427,7 +1432,7 @@ async function cmdWebAgents(args) {
   console.log(listarWebAgents(ctx));
 }
 
-const AJUDA = `pth -- Protheus pela linha de comando (Node.js 22+). Uso: node Scripts/pth.mjs <subcomando> ...
+const AJUDA = `pth -- Protheus pela linha de comando (Node.js 22+). Uso: node .claude/scripts/pth.mjs <subcomando> ...
 
   compile   [sufixo] [-r] [-e <alvo>]... [-a] <caminho>...     compila (login pelo token do VS Code)
   query     [sufixo] [-e <alvo>] "<SQL>" | -f arquivo.sql       SELECT/WITH pelo template ConsultaSql
@@ -1436,7 +1441,7 @@ const AJUDA = `pth -- Protheus pela linha de comando (Node.js 22+). Uso: node Sc
   webagents [sufixo]                                            WebAgents instalados e qual serve
   info      [sufixo]                                            configuracao resolvida (sem token)
 
-  <subcomando> -h mostra os detalhes. sufixo: Scripts/pth-settings.<sufixo>.json.`;
+  <subcomando> -h mostra os detalhes. sufixo: .claude/config/pth-settings.<sufixo>.json.`;
 
 // =============================================================================
 // MAIN
