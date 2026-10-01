@@ -44,6 +44,8 @@ Processa a Liberação de Itens do Pedido de Venda.
             "aEmpenho": <array>
         }
     }
+@obs O Pedido e o da filial corrente (xFilial("SC5"), que segue o cFilAnt): para liberar Pedido de
+     outra filial, trocar o cFilAnt antes da chamada, pois o MaLibDoFat tambem grava pelo xFilial.
 /*/
 User Function GwPedidoVendaLiberar( cPedido as character, cItens as character, jParams as json )
 
@@ -120,7 +122,9 @@ User Function GwPedidoVendaLiberar( cPedido as character, cItens as character, j
     dbSelectArea("SC6")
 
     // Posiciona no Pedido de Venda
-    if( SC5->C5_NUM != cPedido )
+    // Obs.: confere Filial+Numero; so o numero aceitava a SC5 posicionada no Pedido de mesmo numero de
+    //       outra filial, e o laco dos itens (C6_FILIAL+C6_NUM == C5_FILIAL+C5_NUM) nao liberava nada
+    if( SC5->(C5_FILIAL+C5_NUM) != xFilial("SC5")+cPedido )
         SC5->(dbSetOrder(retOrder(,"C5_FILIAL+C5_NUM")))
         if!( SC5->(msSeek(xFilial("SC5")+cPedido)) )
             U_GwThrowError('The value "'+ cPedido +'" was not found on SC5 alias!')
