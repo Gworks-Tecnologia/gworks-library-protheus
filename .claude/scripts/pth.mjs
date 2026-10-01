@@ -98,7 +98,7 @@
 // ambientes, includes e o token de conexao.
 // ---------------------------------------------------------------------------
 
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import {
   existsSync, mkdtempSync, readdirSync, readFileSync, realpathSync, statSync, unlinkSync, writeFileSync,
 } from 'node:fs';
@@ -1072,8 +1072,36 @@ async function cmdExec(o) {
     await avaliar(`localStorage.setItem('desktopagentport', '${porta}'); true`);
   }
 
+  // SEM AUTO-UPDATE DO WEBAGENT. O settings.json do WebApp traz "agentConfig"
+  // (versao e instaladores do WebAgent). Com ele, a pagina manda o agente se
+  // ATUALIZAR antes de abrir o programa e so segue quando a atualizacao termina
+  // -- que pede a senha de administrador numa janela na tela do usuario e, sem
+  // resposta, nunca termina: o programa nao roda e a espera acaba em "nada em".
+  // No navegador descartavel do script a chave sai da resposta, e vale a versao
+  // configurada em "webagent". O navegador do usuario nao e tocado.
+  // cmd(metodo, params) envia ao CDP; devolve o tratador do evento Fetch.requestPaused.
+  async function semAtualizacaoDoAgente(cmd) {
+    await cmd('Fetch.enable', { patterns: [{ urlPattern: '*/webapp/settings.json*', requestStage: 'Response' }] });
+    return async ({ requestId, responseStatusCode, responseHeaders = [] }) => {
+      try {
+        const r = await cmd('Fetch.getResponseBody', { requestId });
+        const json = JSON.parse(r.base64Encoded ? Buffer.from(r.body, 'base64').toString('utf8') : r.body);
+        delete json.agentConfig;
+        await cmd('Fetch.fulfillRequest', {
+          requestId, responseCode: responseStatusCode || 200,
+          responseHeaders: responseHeaders.filter(h => !/^content-(length|encoding)$/i.test(h.name)),
+          body: Buffer.from(JSON.stringify(json)).toString('base64'),
+        });
+      } catch {
+        await cmd('Fetch.continueRequest', { requestId });
+      }
+    };
+  }
+
   // Pagina aberta num navegador com CDP: devolve navegar/avaliar da primeira aba.
   // Tenta 127.0.0.1 e [::1] -- o navegador escuta num ou noutro, conforme a versao.
+  // A conexao tem de ficar aberta enquanto a pagina roda: e por ela que o
+  // settings.json chega sem o agentConfig (semAtualizacaoDoAgente).
   async function abrirAba(porta, tentativas = 60) {
     for (let i = 0; i < tentativas; i++) {
       for (const host of ['127.0.0.1', '[::1]']) {
@@ -1082,9 +1110,14 @@ async function cmdExec(o) {
           if (!alvo) continue;
           const sock = new WebSocket(alvo.webSocketDebuggerUrl.replace(/^ws:\/\/[^/]+/, `ws://${host}:${porta}`));
           await new Promise((ok, erro) => { sock.onopen = ok; sock.onerror = erro; });
-          let n = 0; const pend = new Map();
-          sock.onmessage = e => { const m = JSON.parse(e.data); if (m.id && pend.has(m.id)) { pend.get(m.id)(m.result); pend.delete(m.id); } };
+          let n = 0, pausado = null; const pend = new Map();
+          sock.onmessage = e => {
+            const m = JSON.parse(e.data);
+            if (m.id && pend.has(m.id)) { pend.get(m.id)(m.result); pend.delete(m.id); }
+            else if (m.method === 'Fetch.requestPaused' && pausado) pausado(m.params);
+          };
           const cmd = (method, params = {}) => new Promise(r => { const k = ++n; pend.set(k, r); sock.send(JSON.stringify({ id: k, method, params })); });
+          pausado = await semAtualizacaoDoAgente(cmd);
           return {
             navegar: url => cmd('Page.navigate', { url }),
             avaliar: async expr => (await cmd('Runtime.evaluate', { expression: expr, returnByValue: true }))?.result?.value,
@@ -1165,9 +1198,10 @@ async function cmdExec(o) {
     const aba = urlLaunch && portaLaunch ? await abrirAba(PORT) : null;
     if (aba) {
       await ligarAgenteLocal(aba.navegar, aba.avaliar, portaLaunch);
+      // A aba NAO e fechada aqui: a conexao CDP segue tirando o agentConfig do
+      // settings.json enquanto o programa roda. O encerrar fecha o navegador.
       await aba.navegar(urlLaunch);
-      aba.fechar();
-      console.log(`agente   : porta ${portaLaunch} (Agente Local ligado)`);
+      console.log(`agente   : porta ${portaLaunch} (Agente Local ligado; sem auto-update do WebAgent)`);
     } else {
       console.log('agente   : nao foi possivel ligar o Agente Local (URL do launch ou CDP indisponivel)');
     }
@@ -1188,6 +1222,12 @@ async function cmdExec(o) {
         } catch {}
       }
       try { process.kill(agente.pid); } catch {}
+      // O agente que atende a pagina NAO e o processo do launch: o launch o abre
+      // pelo link web-agent:, e ele roda como "web-agent web-agent:?port=<porta>".
+      // So o desta porta (aleatoria, desta execucao) -- nunca o do usuario.
+      if (portaLaunch && process.platform !== 'win32') {
+        try { spawnSync('pkill', ['-f', `web-agent:\\?port=${portaLaunch}$`]); } catch {}
+      }
       process.exit(codigo);
     };
 
@@ -1196,10 +1236,26 @@ async function cmdExec(o) {
       await sleep(LIMITE);
       await encerrar(0);
     }
+    // O arquivo NASCE antes do conteudo: a gravacao pelo WebAgent cria o arquivo
+    // e so depois escreve. Encerrar no primeiro sinal fecha navegador e agente no
+    // meio da escrita e deixa um retorno de 0 bytes (visto em 2026-09-30: a mesma
+    // consulta, repetida, voltou inteira). Espera o tamanho parar de mudar, com
+    // conteudo, ate 15 s; 0 bytes depois disso e o que a rotina gravou.
+    const tamanhoEstavel = async arq => {
+      let antes = -1;
+      for (const t = Date.now(); Date.now() - t < 15000; await sleep(500)) {
+        let agora = -1; try { agora = statSync(arq).size; } catch {}
+        if (agora > 0 && agora === antes) return agora;
+        antes = agora;
+      }
+      try { return statSync(arq).size; } catch { return -1; }
+    };
+
     const t0 = Date.now();
     while (Date.now() - t0 < LIMITE) {
       if (existsSync(espera)) {
-        console.log(`\nretorno  : ${espera} (${((Date.now() - t0) / 1000).toFixed(1)}s)`);
+        const bytes = await tamanhoEstavel(espera);
+        console.log(`\nretorno  : ${espera} (${bytes} bytes, ${((Date.now() - t0) / 1000).toFixed(1)}s)`);
         await encerrar(0);
       }
       await sleep(1000);

@@ -170,7 +170,7 @@ The same `node .claude\scripts\pth.mjs …` (Node.js 22+ in the PATH; no PowerSh
 | `Ambiente desconhecido: X` | `-e X` is neither a role nor an environment of the server | Fix the typo |
 | `O papel "rest" nao esta configurado` | `env_rest` is empty | Fill it or pick another target |
 | `advpls nao encontrado` | TDS extension not installed | Install/update `TOTVS.tds-vscode`, or `ADVPLS=<path>` |
-| `node nao encontrado` | Node.js missing | Install Node.js 20+ |
+| `node nao encontrado` / `pth.mjs requer Node.js 22 ou mais novo` | Node.js missing or older than 22 | Install Node.js 22+ (on Ubuntu, a second Node from nvm or snap may shadow it in non-interactive shells: `which -a node`) |
 | `COMPILEERROR-300 Failed to open repository` | RPO locked ~30 s after a session closed | Already retried 3×; if it persists another session/service holds the RPO — tell the user |
 | `Token de RPO expirado` | The AppServer requires a compile token and the saved one expired | Renew it in the extension (*RPO Token* in the status bar) |
 | Garbled characters / invalid-character errors | Source is UTF-8 | `utf8-to-cp1252-conversion`, recompile |
