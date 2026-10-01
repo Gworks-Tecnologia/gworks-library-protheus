@@ -3,6 +3,7 @@
 // SEM SENHA EM ARQUIVO. Um arquivo so, o mesmo no Linux, macOS e Windows:
 //
 //   node .claude/scripts/pth.mjs compile   [sufixo] [-r] [-e <alvo>]... [-a] <caminho>...
+//   node .claude/scripts/pth.mjs patch     [sufixo] [-e <alvo>] [-o <pasta>] [-n <nome>] [-l <txt>] [-c] [-f] <arquivo|pasta|NOME.EXT>...
 //   node .claude/scripts/pth.mjs query     [sufixo] [-e <alvo>] "<SQL>" | -f arquivo.sql  [rotulo] [segundos]
 //   node .claude/scripts/pth.mjs exec      [sufixo] [-e <alvo>] <namespace.U_Funcao> [rotulo] [segundos] [arg...]
 //   node .claude/scripts/pth.mjs servers                   servidores do servers.json (sem token)
@@ -100,7 +101,7 @@
 
 import { spawn, spawnSync } from 'node:child_process';
 import {
-  existsSync, mkdtempSync, readdirSync, readFileSync, realpathSync, statSync, unlinkSync, writeFileSync,
+  existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, statSync, unlinkSync, writeFileSync,
 } from 'node:fs';
 import http from 'node:http';
 import https from 'node:https';
@@ -964,6 +965,300 @@ async function cmdCompile(args) {
 }
 
 // =============================================================================
+// PATCH: gera patch (.ptm) a partir do RPO, como a extensao TDS
+// =============================================================================
+//
+// Engenharia reversa da extensao TOTVS.tds-vscode (2.1.4, out/extension.js e
+// out/patch/*): os tres caminhos de geracao terminam no MESMO pedido ao advpls,
+//   $totvsserver/patchGenerate { patchGenerateInfo: { connectionToken,
+//     authorizationToken, environment, patchMaster: "", patchDest: <URI file://
+//     da pasta de destino>, isLocal: true, patchType: 3, name: <nome ou "">,
+//     patchFiles: [<nomes dos programas NO RPO>] } }
+//   - "Gerar patch (a partir do RPO)": a tela lista o RPO
+//     ($totvsserver/inspectorObjects, includeTres: true; cada linha
+//     "NOME (data) XY") e manda o NOME das linhas escolhidas. O "Importar" le um
+//     .txt: uma linha por fonte, "#" comenta, vale so o basename.
+//   - "Gerar patch (a partir da pasta)" (menu da pasta no explorer): varre a
+//     pasta (pula a que tem .tdspatchignore e os nomes da lista de ignorados
+//     da extensao), pergunta se compila tudo antes e manda o BASENAME de cada
+//     arquivo.
+//   - "Gerar patch por diferenca": patchMaster = RPO mestre, patchFiles vazio
+//     (nao implementado aqui).
+// O patch sai do RPO, nao do arquivo local: fonte nao compilado (ou compilado
+// em outro ambiente) fica de fora ou vai na versao velha. Por isso aqui cada
+// nome e conferido no RPO antes (data de compilacao na saida) e, com -c, os
+// arquivos locais sao compilados antes no mesmo ambiente. Depois de gerar, o
+// conteudo do .ptm e lido de volta ($totvsserver/patchInfo) e listado.
+
+// Nomes que a extensao ignora ao varrer a pasta (lista Bt de out/extension.js).
+const IGNORADOS_TDS = [/(.*)?(\.vscode)$/i, /(.+)(\.erx_)$/i, /(.+)(\.ppx_)$/i, /(.+)(\.err)$/i,
+  /(.*)?(#.*#)$/i, /(.*)?(\.#*)$/i, /(.*)?(%.*%)$/i, /(.*)?(\._.*)$/i, /(.*)?(CVS)$/i, /(.*)?(\.cvsignore)$/i,
+  /(.*)?(SCCS)$/i, /(.*)?(vssver\.scc)$/i, /(.*)?(\.svn)$/i, /(.*)?(\.DS_Store)$/i, /(.*)?(\.git)$/i,
+  /(.*)?(\.gitattributes)$/i, /(.*)?(\.gitignore)$/i, /(.*)?(\.gitmodules)$/i, /(.*)?(\.hg)$/i,
+  /(.*)?(\.hgignore)$/i, /(.*)?(\.hgsub)$/i, /(.*)?(\.hgsubstate)$/i, /(.*)?(\.hgtags)$/i, /(.*)?(\.bzr)$/i,
+  /(.*)?(\.bzrignore)$/i];
+const PATCH_TIPO_PTM = 3; // o unico tipo que a extensao usa
+const NOME_RPO_RE = /^[^\\/]+\.[A-Za-z0-9]+$/;
+
+function usoPatch(settingsArquivo) {
+  return `Uso: node .claude/scripts/pth.mjs patch [sufixo] [opcoes] <arquivo|pasta|NOME.EXT>...
+
+  sufixo      .claude/config/pth-settings.<sufixo>.json (logo depois de "patch").
+  arquivo     Arquivo local: entra pelo nome (basename) -- o conteudo vem do RPO.
+  pasta       Varrida recursivamente como na extensao: pasta com .tdspatchignore
+              fica de fora, e os ignorados da extensao (.git, .vscode, *.err...).
+              So entram as extensoes de totvsLanguageServer.folder.extensionsAllowed.
+  NOME.EXT    Programa do RPO pelo nome, sem arquivo local (ex.: MATA410.PRX).
+
+Opcoes:
+  -e <alvo>   Ambiente (RPO) de onde sai o patch: papel (default, rest,
+              workflow, job) ou nome do ambiente. Sem -e: default
+  -o <pasta>  Pasta de destino do .ptm (criada se nao existir).
+              Padrao: ${join(tmpdir(), 'pth-patches')}
+  -n <nome>   Nome do patch (sem -n: o nome padrao do servidor)
+  -l <txt>    Lista de fontes, como o "Importar" da extensao: uma por linha,
+              "#" comenta, vale o basename. Pode repetir
+  -c          Compila antes os arquivos locais informados, no mesmo ambiente
+              (compile -e <alvo>); erro de compilacao cancela o patch
+  -f          Gera mesmo se algum nome nao estiver no RPO (sem -f, cancela)
+  -h          Esta ajuda
+
+Saida: 0 patch gerado; 1 falha (nome fora do RPO, compilacao, geracao); 2 uso;
+3 configuracao; 4 sem token ou token recusado (conectar de novo no VS Code).
+
+${resumo(settingsArquivo)}`;
+}
+
+// Varredura da pasta como o readFiles (vk) da extensao.
+function varrerPastaPatch(pasta, saida, ignorados) {
+  if (existsSync(join(pasta, '.tdspatchignore'))) { ignorados.push(`${pasta} (.tdspatchignore)`); return; }
+  for (const n of readdirSync(pasta)) {
+    const p = join(pasta, n);
+    if (IGNORADOS_TDS.some(r => r.test(n))) { ignorados.push(p); continue; }
+    if (statSync(p).isDirectory()) varrerPastaPatch(p, saida, ignorados);
+    else saida.push(p);
+  }
+}
+
+async function cmdPatch(args) {
+  const SETTINGS = tirarSufixo(args, a => !existsSync(a));
+
+  let alvo = 'default', destino = join(tmpdir(), 'pth-patches'), nomePatch = '', compilar = false, forcar = false;
+  const listas = [], itens = [];
+  for (let i = 0; i < args.length; i++) {
+    const a = args[i];
+    if (itens.length || !a.startsWith('-') || a === '-') { itens.push(a); continue; }
+    if (a === '--') { itens.push(...args.slice(i + 1)); break; }
+    const valor = () => { const v = args[++i]; if (!v) falhar(`Opcao ${a} exige valor`, 2); return v; };
+    switch (a) {
+      case '-e': alvo = valor(); break;
+      case '-o': destino = resolve(valor()); break;
+      case '-n': nomePatch = valor(); break;
+      case '-l': listas.push(valor()); break;
+      case '-c': compilar = true; break;
+      case '-f': forcar = true; break;
+      case '-h': console.log(usoPatch(SETTINGS)); process.exit(0); break;
+      default: falhar(`Opcao invalida: ${a}\n\n${usoPatch(SETTINGS)}`, 2);
+    }
+  }
+  if (!itens.length && !listas.length) falhar('Informe o que vai no patch: arquivo(s), pasta(s), NOME.EXT ou -l lista.txt. patch -h para ajuda.', 2);
+
+  let settings, servidor, amb;
+  try {
+    settings = lerSettings(SETTINGS);
+    servidor = lerServidor(settings);
+    amb = resolverAmbiente(settings, servidor, alvo);
+  } catch (e) {
+    if (e instanceof ErroConfig) falhar(e.message, 3);
+    throw e;
+  }
+
+  // ---- O que vai no patch: nomes (basename) + arquivos locais (para o -c)
+  const EXT = extensoesPermitidas();
+  const permitido = f => !EXT.filtro || EXT.lista.includes(extname(f).toUpperCase());
+  const locais = [], nomes = [], ignorados = [], foraDaLista = [];
+  const origem = new Map(); // NOME -> arquivos locais com esse nome (o RPO so guarda um)
+  const juntarNome = (n, arquivo) => {
+    const k = n.toUpperCase();
+    if (arquivo) origem.set(k, [...(origem.get(k) || []), arquivo]);
+    if (!nomes.some(x => x.toUpperCase() === k)) nomes.push(n);
+  };
+  for (const it of itens) {
+    const abs = resolve(it);
+    if (existsSync(abs)) {
+      const achados = [];
+      if (statSync(abs).isDirectory()) varrerPastaPatch(abs, achados, ignorados);
+      else achados.push(abs);
+      for (const f of achados) {
+        if (!permitido(f)) { foraDaLista.push(f); continue; }
+        locais.push(f);
+        juntarNome(basename(f), f);
+      }
+    } else if (NOME_RPO_RE.test(it)) {
+      juntarNome(it);
+    } else {
+      falhar(`Caminho nao encontrado (e nao parece NOME.EXT do RPO): ${it}`, 2);
+    }
+  }
+  for (const l of listas) {
+    if (!existsSync(l)) falhar(`Lista nao encontrada: ${l}`, 2);
+    readFileSync(l, 'utf8').split(/\r?\n/).forEach(linha => {
+      linha = linha.trim();
+      if (linha && !linha.startsWith('#')) juntarNome(basename(linha.replace(/\\/g, '/')));
+    });
+  }
+  if (ignorados.length) console.log(`ignorados (regra da extensao): ${ignorados.length}`);
+  // Mesmo nome em pastas diferentes: no RPO e um programa so (o ultimo compilado vence), e o patch
+  // leva esse um. Avisa para alguem decidir qual arquivo vale.
+  for (const [k, arqs] of origem) {
+    if (arqs.length > 1) console.log(`AVISO nome repetido ${k} -- o RPO guarda um so:
+${arqs.map(a => `    ${a}`).join('\n')}`);
+  }
+  if (foraDaLista.length) {
+    const porExt = {};
+    foraDaLista.forEach(f => { const x = extname(f).toUpperCase() || '(sem extensao)'; porExt[x] = (porExt[x] || 0) + 1; });
+    console.log(`fora da lista de extensoes (nao vao no patch): ${Object.entries(porExt).map(([x, n]) => `${x} ${n}`).join(', ')}`);
+  }
+  if (!nomes.length) falhar('Nada para o patch nos caminhos informados.', 2);
+
+  // ---- -c: compila antes, pelo proprio compile (mesmo settings e ambiente)
+  if (compilar) {
+    if (!locais.length) falhar('-c sem arquivo local para compilar (so nomes do RPO).', 2);
+    console.log(`=== compilando ${locais.length} arquivo(s) em ${amb} antes do patch ===`);
+    const r = spawnSync(process.execPath, [fileURLToPath(import.meta.url), 'compile', '-e', amb, ...locais],
+      { stdio: 'inherit', env: { ...process.env, PTH_SETTINGS: SETTINGS } });
+    if (r.status !== 0) falhar(`Compilacao falhou (exit ${r.status}): patch cancelado.`, r.status === 4 ? 4 : 1);
+    console.log('');
+  }
+
+  const ADVPLS = acharAdvpls();
+  if (!ADVPLS || !existsSync(ADVPLS)) {
+    falhar(`advpls nao encontrado${ADVPLS ? ` em ${ADVPLS}` : ' na extensao TDS (~/.vscode/extensions/totvs.tds-vscode-*)'}.`, 3);
+  }
+
+  console.log(`servidor : ${servidor.nome} ${servidor.endereco}:${servidor.porta} (${amb})`);
+  console.log(`itens    : ${nomes.length}`);
+  console.log(`destino  : ${destino}`);
+  console.log('');
+
+  const salvo = servidor.token(amb);
+  if (!salvo) {
+    console.log(`Sem token salvo para ${servidor.nome} no ambiente ${amb}.`);
+    console.log('Conecte uma vez pelo VS Code (TOTVS > Servers > servidor > ambiente) e rode de novo.');
+    process.exit(4);
+  }
+
+  const lsp = new Lsp(ADVPLS);
+  lsp.aoLog = (tipo, texto) => { if (tipo <= 2 || process.env.PTH_DEBUG) console.log(texto); };
+  let codigo = 0;
+  try {
+    await lsp.iniciar();
+    let conexao;
+    try {
+      const r = await lsp.pedir('$totvsserver/reconnect', {
+        reconnectInfo: { connectionToken: salvo, serverName: servidor.nome, connType: 3 },
+      }, 120000);
+      conexao = r && r.connectionToken;
+    } catch (e) {
+      console.log(`Falha ao reconectar: ${e.message}`);
+    }
+    if (!conexao) {
+      console.log(`O token salvo de ${servidor.nome}/${amb} nao foi aceito (invalido, expirado ou senha trocada).`);
+      console.log('Conecte de novo pelo VS Code nesse ambiente e rode de novo.');
+      codigo = 4;
+      return;
+    }
+
+    // ---- Confere cada nome no RPO (e mostra a data de compilacao)
+    const insp = await lsp.pedir('$totvsserver/inspectorObjects', {
+      inspectorObjectsInfo: { connectionToken: conexao, environment: amb, includeTres: true },
+    }, 300000);
+    if (!insp || insp.message !== 'Success' || !Array.isArray(insp.objects)) {
+      console.log(`Nao consegui listar o RPO: ${(insp && insp.message) || 'sem resposta'}`);
+      codigo = 1;
+      return;
+    }
+    const noRpo = new Map();
+    for (const linha of insp.objects) {
+      const m = /(.*)\s\((.*)\)\s(.)(.)/.exec(String(linha));
+      const nome = (m ? m[1] : String(linha)).trim();
+      noRpo.set(nome.toUpperCase(), { nome, data: m ? m[2] : '' });
+    }
+    const vao = [], faltam = [];
+    for (const n of nomes) {
+      const o = noRpo.get(n.toUpperCase());
+      if (o) vao.push(o); else faltam.push(n);
+    }
+    for (const o of vao) console.log(`  RPO  ${o.nome.padEnd(48)} ${o.data}`);
+    for (const n of faltam) console.log(`  FORA ${n.padEnd(48)} (nao esta no RPO de ${amb})`);
+    console.log('');
+    if (faltam.length && !forcar) {
+      console.log(`${faltam.length} item(ns) fora do RPO: patch NAO gerado. Compile-os em ${amb} (ou use -c), `
+        + 'ou rode com -f para gerar sem eles.');
+      codigo = 1;
+      return;
+    }
+    if (!vao.length) { console.log('Nenhum item no RPO: nada a gerar.'); codigo = 1; return; }
+
+    // ---- Gera
+    mkdirSync(destino, { recursive: true });
+    const antes = new Map(readdirSync(destino).map(f => [f, statSync(join(destino, f)).mtimeMs]));
+    const res = await lsp.pedir('$totvsserver/patchGenerate', {
+      patchGenerateInfo: {
+        connectionToken: conexao, authorizationToken: servidor.tokenDeRpo(), environment: amb,
+        patchMaster: '', patchDest: pathToFileURL(destino).href, isLocal: true,
+        patchType: PATCH_TIPO_PTM, name: nomePatch, patchFiles: vao.map(o => o.nome),
+      },
+    }, 600000);
+    if (process.env.PTH_DEBUG) console.log(`patchGenerate: ${JSON.stringify(res)}`);
+    if (res && res.returnCode === 40840) {
+      console.log('Token de RPO expirado: renove-o na extensao TDS (RPO Token).');
+      codigo = 1;
+      return;
+    }
+    const novos = readdirSync(destino).filter(f => {
+      const t = statSync(join(destino, f)).mtimeMs;
+      return !antes.has(f) || antes.get(f) !== t;
+    });
+    if (!novos.length) {
+      console.log(`O servidor nao gerou arquivo em ${destino}.${res && res.message ? ` Retorno: ${res.message}` : ''}`);
+      codigo = 1;
+      return;
+    }
+
+    // ---- Le de volta o conteudo do patch
+    for (const f of novos) {
+      const caminho = join(destino, f);
+      console.log(`patch    : ${caminho} (${statSync(caminho).size} bytes)`);
+      try {
+        const inf = await lsp.pedir('$totvsserver/patchInfo', {
+          patchInfoInfo: {
+            connectionToken: conexao, authorizationToken: servidor.tokenDeRpo(), environment: amb,
+            patchUri: pathToFileURL(caminho).href, isLocal: true,
+          },
+        }, 120000);
+        const lista = (inf && Array.isArray(inf.patchInfos)) ? inf.patchInfos : [];
+        console.log(`conteudo : ${lista.length} programa(s)`);
+        for (const p of lista) {
+          console.log(`  ${String(p.name ?? p.nome ?? '').padEnd(48)} ${p.date ?? p.data ?? ''}${p.type ? `  ${p.type}` : ''}`);
+        }
+      } catch (e) {
+        // DBGCpyFile error = o servidor nao recebeu o .ptm para ler (visto no Peroba, ate em patch
+        // pequeno). O patch esta gerado; a leitura e so conferencia.
+        console.log(`  (nao consegui ler o conteudo: ${e.message} -- o patch foi gerado; confira pelo VS Code se precisar)`);
+      }
+    }
+  } catch (e) {
+    console.error(`Falha no advpls: ${e.message}`);
+    if (process.env.PTH_DEBUG && lsp.stderr) console.error(lsp.stderr);
+    codigo = codigo || 3;
+  } finally {
+    await lsp.encerrar();
+    process.exit(codigo);
+  }
+}
+
+// =============================================================================
 // EXEC: User Function pelo WebApp, headless
 // =============================================================================
 
@@ -1491,6 +1786,7 @@ async function cmdWebAgents(args) {
 const AJUDA = `pth -- Protheus pela linha de comando (Node.js 22+). Uso: node .claude/scripts/pth.mjs <subcomando> ...
 
   compile   [sufixo] [-r] [-e <alvo>]... [-a] <caminho>...     compila (login pelo token do VS Code)
+  patch     [sufixo] [-e <alvo>] [-o <pasta>] [-c] <itens>...   gera patch .ptm do RPO (arquivo, pasta ou NOME.EXT)
   query     [sufixo] [-e <alvo>] "<SQL>" | -f arquivo.sql       SELECT/WITH pelo template ConsultaSql
   exec      [sufixo] [-e <alvo>] <namespace.U_Funcao> [...]     roda uma User Function pelo WebApp
   servers                                                       servidores do servers.json (sem token)
@@ -1506,6 +1802,7 @@ const AJUDA = `pth -- Protheus pela linha de comando (Node.js 22+). Uso: node .c
 const [SUB, ...ARGV] = process.argv.slice(2);
 switch (SUB) {
   case 'compile': await cmdCompile(ARGV); break;
+  case 'patch': await cmdPatch(ARGV); break;
   case 'query': await cmdQuery(ARGV); break;
   case 'exec': await cmdExecCli(ARGV); break;
   case 'servers': console.log(listarServidores()); break;
