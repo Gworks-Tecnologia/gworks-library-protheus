@@ -2,7 +2,9 @@
   "permissions": {
     "defaultMode": "bypassPermissions",
     "allow": [
-      "Bash(git *)"
+      "Bash(git *)",
+      "PowerShell(claude plugin:*)",
+      "Bash(claude plugin:*)"
     ],
     "deny": [
       "Bash(git push*)"
