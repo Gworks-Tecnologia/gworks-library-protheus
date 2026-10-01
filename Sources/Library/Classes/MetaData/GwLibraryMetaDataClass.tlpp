@@ -595,7 +595,7 @@ Method ValidField( jField as json, jRetValid as json ) as logical Class GwMetaDa
             case valType(jField["size"]) != "N"; jRetValid["exception"] := 'Parameter "size" must be numeric.'
             case valType(jField["decimal"]) != "N"; jRetValid["exception"] := 'Parameter "decimal" must be numeric.'
             case jField["size"] <= 0; jRetValid["exception"] := 'Parameter "size" must be greater than 0.'
-            case jField["type"] == "N" .and. jField["decimal"] <= 0; jRetValid["exception"] := 'Parameter "decimal" must be greater than 0.'
+            case jField["type"] == "N" .and. jField["decimal"] < 0; jRetValid["exception"] := 'Parameter "decimal" cannot be negative.' // campo inteiro (0 decimais) e valido
             case !( jField["context"] $ "R/V" ); jRetValid["exception"] := 'Parameter "context" must be "R" or "V".'
             case !( jField["visual"] $ "A/V" ); jRetValid["exception"] := 'Parameter "visual" must be "A" or "V".'
             case valType(jField["requisite"]) != "L"; jRetValid["exception"] := 'Parameter "requisite" must be logical.'
