@@ -235,7 +235,7 @@ Method SetFieldBranch( cAlias as character ) Class GwMetaData
     jDefaults := JsonObject():New()
         jDefaults["X3_RESERV"] := STR_X3RESERV_FILIAL
         jDefaults["X3_CHECK"] :=  STR_SPACE
-        jDefaults["X3_TRIGGER"] := "U"
+        jDefaults["X3_TRIGGER"] := STR_SPACE
         jDefaults["X3_PROPRI"] := "U"
         jDefaults["X3_PICTVAR"] := STR_SPACE
         jDefaults["X3_GRPSXG"] := "033"
@@ -478,7 +478,7 @@ Method AddField( jField as json, xDefaults as variant ) Class GwMetaData
     endif
 
     if jValid["exists"]
-        UserException("GwMetaData:AddTable - " + jValid["exception"])
+        UserException("GwMetaData:AddField - " + jValid["exception"])
     endif
 
     if( aScan( aNames, "combo_box" ) == 0 )
@@ -723,11 +723,9 @@ Method ValidIndex( jIndex as json, jRetValid as json ) as logical Class GwMetaDa
         return .F.
     endif
 
-    if( ::SeekAttr( "folders", "INDICE", jIndex["alias"] ) .and. ;
-        ::SeekAttr( "folders", "ORDEM", jIndex["order"] ) .and. ;
-        ::SeekAttr( "folders", "CHAVE", jIndex["key"] ) )
+    if( aScan( ::jMetaData["indexes"], {|x| x["INDICE"] == jIndex["alias"] .and. x["ORDEM"] == jIndex["order"] } ) > 0 )
         jRetValid["exists"] := .T.
-        jRetValid["exception"] := 'Parameters "alias;order;key" already added in this metadata instance.'
+        jRetValid["exception"] := 'Parameters "alias;order" already added in this metadata instance.'
         return .F.
     endif
 
@@ -776,10 +774,10 @@ Method AddFolder( jFolder as json ) Class GwMetaData
         jSxA["XA_DESCSPA"] := iif( aScan(aNames, "name_sp") > 0, jFolder["name_sp"], jFolder["name"] )
         jSxA["XA_DESCENG"] := iif( aScan(aNames, "name_eng") > 0, jFolder["name_eng"], jFolder["name"] )
         jSxA["XA_PROPRI"] := "U"
-        jSxA["XA_AGRUP"] := jFolder["mvc_group_code"]
-        jSxA["XA_TIPO"] := jFolder["mvc_group_type"]
+        jSxA["XA_AGRUP"] := iif( aScan(aNames, {|x| x=="mvc_group_code" }) > 0, jFolder["mvc_group_code"], STR_SPACE )
+        jSxA["XA_TIPO"] := iif( aScan(aNames, {|x| x=="mvc_group_type" }) > 0, jFolder["mvc_group_type"], STR_SPACE )
 
-    aAdd(::jMetaData["fields"], jSXA)
+    aAdd(::jMetaData["folders"], jSXA)
 
 Return
 
@@ -802,6 +800,7 @@ Method ValidFolder( jFolder as json, jRetValid as json ) as logical Class GwMeta
 
     Local aArea := GetArea() as array
     Local aNames as array
+    Local cGroup as character
 
     Private cNames_ as character
     Private cNotFound_ as character
@@ -836,9 +835,8 @@ Method ValidFolder( jFolder as json, jRetValid as json ) as logical Class GwMeta
         return .F.
     endif
 
-    if( ::SeekAttr( "folders", "XA_ALIAS", jField["alias"] ) .and. ;
-        ::SeekAttr( "folders", "XA_ORDEM", jField["order"] ) .and. ;
-        ::SeekAttr( "folders", "XA_AGRUP", jField["mvc_group_code"] ) )
+    cGroup := iif( "mvc_group_code" $ cNames_, jFolder["mvc_group_code"], STR_SPACE )
+    if( aScan( ::jMetaData["folders"], {|x| x["XA_ALIAS"] == jFolder["alias"] .and. x["XA_ORDEM"] == jFolder["order"] .and. x["XA_AGRUP"] == cGroup } ) > 0 )
         jRetValid["exists"] := .T.
         jRetValid["exception"] := 'Parameters "alias;order;mvc_group_code" already added in this metadata instance.'
         return .F.
