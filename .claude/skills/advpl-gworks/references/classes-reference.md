@@ -213,20 +213,26 @@ oMessage_:Display()
 
 ## GwMetaData (extends GwMetaDataCommit)
 
-Builds and commits SX2/SX3/SIX/SXB dictionary entries from JSON descriptors. See `references/patterns.md#metadata-pattern` for a full worked example.
+Builds and commits SX2/SX3/SIX/SX7/SXB dictionary entries from JSON descriptors. See `references/patterns.md#metadata-pattern` for a full worked example.
 
 - `New()` — requires `cEmpAnt`/`cFilAnt` to be set; reads the company's branch layout (`SM0.M0_LEIAUTE`) to compute company/unit/branch field lengths.
 - `Clear()` — resets the internal `jMetaData` buffer.
 - `AddTable(jTable)` — `jTable`: `alias` (3 chars), `name`, `name_sp`/`name_eng` (optional, default to `name`), `sharing_branch`/`sharing_unit`/`sharing_company` (`"C"`/`"E"`), `unique_key` (optional). Also auto-adds the `<prefix>_FILIAL` field via the internal `SetFieldBranch`.
 - `AddField(jField, xDefaults)` — `jField`: `alias`, `order`, `name` (must start with the table's field prefix), `type` (`C/N/L/D/M`), `size`, `decimal`, `title`/`title_sp`/`title_eng`, `description`/`description_sp`/`description_eng`, `picture`, `context` (`R`/`V`), `visual` (`A`/`V`), `requisite` (logical), `used`/`used_brw` (logical or literal SX3 flag string), plus optional `combo_box`, `when`, `init`, `init_brw`, `folder`, `level`, `dataset`, `vld_user`. `xDefaults` lets you override the raw `X3_*` technical defaults (reserved bytes, trigger, GRUPSXG, etc).
 - `AddIndex(jIndex)` — `alias`, `order`, `key`, `name`/`name_sp`/`name_eng`, `nickname`, `show_seek` (logical).
-- `AddFolder(jFolder)` — `alias`, `order`, `name`/`name_sp`/`name_eng`, `mvc_group_code`/`mvc_group_type` (must be given together).
+- `AddTrigger(jTrigger)` — one SX7 trigger: `field` (source, `X7_CAMPO`), `sequence` (3 chars, `X7_SEQUENC`), `target` (`X7_CDOMIN`), `rule` (AdvPL expression, `X7_REGRA`), optional `type` (`P` default / `E` / `X`), `seek` (logical; defaults to true when `seek_alias` is given) with `seek_alias` (3 chars), `seek_order` (number) and `seek_key` (AdvPL expression), and optional `condition` (`X7_CONDIC`). Max lengths come from the physical SX7 (`X7_REGRA`/`X7_CHAVE` 200, `X7_CONDIC` 40 on 12.1.2410); a longer rule belongs in a User Function. The caller picks the sequence, so re-runs land on the same record; on a standard field use a range that won't collide with TOTVS triggers (custom triggers on standard fields use the 5xx range, e.g. `"501"`). At commit time:
+  - source and target must exist in the instance or in SX3;
+  - the source field gets `X3_TRIGGER = "S"` (instance fields in the JSON, by the private `SetFieldTrigger`, so the order of `AddField`/`AddTrigger` doesn't matter; any other field directly in SX3, as the Configurador does) — without it the trigger never fires;
+  - an existing record whose `X7_PROPRI` is not `"U"` (a TOTVS trigger) fails the commit instead of being overwritten;
+  - user triggers (`X7_PROPRI = "U"`) no longer declared are deleted **only** for source fields of tables added with `AddTable` in this instance that still have at least one trigger in it; triggers on standard fields are never deleted.
+  - In MVC, `FWFormStruct` loads the SX7 triggers of fields with `X3_TRIGGER = "S"` by itself.
+- `AddFolder(jFolder)` — `alias`, `order`, `name`/`name_sp`/`name_eng`, `mvc_group_code`/`mvc_group_type` (optional, given together). The row goes to `jMetaData["folders"]`, but SXA is **not committed yet**: `VldData`/`CommitData` don't process folders.
 - `AddQuery(jQuery)` — builds a full SXB standard-query definition: `alias` (≤6 chars), `table`, `title`(+sp/eng), `orders[]` (`{description, content}`), `action` (optional, `{description, content}`), `fields[]` (`{description, content, order}` — `order` must match an `orders[].content`), `relation[]` (array of `"ALIAS->FIELD"` strings), `filter` (optional AdvPL expression string).
-- `CommitData()` — validates (`VldData`, inherited from `GwMetaDataCommit`) then commits inside a transaction. All `Add*` methods throw `UserException` on invalid/duplicate input inside the *same* `GwMetaData` instance — they do not, by themselves, check for changes against an *already-committed* physical dictionary entry beyond what `VldData`/`fValid` compute at commit time.
+- `CommitData()` — validates (`VldData`, inherited from `GwMetaDataCommit`) then commits inside a transaction, in this order: SX2, SX3, SIX, SX7, SXB. All `Add*` methods throw `UserException` on invalid/duplicate input inside the *same* `GwMetaData` instance — they do not, by themselves, check for changes against an *already-committed* physical dictionary entry beyond what `VldData`/`fValid` compute at commit time.
 
 ## GwMetaDataCommit
 
-Internal validate/commit engine used by `GwMetaData` — not meant to be instantiated directly by consumers. Exposes `SetData(jData)`, `VldData()`, `CommitData()` plus module-level static helpers (`fValid`, `fCommit`, `fGetChange`, `fGetDeleted`, `fQueryExists`) that diff the incoming JSON against the live SX2/SX3/SIX/SXB tables to decide insert vs. update and which fields actually changed.
+Internal validate/commit engine used by `GwMetaData` — not meant to be instantiated directly by consumers. Exposes `SetData(jData)`, `VldData()`, `CommitData()` plus module-level static helpers (`fValid`, `fCommit`, `fGetChange`, `fGetDeleted`, `fQueryExists`, and for SX7 `fTriggerFields`, `fSetSx3Trigger`, `fDelTriggers`) that diff the incoming JSON against the live SX2/SX3/SIX/SX7/SXB tables to decide insert vs. update and which fields actually changed.
 
 ## MSPrinterArgs (extends GwMailAttachments)
 

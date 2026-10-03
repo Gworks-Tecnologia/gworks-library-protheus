@@ -32,6 +32,12 @@ Static cSxb_Req_Fields__ := "XB_ALIAS;XB_TIPO;XB_SEQ;XB_COLUNA;XB_DESCRI;XB_DESC
 // Campos que podem ser atualizados na SXB
 Static cSxb_Can_Update__ := "XB_DESCRI;XB_DESCSPA;XB_DESCENG;XB_CONTEM;"
 
+// Campos obrigatórios (required) da SX7
+Static cSx7_Req_Fields__ := "X7_CAMPO;X7_SEQUENC;X7_REGRA;X7_CDOMIN;X7_TIPO;X7_SEEK;X7_PROPRI;"
+
+// Campos que podem ser atualizados na SX7
+Static cSx7_Can_Update__ := "X7_REGRA;X7_CDOMIN;X7_TIPO;X7_SEEK;X7_ALIAS;X7_ORDEM;X7_CHAVE;X7_CONDIC;"
+
 /*/{Protheus.doc} GwMetaDataCommit
 Classe auxiliar à classe GwMetaData() para definição dos métodos de persistência em base de dados.
 @type class
@@ -119,7 +125,7 @@ Method VldData() Class GwMetaDataCommit
         aTables := ::jCommit["tables"]
         aFields := ::jCommit["fields"]
         aIndexes := ::jCommit["indexes"]
-        aTriggers := ::jCommit["triggers"] // TODO: implementar...
+        aTriggers := ::jCommit["triggers"]
         aFolders := ::jCommit["folders"] // TODO: implementar...
         aParameters := ::jCommit["parameters"] // TODO: implementar...
         aQueries := ::jCommit["queries"]
@@ -151,6 +157,18 @@ Method VldData() Class GwMetaDataCommit
             fGetDeleted("SIX", aIndexes, jData, @jDeleted)
             if!( lResult := fValid( "SIX", @jData, jDeleted ) )
                 cError := iif( !empty(jData["info"]["message"]), jData["info"]["message"], "Unexpected error to valid SIX table struct..." )
+                lResult := .F.
+                BREAK
+            endif
+        next
+
+        for nI:=1 to len(aTriggers)
+            jData := aTriggers[nI]
+            if!( lResult := fTriggerFields( jData, aFields, @cError ) )
+                BREAK
+            endif
+            if!( lResult := fValid( "SX7", @jData, jDeleted ) )
+                cError := iif( !empty(jData["info"]["message"]), jData["info"]["message"], "Unexpected error to valid SX7 table struct..." )
                 lResult := .F.
                 BREAK
             endif
@@ -298,6 +316,157 @@ Static Function fGetDeleted( cAlias as character, aData as array, jData as json,
 
 Return
 
+/*/{Protheus.doc} fFieldInSx3
+Função auxiliar para verificar se um campo existe fisicamente na tabela SX3.
+@type function
+@version 12.1.2410
+@author Gworks - Giovani Soares
+@since 10/3/2026
+@param cField, character, Nome do campo (X3_CAMPO) a ser verificado.
+@param nRetRecno, numeric, Retorna o recno do campo no SX3 quando existir (passar por referência "@").
+@return logical, Retorna .T. (true) se o campo existir no SX3, e .F. (false) caso contrário.
+/*/
+Static Function fFieldInSx3( cField as character, nRetRecno as integer )
+
+    Local aArea := getArea() as array
+    Local aAreaX := ("SX3")->(getArea()) as array
+    Local lExists as logical
+
+    dbSelectArea("SX3")
+    ("SX3")->(dbSetOrder(2)) // X3_CAMPO
+    lExists := ("SX3")->(msSeek( padR(cField, len(("SX3")->X3_CAMPO)) ))
+    nRetRecno := iif( lExists, ("SX3")->(recno()), 0 )
+
+    RestArea(aAreaX)
+    RestArea(aArea)
+
+Return lExists
+
+/*/{Protheus.doc} fTriggerFields
+Função auxiliar para verificar se os campos de origem (X7_CAMPO) e destino (X7_CDOMIN) de um gatilho
+existem nesta estrutura de metadados ou no SX3.
+@type function
+@version 12.1.2410
+@author Gworks - Giovani Soares
+@since 10/3/2026
+@param jData, json, Estrutura do gatilho (SX7) a ser verificado.
+@param aFields, array, Estrutura dos campos (SX3) desta estrutura de metadados.
+@param cRetError, character, Retorna a descrição da falha, quando houver (passar por referência "@").
+@return logical, Retorna .T. (true) se ambos os campos existirem, e .F. (false) caso contrário.
+/*/
+Static Function fTriggerFields( jData as json, aFields as array, cRetError as character )
+
+    Local aCheck := { "X7_CAMPO", "X7_CDOMIN" } as array
+    Local cField as character
+    Local nI as integer
+
+    for nI:=1 to len(aCheck)
+        cField := jData[aCheck[nI]]
+        if( aScan( aFields, {|x| allTrim(x["X3_CAMPO"]) == cField } ) == 0 .and. !fFieldInSx3( cField ) )
+            cRetError := 'Trigger "' + jData["X7_CAMPO"] + '/' + jData["X7_SEQUENC"] + '": ' + aCheck[nI] + ' "' + cField + '" not found in this metadata instance nor in SX3.'
+            return .F.
+        endif
+    next
+
+Return .T.
+
+/*/{Protheus.doc} fSetSx3Trigger
+Função auxiliar para marcar X3_TRIGGER "S" nos campos de origem dos gatilhos que não fazem parte desta
+estrutura de metadados (ex: campos padrão do sistema), assim como faz o Configurador.
+@type function
+@version 12.1.2410
+@author Gworks - Giovani Soares
+@since 10/3/2026
+@param aTriggers, array, Estrutura dos gatilhos (SX7) desta estrutura de metadados.
+@param aFields, array, Estrutura dos campos (SX3) desta estrutura de metadados.
+@obs Os campos desta estrutura são marcados pelo método GwMetaData:SetFieldTrigger() antes da validação.
+/*/
+Static Function fSetSx3Trigger( aTriggers as array, aFields as array )
+
+    Local aArea := getArea() as array
+    Local aAreaX := ("SX3")->(getArea()) as array
+    Local cField as character
+    Local nRecno as integer
+    Local nI as integer
+
+    for nI:=1 to len(aTriggers)
+        cField := aTriggers[nI]["X7_CAMPO"]
+        if( aScan( aFields, {|x| allTrim(x["X3_CAMPO"]) == cField } ) > 0 )
+            loop
+        endif
+        if( fFieldInSx3( cField, @nRecno ) )
+            ("SX3")->(dbGoTo(nRecno))
+            if( ("SX3")->X3_TRIGGER != "S" )
+                recLock("SX3", .F.)
+                    ("SX3")->X3_TRIGGER := "S"
+                ("SX3")->(msUnLock())
+            endif
+        endif
+    next
+
+    RestArea(aAreaX)
+    RestArea(aArea)
+
+Return
+
+/*/{Protheus.doc} fDelTriggers
+Função auxiliar para excluir os gatilhos de usuário (X7_PROPRI "U") que já não fazem parte da estrutura de metadados.
+@type function
+@version 12.1.2410
+@author Gworks - Giovani Soares
+@since 10/3/2026
+@param aTriggers, array, Estrutura dos gatilhos (SX7) desta estrutura de metadados.
+@param aTables, array, Estrutura das tabelas (SX2) desta estrutura de metadados.
+@param aFields, array, Estrutura dos campos (SX3) desta estrutura de metadados.
+@obs Observações
+    Só considera campos de origem que pertencem às tabelas desta estrutura e que possuem ao menos um gatilho nela.
+    Gatilhos de campos padrão (ou de tabelas de terceiros) nunca são excluídos, pois podem pertencer a outra customização.
+/*/
+Static Function fDelTriggers( aTriggers as array, aTables as array, aFields as array )
+
+    Local aArea := getArea() as array
+    Local aAreaX := ("SX7")->(getArea()) as array
+    Local cField as character
+    Local cDone := ";" as character
+    Local nPos as integer
+    Local nI as integer
+
+    dbSelectArea("SX7")
+    ("SX7")->(dbSetOrder(1)) // X7_CAMPO+X7_SEQUENC
+
+    for nI:=1 to len(aTriggers)
+
+        cField := aTriggers[nI]["X7_CAMPO"]
+
+        // Ignora campos já processados
+        if( (";" + cField + ";") $ cDone )
+            loop
+        endif
+        cDone += cField + ";"
+
+        // Somente campos das tabelas desta estrutura
+        nPos := aScan( aFields, {|x| allTrim(x["X3_CAMPO"]) == cField } )
+        if( nPos == 0 .or. aScan( aTables, {|x| x["X2_CHAVE"] == aFields[nPos]["X3_ARQUIVO"] } ) == 0 )
+            loop
+        endif
+
+        ("SX7")->(msSeek( padR(cField, len(("SX7")->X7_CAMPO)) ))
+        while( !("SX7")->(eof()) .and. allTrim(("SX7")->X7_CAMPO) == cField )
+            if( ("SX7")->X7_PROPRI == "U" .and. aScan( aTriggers, {|x| x["X7_CAMPO"] == cField .and. x["X7_SEQUENC"] == ("SX7")->X7_SEQUENC } ) == 0 )
+                recLock("SX7", .F.)
+                    ("SX7")->(dbDelete())
+                ("SX7")->(msUnLock())
+            endif
+            ("SX7")->(dbSkip())
+        enddo
+
+    next
+
+    RestArea(aAreaX)
+    RestArea(aArea)
+
+Return
+
 /*/{Protheus.doc} GwMetaDataCommit::CommitData
 Método para persistir a estrutura de metadados no banco de dados.
 @type method
@@ -329,7 +498,7 @@ Method CommitData() Class GwMetaDataCommit
         aTables := ::jCommit["tables"]
         aFields := ::jCommit["fields"]
         aIndexes := ::jCommit["indexes"]
-        aTriggers := ::jCommit["triggers"] // TODO: implementar...
+        aTriggers := ::jCommit["triggers"]
         aFolders := ::jCommit["folders"] // TODO: implementar...
         aParameters := ::jCommit["parameters"] // TODO: implementar...
         aQueries := ::jCommit["queries"]
@@ -374,6 +543,23 @@ Method CommitData() Class GwMetaDataCommit
                 BREAK
             endif
         next
+
+        for nI:=1 to len(aTriggers)
+            jData := aTriggers[nI]
+            if( empty(jData["info"]["changes"]) )
+                loop
+            endif
+            if!( lResult := fCommit( "SX7", jData ) )
+                cError := iif( !empty(jData["info"]["message"]), jData["info"]["message"], "Unexpected error to commit SX7 table struct..." )
+                lResult := .F.
+                DisarmTransaction()
+                BREAK
+            endif
+        next
+
+        fSetSx3Trigger( aTriggers, aFields )
+
+        fDelTriggers( aTriggers, aTables, aFields )
 
         for nI:=1 to len(aQueries)
             aQueryRows := aQueries[nI]
@@ -687,6 +873,48 @@ Static Function fCommit( cAlias as character, jData as json )
 
             endif
 
+        case cAlias == "SX7"
+
+            if lInsert
+                recLock(cAlias, .T.)
+                    (cAlias)->&("X7_CAMPO"  ) := jData["X7_CAMPO"  ]
+                    (cAlias)->&("X7_SEQUENC") := jData["X7_SEQUENC"]
+                    (cAlias)->&("X7_REGRA"  ) := jData["X7_REGRA"  ]
+                    (cAlias)->&("X7_CDOMIN" ) := jData["X7_CDOMIN" ]
+                    (cAlias)->&("X7_TIPO"   ) := jData["X7_TIPO"   ]
+                    (cAlias)->&("X7_SEEK"   ) := jData["X7_SEEK"   ]
+                    (cAlias)->&("X7_ALIAS"  ) := jData["X7_ALIAS"  ]
+                    (cAlias)->&("X7_ORDEM"  ) := jData["X7_ORDEM"  ]
+                    (cAlias)->&("X7_CHAVE"  ) := jData["X7_CHAVE"  ]
+                    (cAlias)->&("X7_CONDIC" ) := jData["X7_CONDIC" ]
+                    (cAlias)->&("X7_PROPRI" ) := jData["X7_PROPRI" ]
+                (cAlias)->(msUnLock())
+
+            elseif lUpdate
+                dbSelectArea(cAlias)
+                (cAlias)->(dbSetOrder(1)) // X7_CAMPO+X7_SEQUENC
+                (cAlias)->(dbGoTo(jInfo["recno"]))
+                if (cAlias)->(recno()) == jInfo["recno"]
+                    recLock(cAlias, .F.)
+                        cField := "X7_CAMPO"  ; iif( cField $ jInfo["changes"], (cAlias)->&(cField) := jData[cField], nil )
+                        cField := "X7_SEQUENC"; iif( cField $ jInfo["changes"], (cAlias)->&(cField) := jData[cField], nil )
+                        cField := "X7_REGRA"  ; iif( cField $ jInfo["changes"], (cAlias)->&(cField) := jData[cField], nil )
+                        cField := "X7_CDOMIN" ; iif( cField $ jInfo["changes"], (cAlias)->&(cField) := jData[cField], nil )
+                        cField := "X7_TIPO"   ; iif( cField $ jInfo["changes"], (cAlias)->&(cField) := jData[cField], nil )
+                        cField := "X7_SEEK"   ; iif( cField $ jInfo["changes"], (cAlias)->&(cField) := jData[cField], nil )
+                        cField := "X7_ALIAS"  ; iif( cField $ jInfo["changes"], (cAlias)->&(cField) := jData[cField], nil )
+                        cField := "X7_ORDEM"  ; iif( cField $ jInfo["changes"], (cAlias)->&(cField) := jData[cField], nil )
+                        cField := "X7_CHAVE"  ; iif( cField $ jInfo["changes"], (cAlias)->&(cField) := jData[cField], nil )
+                        cField := "X7_CONDIC" ; iif( cField $ jInfo["changes"], (cAlias)->&(cField) := jData[cField], nil )
+                        cField := "X7_PROPRI" ; iif( cField $ jInfo["changes"], (cAlias)->&(cField) := jData[cField], nil )
+                    (cAlias)->(msUnLock())
+                else
+                    jInfo["status"] := .F.
+                    jInfo["message"] := "fault to set SX7 table over recno " + allTrim(str(jInfo["recno"]))
+                endif
+
+            endif
+
     endcase
 
     RestArea(aAreaX)
@@ -712,6 +940,7 @@ Static Function fValid( cAlias as character, jRetData as json, jDeleted as json 
 
     Local jInfo := JsonObject():New() as json
     Local lExists := .F. as logical
+    Local cSystemMsg := "" as character
 
     do case
 
@@ -731,6 +960,10 @@ Static Function fValid( cAlias as character, jRetData as json, jDeleted as json 
             nOrder := 1 // XB_ALIAS+XB_TIPO+XB_SEQ+XB_COLUNA
             cSeek := jRetData["XB_ALIAS"]+jRetData["XB_TIPO"]+jRetData["XB_SEQ"]
 
+        case cAlias == "SX7"
+            nOrder := 1 // X7_CAMPO+X7_SEQUENC
+            cSeek := padR(jRetData["X7_CAMPO"], len((cAlias)->X7_CAMPO))+jRetData["X7_SEQUENC"]
+
     endcase
 
     dbSelectArea(cAlias)
@@ -738,6 +971,9 @@ Static Function fValid( cAlias as character, jRetData as json, jDeleted as json 
     (cAlias)->(dbGoTop())
     if (cAlias)->(msSeek(cSeek))
         lExists := .T.
+    endif
+    if( cAlias == "SX7" .and. lExists .and. (cAlias)->X7_PROPRI != "U" ) // gatilho do sistema nunca é sobrescrito
+        cSystemMsg := 'Trigger "' + jRetData["X7_CAMPO"] + '/' + jRetData["X7_SEQUENC"] + '" belongs to the system (X7_PROPRI "' + (cAlias)->X7_PROPRI + '") and cannot be changed. Use another sequence.'
     endif
     jInfo["exists"] := lExists
     jInfo["recno"] := iif( lExists, (cAlias)->(recno()), 0 )
@@ -847,6 +1083,19 @@ Static Function fValid( cAlias as character, jRetData as json, jDeleted as json 
             jInfo["changes"] += fGetChange( cAlias, jInfo["operation"], "XB_DESCENG", jRetData["XB_DESCENG"] )
             jInfo["changes"] += fGetChange( cAlias, jInfo["operation"], "XB_CONTEM" , jRetData["XB_CONTEM" ] )
 
+        case cAlias == "SX7"
+            jInfo["changes"] += fGetChange( cAlias, jInfo["operation"], "X7_CAMPO"  , jRetData["X7_CAMPO"  ] )
+            jInfo["changes"] += fGetChange( cAlias, jInfo["operation"], "X7_SEQUENC", jRetData["X7_SEQUENC"] )
+            jInfo["changes"] += fGetChange( cAlias, jInfo["operation"], "X7_REGRA"  , jRetData["X7_REGRA"  ] )
+            jInfo["changes"] += fGetChange( cAlias, jInfo["operation"], "X7_CDOMIN" , jRetData["X7_CDOMIN" ] )
+            jInfo["changes"] += fGetChange( cAlias, jInfo["operation"], "X7_TIPO"   , jRetData["X7_TIPO"   ] )
+            jInfo["changes"] += fGetChange( cAlias, jInfo["operation"], "X7_SEEK"   , jRetData["X7_SEEK"   ] )
+            jInfo["changes"] += fGetChange( cAlias, jInfo["operation"], "X7_ALIAS"  , jRetData["X7_ALIAS"  ] )
+            jInfo["changes"] += fGetChange( cAlias, jInfo["operation"], "X7_ORDEM"  , jRetData["X7_ORDEM"  ] )
+            jInfo["changes"] += fGetChange( cAlias, jInfo["operation"], "X7_CHAVE"  , jRetData["X7_CHAVE"  ] )
+            jInfo["changes"] += fGetChange( cAlias, jInfo["operation"], "X7_CONDIC" , jRetData["X7_CONDIC" ] )
+            jInfo["changes"] += fGetChange( cAlias, jInfo["operation"], "X7_PROPRI" , jRetData["X7_PROPRI" ] )
+
     endcase
 
     jInfo["status"] := .F.
@@ -854,6 +1103,11 @@ Static Function fValid( cAlias as character, jRetData as json, jDeleted as json 
     jInfo["dropRequired"] := .F.
     jInfo["dropAllowed"] := .F.
     fGetOperationStatus( cAlias, jRetData, @jInfo, jDeleted )
+
+    if !empty(cSystemMsg)
+        jInfo["status"] := .F.
+        jInfo["message"] := cSystemMsg
+    endif
 
     jRetData["info"] := jInfo
 

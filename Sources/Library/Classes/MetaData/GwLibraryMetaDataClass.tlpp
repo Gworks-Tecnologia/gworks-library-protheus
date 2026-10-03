@@ -38,7 +38,7 @@ Class GwMetaData From GwMetaDataCommit
     Public Method AddTable( jTable as json )
     Public Method AddField( jField as json, xDefaults as variant )
     Public Method AddIndex( jIndex as json )
-    // Public Method AddTriggers()
+    Public Method AddTrigger( jTrigger as json )
     Public Method AddFolder( jFolder as json )
     Public Method AddQuery( jQuery as json )
     // Public Method AddParameters()
@@ -46,6 +46,7 @@ Class GwMetaData From GwMetaDataCommit
     Private Method ValidTable( jTable as json, jRetValid as json ) as logical
     Private Method ValidField( jField as json, jRetValid as json ) as logical
     Private Method ValidIndex( jIndex as json, jRetValid as json ) as logical
+    Private Method ValidTrigger( jTrigger as json, jRetValid as json ) as logical
     Private Method ValidFolder( jField as json, jRetValid as json ) as logical
     Private Method ValidQuery( jQuery as json, jRetValid as json ) as logical
 
@@ -55,6 +56,7 @@ Class GwMetaData From GwMetaDataCommit
     Private Method SeekAttr( cMetaName as character, cMetaField as character, xContent as variant, nRetPos as integer ) as logical
     Private Method GetFieldPrefix( cAlias as character, cRetPrefix as character ) as logical
     Private Method SetFieldBranch()
+    Private Method SetFieldTrigger()
 
 EndClass
 
@@ -266,6 +268,8 @@ Méotodo para validar e commitar os dados de uma tabela no dicionário de dados do
 Method CommitData() Class GwMetaData
 
     Local lResult as logical
+
+    ::SetFieldTrigger()
 
     _Super:SetData(::jMetaData)
     if( lResult := _Super:VldData())
@@ -734,6 +738,178 @@ Method ValidIndex( jIndex as json, jRetValid as json ) as logical Class GwMetaDa
     RestArea(aArea)
 
 Return .T.
+
+/*/{Protheus.doc} GwMetaData::AddTrigger
+Método para adicionar um gatilho à tabela SX7 (gatilhos) do dicionário de dados do ERP.
+@type method
+@version 12.1.2410
+@author Gworks - Giovani
+@since 10/3/2026
+@param jTrigger, json, Objeto referente aos metadados para gravação conforme layout:
+    {
+        "field" : "string", // campo de origem, que dispara o gatilho (X7_CAMPO)
+        "sequence" : "string", // sequência do gatilho no campo de origem, 3 caracteres (X7_SEQUENC)
+        "target" : "string", // campo de destino (contradomínio), que recebe o retorno da regra (X7_CDOMIN)
+        "rule" : "string", // expressão AdvPL cujo retorno é gravado no campo de destino (X7_REGRA)
+        "type" : "string", // opcional: "P" primário (padrão), "E" estrangeiro ou "X" posicionamento (X7_TIPO)
+        "seek" : "boolean", // opcional: posiciona a tabela "seek_alias" antes da regra (X7_SEEK); padrão .T. quando "seek_alias" for informado
+        "seek_alias" : "string", // alias da tabela posicionada, 3 caracteres (X7_ALIAS)
+        "seek_order" : "numeric", // ordem (SIX) usada no posicionamento (X7_ORDEM)
+        "seek_key" : "string", // expressão AdvPL da chave de busca (X7_CHAVE)
+        "condition" : "string" // opcional: expressão AdvPL que condiciona a execução do gatilho (X7_CONDIC)
+    }
+@obs Observações
+    - A sequência é informada pelo chamador, para que a gravação seja idempotente. Em campo padrão,
+      use uma faixa que não colida com os gatilhos do sistema (ex: "501").
+    - Um gatilho do sistema (X7_PROPRI diferente de "U") nunca é sobrescrito: o CommitData() falha.
+    - O campo de origem recebe X3_TRIGGER "S" no CommitData(), esteja ele nesta instância ou no SX3.
+    - Gatilhos de usuário que deixarem de ser informados são excluídos somente quando o campo de origem
+      pertence a uma tabela desta instância (AddTable) e possui ao menos um gatilho nela.
+@example
+    - oMeta_:AddTrigger( {"field": "ZF2_CLIENT", "sequence": "001", "target": "ZF2_NOME", "rule": "SA1->A1_NOME", "seek_alias": "SA1", "seek_order": 1, "seek_key": 'xFilial("SA1")+M->ZF2_CLIENT'} )
+    - oMeta_:AddTrigger( {"field": "ZF2_QUANT", "sequence": "001", "target": "ZF2_TOTAL", "rule": "NoRound(M->ZF2_QUANT*M->ZF2_VUNIT,2)"} )
+/*/
+Method AddTrigger( jTrigger as json ) Class GwMetaData
+
+    Local jSX7 as json
+    Local aNames := jTrigger:getNames() as array
+    Local jValid as json
+
+    if( aScan(aNames, {|x| x=="type" }) == 0 )
+        jTrigger["type"] := "P"
+    endif
+
+    if( aScan(aNames, {|x| x=="seek" }) == 0 )
+        jTrigger["seek"] := ( aScan(aNames, {|x| x=="seek_alias" }) > 0 .and. !empty(jTrigger["seek_alias"]) )
+    endif
+
+    if( aScan(aNames, {|x| x=="condition" }) == 0 )
+        jTrigger["condition"] := STR_SPACE
+    endif
+
+    if!( ::ValidTrigger( jTrigger, @jValid ) )
+        UserException("GwMetaData:AddTrigger - " + jValid["exception"])
+    endif
+
+    if jValid["exists"]
+        UserException("GwMetaData:AddTrigger - " + jValid["exception"])
+    endif
+
+    jSX7 := JsonObject():New()
+        jSX7["X7_CAMPO"] := jTrigger["field"]
+        jSX7["X7_SEQUENC"] := jTrigger["sequence"]
+        jSX7["X7_REGRA"] := jTrigger["rule"]
+        jSX7["X7_CDOMIN"] := jTrigger["target"]
+        jSX7["X7_TIPO"] := jTrigger["type"]
+        jSX7["X7_SEEK"] := iif( jTrigger["seek"], "S", "N" )
+        jSX7["X7_ALIAS"] := iif( jTrigger["seek"], jTrigger["seek_alias"], STR_SPACE )
+        jSX7["X7_ORDEM"] := iif( jTrigger["seek"], jTrigger["seek_order"], 0 )
+        jSX7["X7_CHAVE"] := iif( jTrigger["seek"], jTrigger["seek_key"], STR_SPACE )
+        jSX7["X7_CONDIC"] := jTrigger["condition"]
+        jSX7["X7_PROPRI"] := "U"
+
+    aAdd(::jMetaData["triggers"], jSX7)
+
+Return
+
+/*/{Protheus.doc} GwMetaData::ValidTrigger
+Método interno para validar o objeto candidato a ser adicionado à tabela de dicionário de dados SX7 (gatilhos).
+@type method
+@version 12.1.2410
+@author Gworks - Giovani
+@since 10/3/2026
+@param jTrigger, json, Objeto candidato a ser validado.
+@param jRetValid, json, Retorna validação do objeto conforme layout:
+    {
+        "exists" : logical,
+        "exception" : string,
+        "required" : string
+    }
+@return logical, Retorna .T. (true) caso a validação seja bem sucedida, ou .F. (false) caso contrário.
+@obs Os tamanhos máximos são lidos da estrutura física da SX7. A existência dos campos de origem e destino
+    é conferida no CommitData(), pois eles podem ser adicionados à instância depois do gatilho.
+/*/
+Method ValidTrigger( jTrigger as json, jRetValid as json ) as logical Class GwMetaData
+
+    Local aArea := GetArea() as array
+    Local aNames as array
+    Local aStruct as array
+    Local bSize as codeblock
+
+    Private cNames_ as character
+    Private cNotFound_ as character
+
+    dbSelectArea("SX7")
+    aStruct := ("SX7")->(dbStruct())
+    bSize := {|cField| aStruct[ aScan( aStruct, {|x| x[1] == cField } ) ][3] }
+    RestArea(aArea)
+
+    jRetValid := JsonObject():New()
+        jRetValid["exists"] := .F.
+        jRetValid["exception"] := ""
+        jRetValid["required"] := { ;
+                                "field",;
+                                "sequence",;
+                                "target",;
+                                "rule" }
+
+    aNames := jTrigger:getNames()
+    aEval( aNames, {|x| cNames_ += (x+";") } )
+    aEval( jRetValid["required"], {|x| cNotFound_ += iif( !(x $ cNames_), x+";", "" ) } )
+    if !empty(cNotFound_)
+        jRetValid["exception"] := 'Parameters "' + cNotFound_ + '" are required.'
+    else
+        do case
+            case valType(jTrigger["field"]) != "C" .or. empty(jTrigger["field"]) .or. len(jTrigger["field"]) > eval(bSize,"X7_CAMPO"); jRetValid["exception"] := 'Parameter "field" must be between 1 and ' + cValToChar(eval(bSize,"X7_CAMPO")) + ' characters.'
+            case valType(jTrigger["sequence"]) != "C" .or. len(jTrigger["sequence"]) != eval(bSize,"X7_SEQUENC"); jRetValid["exception"] := 'Parameter "sequence" must be ' + cValToChar(eval(bSize,"X7_SEQUENC")) + ' characters.'
+            case valType(jTrigger["target"]) != "C" .or. empty(jTrigger["target"]) .or. len(jTrigger["target"]) > eval(bSize,"X7_CDOMIN"); jRetValid["exception"] := 'Parameter "target" must be between 1 and ' + cValToChar(eval(bSize,"X7_CDOMIN")) + ' characters.'
+            case valType(jTrigger["rule"]) != "C" .or. empty(jTrigger["rule"]); jRetValid["exception"] := 'Parameter "rule" cannot be empty.'
+            case len(jTrigger["rule"]) > eval(bSize,"X7_REGRA"); jRetValid["exception"] := 'Parameter "rule" must be up to ' + cValToChar(eval(bSize,"X7_REGRA")) + ' characters (use a User Function for longer rules).'
+            case valType(jTrigger["type"]) != "C" .or. len(jTrigger["type"]) != 1 .or. !( jTrigger["type"] $ "PEX" ); jRetValid["exception"] := 'Parameter "type" must be "P", "E" or "X".'
+            case valType(jTrigger["seek"]) != "L"; jRetValid["exception"] := 'Parameter "seek" must be logical.'
+            case jTrigger["seek"] .and. ( valType(jTrigger["seek_alias"]) != "C" .or. len(jTrigger["seek_alias"]) != 3 ); jRetValid["exception"] := 'Parameter "seek_alias" must be 3 characters when "seek" is true.'
+            case jTrigger["seek"] .and. ( valType(jTrigger["seek_order"]) != "N" .or. jTrigger["seek_order"] <= 0 ); jRetValid["exception"] := 'Parameter "seek_order" must be a number greater than 0 when "seek" is true.'
+            case jTrigger["seek"] .and. ( valType(jTrigger["seek_key"]) != "C" .or. empty(jTrigger["seek_key"]) ); jRetValid["exception"] := 'Parameter "seek_key" cannot be empty when "seek" is true.'
+            case jTrigger["seek"] .and. len(jTrigger["seek_key"]) > eval(bSize,"X7_CHAVE"); jRetValid["exception"] := 'Parameter "seek_key" must be up to ' + cValToChar(eval(bSize,"X7_CHAVE")) + ' characters.'
+            case valType(jTrigger["condition"]) != "C" .or. len(jTrigger["condition"]) > eval(bSize,"X7_CONDIC"); jRetValid["exception"] := 'Parameter "condition" must be a string up to ' + cValToChar(eval(bSize,"X7_CONDIC")) + ' characters.'
+        endcase
+    endif
+
+    if !empty( jRetValid["exception"] )
+        return .F.
+    endif
+
+    if( aScan( ::jMetaData["triggers"], {|x| x["X7_CAMPO"] == jTrigger["field"] .and. x["X7_SEQUENC"] == jTrigger["sequence"] } ) > 0 )
+        jRetValid["exists"] := .T.
+        jRetValid["exception"] := 'Parameters "field;sequence" already added in this metadata instance.'
+        return .F.
+    endif
+
+Return .T.
+
+/*/{Protheus.doc} GwMetaData::SetFieldTrigger
+Método interno para marcar X3_TRIGGER "S" nos campos desta instância que disparam gatilhos.
+@type method
+@version 12.1.2410
+@author Gworks - Giovani
+@since 10/3/2026
+@obs Executado no CommitData(), para não depender da ordem das chamadas de AddField() e AddTrigger().
+    Campos de origem que não pertencem a esta instância (ex: campos padrão) são marcados diretamente
+    no SX3 pelo GwMetaDataCommit.
+/*/
+Method SetFieldTrigger() Class GwMetaData
+
+    Local jSX3 as json
+    Local nI as integer
+
+    for nI:=1 to len(::jMetaData["fields"])
+        jSX3 := ::jMetaData["fields"][nI]
+        if( aScan( ::jMetaData["triggers"], {|x| x["X7_CAMPO"] == jSX3["X3_CAMPO"] } ) > 0 )
+            jSX3["X3_TRIGGER"] := "S"
+        endif
+    next
+
+Return
 
 /*/{Protheus.doc} GwMetaData::AddFolder
 Método para adicionar uma pasta/agrupador à tabela SXA (folders) do dicionário de dados do ERP.

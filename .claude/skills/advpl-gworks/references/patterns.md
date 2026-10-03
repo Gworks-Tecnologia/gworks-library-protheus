@@ -109,10 +109,10 @@ Not every write path goes through `GwExecAuto` — `GwSolicitacaoTransferencia:I
 
 ## Metadata Pattern
 
-Location: `Templates/APITrace/Metadata/GwTemplateAPITraceHeaderMetadata.tlpp`. Building a new dictionary table end-to-end with `GwMetaData`:
+Location: `Templates/APITrace/Metadata/Schemas/GwTemplateAPITraceHeaderSchema.tlpp`. Building a new dictionary table end-to-end with `GwMetaData`:
 
 ```advpl
-User Function HeaderCreate( cRetError as character )
+User Function HeaderSchema( cRetError as character )
 
     Local lResult as logical
 
@@ -160,6 +160,19 @@ Static Function fSetIndexes()
                       "name": "Filial + Status + Ident. + Data", "nickname": "", "show_seek": .T. } )
     // ... more indexes ...
     aEval( aIndexes, {|jIndex| oMeta_:AddIndex( jIndex ) } )
+Return .T.
+```
+
+Triggers (SX7) go in a `fSetTriggers()` called after `fSetFields()` (APITrace has none; the shape below is generic). The sequence is explicit, a seek is implied by `seek_alias`, and `CommitData()` marks `X3_TRIGGER = "S"` on the source field (see `classes-reference.md#gwmetadata-extends-gwmetadatacommit` for the full rules):
+
+```advpl
+Static Function fSetTriggers()
+    // customer code + store fill the name (seek on SA1, index 1)
+    oMeta_:AddTrigger( {"field": cPrefix_+"_CLIENT", "sequence": "001", "target": cPrefix_+"_NOME", "rule": "SA1->A1_NOME",;
+                        "seek_alias": "SA1", "seek_order": 1, "seek_key": 'xFilial("SA1")+M->('+cPrefix_+'_CLIENT+'+cPrefix_+'_LOJA)'} )
+    // no seek: plain expression over the record in memory
+    oMeta_:AddTrigger( {"field": cPrefix_+"_QUANT", "sequence": "001", "target": cPrefix_+"_TOTAL",;
+                        "rule": "NoRound(M->"+cPrefix_+"_QUANT*M->"+cPrefix_+"_VUNIT,2)"} )
 Return .T.
 ```
 

@@ -29,7 +29,7 @@ The canonical source is the ground truth — if a signature here looks stale, re
 - Creating a data-access class for an ERP table → use the **Entity pattern** (`references/patterns.md#entity-pattern`), extending `GwDataAccess`.
 - Wrapping an `ExecAuto`/`MsExecAuto` call → prefer a **direct/simple call** (or a hand-rolled per-routine wrapper, `advpl-gworks-pattern`'s `references/patterns.md#execauto-wrapper-pattern`) for a plain, single-branch call. Reach for `GwExecAuto` specifically when the call actually needs to run on a **new thread** (cross-branch `StartJob`, especially async dispatch) — Giovani avoids `GwExecAuto` outside that case, it is not a general-purpose default.
 - Building a parameter dialog → use `GwParamBox` instead of a raw `ParamBox()` positional array.
-- Creating/altering SX2/SX3/SIX/SXB dictionary entries programmatically → use `GwMetaData` (`references/patterns.md#metadata-pattern`).
+- Creating/altering SX2/SX3/SIX/SX7/SXB dictionary entries (tables, fields, indexes, triggers, standard queries) programmatically → use `GwMetaData` (`references/patterns.md#metadata-pattern`).
 - Handling errors/logs/user-facing messages → `GwError` + `GwConsoleLog`, or the newer unified `GwMessagingClass`.
 - Sequential numbering with prefix/family control → `GwSequence` / `U_GwGetSequence` (needs the `ZGS` dictionary — `U_GwSequenceSchema()` creates it).
 - Sending email with attachments → `GwMailAttachments` / `U_GwSendMail`.
@@ -78,7 +78,7 @@ For a full layered application with several distinct user actions, a Service→C
 | `GwConsoleLog` | — | Structured console/log-file writer (state, prefix, optional `FwLogMsg` integration). |
 | `GwError` | `ErrorClass` | Central error object: set/show/throw, `AutoGRLog` integration for ExecAuto/MVC model errors, named save/restore of errors. |
 | `GwMessagingClass` | — | Newer unified wrapper combining `GwError` + `GwConsoleLog` behind one property-based API (`SetProperty`/`Display`/`Close`). Prefer this for new code. |
-| `GwMetaData` | `GwMetaDataCommit` | Builds and commits SX2 (tables) / SX3 (fields) / SIX (indexes) / SXB (standard queries) dictionary entries from JSON descriptors. |
+| `GwMetaData` | `GwMetaDataCommit` | Builds and commits SX2 (tables) / SX3 (fields) / SIX (indexes) / SX7 (triggers) / SXB (standard queries) dictionary entries from JSON descriptors. |
 | `GwMetaDataCommit` | — | Internal diff/validate/commit engine used by `GwMetaData`; not meant to be used directly. |
 | `MSPrinterArgs` | `GwMailAttachments` | Wraps `TMSPrinter`-style report printing setups: `NORMAL` / `PDF/LOCAL` / `PDF/EMAIL`. |
 | `GwParamBox` | — | Builds `ParamBox()` dialogs from a JSON param definition instead of a raw positional array. |
@@ -129,7 +129,7 @@ For a full layered application with several distinct user actions, a Service→C
 Full walkthroughs with code in `references/patterns.md`:
 
 1. **Entity pattern** — how `Business/*` classes extend `GwDataAccess`.
-2. **Metadata/dictionary builder pattern** — `GwMetaData` end-to-end (`Templates/APITrace/Metadata/HeaderCreate`).
+2. **Metadata/dictionary builder pattern** — `GwMetaData` end-to-end (`Templates/APITrace/Metadata/Schemas/GwTemplateAPITraceHeaderSchema.tlpp`).
 3. **Full MVC template scaffold** — `Templates/APITrace` (Apps → Controller/Enum routing → ModelDef/ViewDef/MenuDef).
 4. **CSV import wizard pattern** — `Library/Functions/Imports/*`.
 5. **Error/log/messaging pattern** — `GwError` + `GwConsoleLog` vs. the newer `GwMessagingClass`.

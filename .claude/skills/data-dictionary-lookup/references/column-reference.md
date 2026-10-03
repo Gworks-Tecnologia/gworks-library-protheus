@@ -149,24 +149,26 @@ Detailed description of all columns in the data dictionary tables. Use to interp
 
 ## SX7 — Triggers
 
+Sizes as observed on a 12.1.2410 dictionary. The only index is `x7_campo + x7_sequenc`.
+
 | Column | Type | Description |
 |--------|------|-------------|
-| `x7_campo` | C | Source field that fires the trigger |
-| `x7_sequenc` | C | Trigger sequence (001, 002...) |
-| `x7_regra` | C | Expression/formula to execute |
-| `x7_cdomin` | C | Target field that receives the value |
-| `x7_tipo` | C | Type: `P` = Primary, `E` = Foreign, `X` = Positioning |
-| `x7_seek` | C | Seek expression |
-| `x7_alias` | C | Table alias for seek |
-| `x7_ordem` | N | Index to use for the seek |
-| `x7_chave` | C | Seek key |
-| `x7_condic` | C | Trigger execution condition |
-| `x7_propri` | C | Owner: `S` = System, `U` = User |
+| `x7_campo` | C(10) | Source field that fires the trigger. Its `x3_trigger` must be `S`, or the trigger never fires |
+| `x7_sequenc` | C(3) | Trigger sequence within the source field (`001`, `002`...). Custom triggers on standard fields use a range that doesn't collide with TOTVS ones (e.g. `501`) |
+| `x7_regra` | C(200) | AdvPL expression whose result is written to the target field |
+| `x7_cdomin` | C(10) | Target field (counter-domain) that receives the value |
+| `x7_tipo` | C(1) | Type: `P` = Primary, `E` = Foreign, `X` = Positioning |
+| `x7_seek` | C(1) | `S` = position `x7_alias` (order `x7_ordem`, key `x7_chave`) before evaluating the rule; `N` = no seek |
+| `x7_alias` | C(3) | Table positioned when `x7_seek = 'S'` |
+| `x7_ordem` | N | Index order (SIX) used for the seek |
+| `x7_chave` | C(200) | AdvPL expression of the seek key (e.g. `xFilial("SA1")+M->A1_COD`) |
+| `x7_condic` | C(40) | AdvPL condition; the trigger only runs when it returns `.T.` (blank = always) |
+| `x7_propri` | C(1) | Owner: `S` = System (TOTVS), `U` = User |
 
 **Trigger types:**
-- `P` (Primary): Executes rule directly on target field
-- `E` (Foreign): Fetches value from another table via seek
-- `X` (Positioning): Only positions the table, no value return
+- `P` (Primary): the target field is in the same entity as the source. Most triggers are `P`, including the ones that seek another table to read a value (`x7_seek = 'S'`, rule `SA1->A1_NOME`)
+- `E` (Foreign): the target field belongs to another entity (e.g. a grid field updating a header field)
+- `X` (Positioning): only positions `x7_alias`, writes no value
 
 ---
 
